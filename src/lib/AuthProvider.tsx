@@ -29,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [employeeRole, setEmployeeRole] = useState<UserRole | null>(null);
     const [loading, setLoading] = useState(true);
     const [timedOut, setTimedOut] = useState(false);
+    const [debugMsg, setDebugMsg] = useState("بدأ التحقق...");
+    const [debugError, setDebugError] = useState<string | null>(null);
     const router = useRouter();
     const pathname = usePathname();
     const pathnameRef = useRef(pathname);
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchRole = async (userId: string): Promise<UserRole | null> => {
         try {
+            setDebugMsg(`جلب صلاحيات المستخدم: ${userId}`);
             const { data, error } = await supabase
                 .from("employees")
                 .select("role")
@@ -44,19 +47,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .limit(1);
 
             if (error) {
-                console.error("fetchRole error:", error.message, error.code);
+                const errMsg = `fetchRole error: ${error.message} (${error.code})`;
+                console.error(errMsg);
+                setDebugError(errMsg);
                 return null;
             }
 
             if (!data || data.length === 0) {
-                console.warn("fetchRole: no employee record for auth_id:", userId);
+                setDebugError(`fetchRole: no employee record for auth_id: ${userId}`);
                 return null;
             }
 
-            console.log("fetchRole resolved:", data[0].role);
+            setDebugMsg(`تم تحديد الصلاحية: ${data[0].role}`);
             return data[0].role as UserRole;
-        } catch (e) {
-            console.error("fetchRole exception:", e);
+        } catch (e: any) {
+            const errMsg = `fetchRole exception: ${e.message || String(e)}`;
+            console.error(errMsg);
+            setDebugError(errMsg);
             return null;
         }
     };
@@ -94,15 +101,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const init = async () => {
             try {
-                // Primary: getSession is reliable in all environments
-                const { data: { session } } = await supabase.auth.getSession();
+                setDebugMsg("طلب جلسة Supabase...");
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    setDebugError(`getSession error: ${error.message}`);
+                }
+
                 if (!isMounted) return;
+                
+                setDebugMsg("معالجة الجلسة...");
                 await handleSession(session);
+                
+                setDebugMsg("توجيه المسار...");
                 redirect(session);
-            } catch (err) {
-                console.error("Auth init error:", err);
+            } catch (err: any) {
+                const errMsg = `Auth init exception: ${err?.message || String(err)}`;
+                console.error(errMsg);
+                setDebugError(errMsg);
             } finally {
                 if (isMounted) {
+                    setDebugMsg("اكتمل التحميل");
                     initialized.current = true;
                     clearTimeout(timeoutId);
                     setLoading(false);
@@ -137,18 +156,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
-    if (loading) {
+    if (loading || debugError) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
-                <div className="flex flex-col items-center gap-5">
-                    {timedOut ? (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4">
+                <div className="flex flex-col items-center justify-center gap-5 max-w-lg w-full bg-slate-900/50 p-8 rounded-3xl border border-slate-800">
+                    {debugError ? (
                         <>
                             <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
                                 <RefreshCw className="text-rose-400" size={28} />
                             </div>
                             <div className="text-center">
+                                <p className="text-rose-500 font-bold mb-2">حدث خطأ أثناء الاتصال</p>
+                                <div className="bg-black/50 border border-slate-800 p-4 rounded-xl text-left text-xs text-slate-300 font-mono mb-6 overflow-auto max-h-40 break-words">
+                                    {debugError}
+                                </div>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2 mx-auto"
+                                >
+                                    <RefreshCw size={16} />
+                                    تحديث الصفحة
+                                </button>
+                            </div>
+                        </>
+                    ) : timedOut ? (
+                        <>
+                            <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+                                <RefreshCw className="text-orange-400" size={28} />
+                            </div>
+                            <div className="text-center">
                                 <p className="text-white font-bold mb-1">استغرق التحميل وقتاً طويلاً</p>
-                                <p className="text-slate-500 text-sm mb-4">تحقق من اتصالك بالإنترنت ثم أعد المحاولة</p>
+                                <p className="text-slate-400 text-sm mb-4">النظام عالق في المرحلة التالية:</p>
+                                <div className="bg-black/50 border border-slate-800 py-2 px-4 rounded-lg text-emerald-400 font-mono text-sm mb-6 inline-block">
+                                    {debugMsg}
+                                </div>
                                 <button
                                     onClick={() => window.location.reload()}
                                     className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2 mx-auto"
@@ -160,8 +201,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         </>
                     ) : (
                         <>
-                            <Loader2 className="animate-spin text-rose-500 w-10 h-10" />
-                            <p className="text-slate-500 text-sm font-medium">جاري التحقق من الهوية...</p>
+                            <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+                            <div className="text-center space-y-2">
+                                <p className="text-white font-bold">جاري تشغيل النظام...</p>
+                                <p className="text-emerald-500 text-sm font-mono bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                    {debugMsg}
+                                </p>
+                            </div>
                         </>
                     )}
                 </div>
