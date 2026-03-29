@@ -20,6 +20,7 @@ import {
     LogOut,
     Activity,
     Database,
+    Wallet,
 } from "lucide-react";
 
 const LOGO_BG = "bg-gradient-to-br from-rose-500 via-red-500 to-rose-700";
@@ -40,6 +41,7 @@ export function Sidebar() {
         { href: "/services",  label: "إدارة الخدمات",      icon: <Wrench size={20} />, roles: ["Owner", "Admin", "Supervisor"]  },
         { href: "/inventory", label: "المخزن والقطع",      icon: <PackageOpen size={20} />, roles: ["Owner", "Admin", "Supervisor"]  },
         { href: "/parts-db",  label: "قاعدة القطع",        icon: <Database size={20} />, roles: ["Owner", "Admin", "Supervisor"]  },
+        { href: "/accounting",label: "المحاسبة",           icon: <Wallet size={20} />, roles: ["Owner", "Admin"] },
         { href: "/reports",   label: "التقارير",          icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"]  },
         { href: "/settings",  label: t.common.settings || "الإعدادات",         icon: <Settings size={20} />, roles: ["Owner", "Admin"] },
     ];

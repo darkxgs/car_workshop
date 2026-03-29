@@ -11,6 +11,7 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     employeeRole: UserRole | null;
+    employeeName: string | null;
     loading: boolean;
     signOut: () => Promise<void>;
 }
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
     user: null,
     session: null,
     employeeRole: null,
+    employeeName: null,
     loading: true,
     signOut: async () => {},
 });
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [employeeRole, setEmployeeRole] = useState<UserRole | null>(null);
+    const [employeeName, setEmployeeName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [timedOut, setTimedOut] = useState(false);
     const [debugMsg, setDebugMsg] = useState("بدأ التحقق...");
@@ -47,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const { data, error } = await supabase
                 .from("employees")
-                .select("role")
+                .select("role, name")
                 .eq("auth_id", userId)
                 .limit(1)
                 .abortSignal(controller.signal);
@@ -67,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setDebugMsg(`تم تحديد الصلاحية: ${data[0].role}`);
+            
+            // Set name manually inside fetch since we have the data
+            setEmployeeName(data[0].name);
+
             return data[0].role as UserRole;
         } catch (e: any) {
             if (e.name === 'AbortError') {
@@ -127,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(newSession?.user ?? null);
                 if (!newSession?.user) {
                     setEmployeeRole(null);
+                    setEmployeeName(null);
                     setLoading(false);
                     redirect(null);
                 }
@@ -255,7 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, employeeRole, loading, signOut }}>
+        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, loading, signOut }}>
             {children}
         </AuthContext.Provider>
     );
