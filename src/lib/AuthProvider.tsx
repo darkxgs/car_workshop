@@ -151,7 +151,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             async (event, session) => {
                 // Skip INITIAL_SESSION — already handled by getSession() above
                 if (event === "INITIAL_SESSION") return;
+                
                 if (!isMounted) return;
+
+                // When returning to a tab, Supabase silently refreshes the token.
+                // We DO NOT want to re-fetch the user's role and hit a network deadlock.
+                // Just silently update the session object and exit.
+                if (event === "TOKEN_REFRESHED") {
+                    setSession(session);
+                    return;
+                }
 
                 await handleSession(session);
                 redirect(session);
