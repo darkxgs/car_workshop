@@ -37,13 +37,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchRole = async (userId: string): Promise<UserRole | null> => {
         try {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("employees")
                 .select("role")
                 .eq("auth_id", userId)
                 .maybeSingle();
-            return (data?.role as UserRole) ?? null;
-        } catch {
+
+            if (error) {
+                // This usually means RLS is blocking the query
+                console.error("fetchRole error (RLS issue?):", error.message, error.code);
+                return null;
+            }
+
+            if (!data) {
+                console.warn("fetchRole: no employee record found for auth_id:", userId);
+                return null;
+            }
+
+            console.log("fetchRole: role resolved to:", data.role);
+            return data.role as UserRole;
+        } catch (e) {
+            console.error("fetchRole exception:", e);
             return null;
         }
     };
