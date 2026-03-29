@@ -40,11 +40,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchRole = async (userId: string): Promise<UserRole | null> => {
         try {
             setDebugMsg(`جلب صلاحيات المستخدم: ${userId}`);
+            
+            // Protect against Supabase indefinite hangs (token refresh deadlock)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
+
             const { data, error } = await supabase
                 .from("employees")
                 .select("role")
                 .eq("auth_id", userId)
-                .limit(1);
+                .limit(1)
+                .abortSignal(controller.signal);
+
+            clearTimeout(timeoutId);
 
             if (error) {
                 const errMsg = `fetchRole error: ${error.message} (${error.code})`;
@@ -61,6 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setDebugMsg(`تم تحديد الصلاحية: ${data[0].role}`);
             return data[0].role as UserRole;
         } catch (e: any) {
+            if (e.name === 'AbortError') {
+                const errMsg = "fetchRole timeout: فشل الاتصال بقاعدة البيانات (انتهى وقت الطلب). جرب مسح ملفات تعريف الارتباط أو تحديث الصفحة.";
+                console.error(errMsg);
+                setDebugError(errMsg);
+                return null;
+            }
             const errMsg = `fetchRole exception: ${e.message || String(e)}`;
             console.error(errMsg);
             setDebugError(errMsg);
@@ -156,6 +170,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
+    const handleEmergencyReset = async () => {
+        try {
+            // Force clear corrupted state that causes hangs after tab minimize
+            await supabase.auth.signOut({ scope: 'local' });
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch (e) {
+            console.error("Emergency clear failed", e);
+        } finally {
+            window.location.reload();
+        }
+    };
+
     if (loading || debugError) {
         return (
             <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4">
@@ -171,11 +198,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     {debugError}
                                 </div>
                                 <button
-                                    onClick={() => window.location.reload()}
+                                    onClick={handleEmergencyReset}
                                     className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2 mx-auto"
                                 >
                                     <RefreshCw size={16} />
-                                    تحديث الصفحة
+                                    تحديث الصفحة (ومسح الذاكرة)
                                 </button>
                             </div>
                         </>
@@ -191,11 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                     {debugMsg}
                                 </div>
                                 <button
-                                    onClick={() => window.location.reload()}
+                                    onClick={handleEmergencyReset}
                                     className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-colors flex items-center gap-2 mx-auto"
                                 >
                                     <RefreshCw size={16} />
-                                    إعادة المحاولة
+                                    تحديث الصفحة (ومسح الذاكرة)
                                 </button>
                             </div>
                         </>
