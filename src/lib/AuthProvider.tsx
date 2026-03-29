@@ -41,21 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .from("employees")
                 .select("role")
                 .eq("auth_id", userId)
-                .maybeSingle();
+                .limit(1);
 
             if (error) {
-                // This usually means RLS is blocking the query
-                console.error("fetchRole error (RLS issue?):", error.message, error.code);
+                console.error("fetchRole error:", error.message, error.code);
                 return null;
             }
 
-            if (!data) {
-                console.warn("fetchRole: no employee record found for auth_id:", userId);
+            if (!data || data.length === 0) {
+                console.warn("fetchRole: no employee record for auth_id:", userId);
                 return null;
             }
 
-            console.log("fetchRole: role resolved to:", data.role);
-            return data.role as UserRole;
+            console.log("fetchRole resolved:", data[0].role);
+            return data[0].role as UserRole;
         } catch (e) {
             console.error("fetchRole exception:", e);
             return null;
