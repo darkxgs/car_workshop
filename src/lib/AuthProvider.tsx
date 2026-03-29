@@ -32,71 +32,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const pathnameRef = useRef(pathname);
+    const initialized = useRef(false);
     pathnameRef.current = pathname;
 
-    const fetchRole = async (userId: string): Promise<void> => {
+    const fetchRole = async (userId: string): Promise<UserRole | null> => {
         try {
             const { data } = await supabase
                 .from("employees")
                 .select("role")
                 .eq("auth_id", userId)
-                .maybeSingle(); // maybeSingle won't throw if 0 rows returned
-            if (data?.role) {
-                setEmployeeRole(data.role as UserRole);
-            }
-        } catch (e) {
-            console.error("Failed to fetch employee role:", e);
+                .maybeSingle();
+            return (data?.role as UserRole) ?? null;
+        } catch {
+            return null;
+        }
+    };
+
+    const handleSession = async (session: Session | null) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+            const role = await fetchRole(session.user.id);
+            setEmployeeRole(role);
+        } else {
+            setEmployeeRole(null);
+        }
+    };
+
+    const redirect = (session: Session | null) => {
+        const current = pathnameRef.current;
+        if (!session && current !== "/login") {
+            router.push("/login");
+        } else if (session && current === "/login") {
+            router.push("/");
         }
     };
 
     useEffect(() => {
         let isMounted = true;
 
-        // ⏱️ Timeout: show retry button after 10s (don't auto-reload — that causes loops)
+        // Show retry button after 10s if still loading
         const timeoutId = setTimeout(() => {
-            if (isMounted) setTimedOut(true);
+            if (isMounted && !initialized.current) {
+                setTimedOut(true);
+            }
         }, 10000);
 
-        // Use onAuthStateChange as the single source of truth.
-        // It fires INITIAL_SESSION immediately on mount, so we don't need getSession().
+        const init = async () => {
+            try {
+                // Primary: getSession is reliable in all environments
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!isMounted) return;
+                await handleSession(session);
+                redirect(session);
+            } catch (err) {
+                console.error("Auth init error:", err);
+            } finally {
+                if (isMounted) {
+                    initialized.current = true;
+                    clearTimeout(timeoutId);
+                    setLoading(false);
+                    setTimedOut(false);
+                }
+            }
+        };
+
+        init();
+
+        // Secondary: listen for sign-in / sign-out events AFTER initial load
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
+                // Skip INITIAL_SESSION — already handled by getSession() above
+                if (event === "INITIAL_SESSION") return;
                 if (!isMounted) return;
 
-                if (event === "INITIAL_SESSION") {
-                    setSession(session);
-                    setUser(session?.user ?? null);
-
-                    if (session?.user) {
-                        await fetchRole(session.user.id);
-                    }
-
-                    clearTimeout(timeoutId);
-                    setTimedOut(false);
-                    setLoading(false);
-
-                    const current = pathnameRef.current;
-                    if (!session && current !== "/login") {
-                        router.push("/login");
-                    } else if (session && current === "/login") {
-                        router.push("/");
-                    }
-
-                } else if (event === "SIGNED_IN") {
-                    setSession(session);
-                    setUser(session?.user ?? null);
-                    if (session?.user) await fetchRole(session.user.id);
-                    if (pathnameRef.current === "/login") router.push("/");
-
-                } else if (event === "SIGNED_OUT") {
-                    setSession(null);
-                    setUser(null);
-                    setEmployeeRole(null);
-                    if (pathnameRef.current !== "/login") router.push("/login");
-
-                } else if (event === "TOKEN_REFRESHED" && session) {
-                    setSession(session);
-                }
+                await handleSession(session);
+                redirect(session);
             }
         );
 
