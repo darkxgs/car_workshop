@@ -1,0 +1,54 @@
+src/app/inventory/page.tsx(64,64): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "inventory", never, "POST">', gave the following error.
+    Argument of type '{ item_code: string; name: string; category: string; purchase_price: number; sell_price: number; quantity: number; min_quantity: number; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "inventory", never, "POST">', gave the following error.
+    Type '{ item_code: string; name: string; category: string; purchase_price: number; sell_price: number; quantity: number; min_quantity: number; }' is not assignable to type 'never'.
+src/app/page.tsx(36,65): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/page.tsx(37,65): error TS2339: Property 'status' does not exist on type 'never'.
+src/app/page.tsx(38,64): error TS2339: Property 'status' does not exist on type 'never'.
+src/app/page.tsx(38,94): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/page.tsx(40,40): error TS2339: Property 'status' does not exist on type 'never'.
+src/app/page.tsx(40,70): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/page.tsx(41,60): error TS2339: Property 'total_price' does not exist on type 'never'.
+src/app/reception/page.tsx(52,47): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/reception/page.tsx(53,45): error TS2339: Property 'branch_id' does not exist on type 'never'.
+src/app/reception/page.tsx(68,43): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/reception/page.tsx(72,22): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "clients", never, "POST">', gave the following error.
+    Argument of type '{ name: string; phone: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "clients", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/app/reception/page.tsx(78,38): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/reception/page.tsx(84,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "vehicles", never, "POST">', gave the following error.
+    Argument of type '{ client_id: any; make: string; model: string; engine_size: string | null; plate_number: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "vehicles", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'client_id' does not exist in type 'never[]'.
+src/app/reception/page.tsx(97,43): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/reception/page.tsx(102,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "inspection_reports", never, "POST">', gave the following error.
+    Argument of type '{ branch_id: any; vehicle_id: any; receptionist_id: any; odometer_reading: number; status: string; total_price: number; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "inspection_reports", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'branch_id' does not exist in type 'never[]'.
+src/app/reports/page.tsx(49,9): error TS2353: Object literal may only specify known properties, and 'content' does not exist in type 'UseReactToPrintOptions'.
+src/app/reports/page.tsx(50,45): error TS2448: Block-scoped variable 'selectedReport' used before its declaration.
+src/app/reports/page.tsx(78,53): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/services/page.tsx(49,70): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/services/page.tsx(89,25): error TS2345: Argument of type '{ status: string; total_price: number; completed_at: string; }' is not assignable to parameter of type 'never'.
+src/app/services/page.tsx(103,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "report_services", never, "POST">', gave the following error.
+    Argument of type '{ report_id: string; category: string; status: ServiceStatus; notes: string; service_price: number; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "report_services", never, "POST">', gave the following error.
+    Argument of type '{ report_id: string; category: string; status: ServiceStatus; notes: string; service_price: number; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ report_id: string; category: string; status: ServiceStatus; notes: string; service_price: number; }' is not assignable to type 'never'.
+src/app/status/page.tsx(78,25): error TS2345: Argument of type '{ status: StatusType; completed_at?: string | null | undefined; }' is not assignable to parameter of type 'never'.
+src/components/PrintableReport.tsx(2,15): error TS2305: Module '"@/lib/types"' has no exported member 'InvoiceRow'.
+src/components/PrintableReport.tsx(2,27): error TS2305: Module '"@/lib/types"' has no exported member 'ExpenseRow'.
+src/components/ProjectStatusChart.tsx(4,15): error TS2305: Module '"@/lib/types"' has no exported member 'ProjectRow'.
+src/components/RecentProjects.tsx(4,15): error TS2305: Module '"@/lib/types"' has no exported member 'ProjectRow'.
+src/lib/hooks.ts(40,61): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "clients", never, "POST">', gave the following error.
+    Argument of type 'Omit<ClientRow, "id" | "created_at">' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "clients", never, "POST">', gave the following error.
+    Argument of type 'Omit<ClientRow, "id" | "created_at">' is not assignable to parameter of type 'never[]'.
+      Type 'Omit<ClientRow, "id" | "created_at">' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.

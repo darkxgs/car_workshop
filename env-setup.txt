@@ -1,0 +1,7 @@
+NEXT_PUBLIC_SUPABASE_URL=https://zgkcdzfmvxjxjaifjvhj.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Note from AI: 
+# Paste this exactly into your .env file inside the auto-workshop folder.
+# You still need to retrieve the long SUPABASE_ANON_KEY and SERVICE_ROLE_KEY from your Supabase Dashboard -> Project Settings -> API.
