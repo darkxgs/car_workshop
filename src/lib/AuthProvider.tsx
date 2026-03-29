@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useRouter, usePathname } from "next/navigation";
@@ -82,36 +82,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const handleSession = async (session: Session | null) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-            const role = await fetchRole(session.user.id);
-            setEmployeeRole(role);
-        } else {
-            setEmployeeRole(null);
-        }
-    };
-
-    const redirect = (session: Session | null) => {
+    const redirect = useCallback((activeSession: Session | null) => {
         const current = pathnameRef.current;
-        if (!session && current !== "/login") {
+        if (!activeSession && current !== "/login") {
             router.push("/login");
-        } else if (session && current === "/login") {
+        } else if (activeSession && current === "/login") {
             router.push("/");
         }
-    };
+    }, [router]);
 
+    // 1. First effect: Initialize fetch & listen to purely synchronous Auth changes
     useEffect(() => {
         let isMounted = true;
-
-        // Show retry button after 10s if still loading
-        const timeoutId = setTimeout(() => {
-            if (isMounted && !initialized.current) {
-                setTimedOut(true);
-            }
-        }, 10000);
 
         const init = async () => {
             try {
@@ -122,58 +104,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setDebugError(`getSession error: ${error.message}`);
                 }
 
-                if (!isMounted) return;
-                
-                setDebugMsg("معالجة الجلسة...");
-                await handleSession(session);
-                
-                setDebugMsg("توجيه المسار...");
-                redirect(session);
+                if (isMounted) {
+                    setSession(session);
+                    setUser(session?.user ?? null);
+                    if (!session?.user) setLoading(false);
+                }
             } catch (err: any) {
                 const errMsg = `Auth init exception: ${err?.message || String(err)}`;
                 console.error(errMsg);
-                setDebugError(errMsg);
-            } finally {
-                if (isMounted) {
-                    setDebugMsg("اكتمل التحميل");
-                    initialized.current = true;
-                    clearTimeout(timeoutId);
-                    setLoading(false);
-                    setTimedOut(false);
-                }
+                if (isMounted) setDebugError(errMsg);
             }
         };
 
         init();
 
-        // Secondary: listen for sign-in / sign-out events AFTER initial load
+        // ONLY DO SYNCHRONOUS STATE UPDATES HERE!
+        // Calling Supabase DB inside onAuthStateChange causes an infinite deadlock!
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                // Skip INITIAL_SESSION — already handled by getSession() above
-                if (event === "INITIAL_SESSION") return;
-                
+            (event, newSession) => {
                 if (!isMounted) return;
-
-                // When returning to a tab, Supabase silently refreshes the token.
-                // We DO NOT want to re-fetch the user's role and hit a network deadlock.
-                // Just silently update the session object and exit.
-                if (event === "TOKEN_REFRESHED") {
-                    setSession(session);
-                    return;
+                setSession(newSession);
+                setUser(newSession?.user ?? null);
+                if (!newSession?.user) {
+                    setEmployeeRole(null);
+                    setLoading(false);
+                    redirect(null);
                 }
-
-                await handleSession(session);
-                redirect(session);
             }
         );
 
         return () => {
             isMounted = false;
-            clearTimeout(timeoutId);
             subscription.unsubscribe();
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // 2. Second effect: Reacts to User ID changes to safely fetch Role without deadlocking Auth
+    useEffect(() => {
+        let isMounted = true;
+        
+        const loadRole = async () => {
+            if (!user) return;
+            try {
+                setDebugMsg("جلب صلاحيات المستخدم...");
+                const role = await fetchRole(user.id);
+                if (isMounted) {
+                    setEmployeeRole(role);
+                    setLoading(false);
+                    redirect(session);
+                }
+            } catch (err) {
+                console.error(err);
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        loadRole();
+
+        return () => {
+            isMounted = false;
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]); // Only re-run if the actual user ID changes
+
+    // 3. Watchdog fallback
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (loading && !debugError) {
+                setTimedOut(true);
+            }
+        }, 12000);
+        return () => clearTimeout(timeoutId);
+    }, [loading, debugError]);
 
     const signOut = async () => {
         await supabase.auth.signOut();
