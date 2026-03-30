@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ClientBody from "./ClientBody";
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
     title: "نظام هندسة السيارات",
@@ -18,6 +19,7 @@ export default function RootLayout({
             <body suppressHydrationWarning className="antialiased font-ibm">
                 <ClientBody>{children}</ClientBody>
                 <Analytics />
+                <SpeedInsights />
             </body>
         </html>
     );
