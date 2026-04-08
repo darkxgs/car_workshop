@@ -358,6 +358,48 @@ export interface Database {
           }
         ]
       }
+      pos_sales: {
+        Row: {
+          id: number
+          total_amount: number
+          payment_method: string | null
+          items: Json
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          total_amount: number
+          payment_method?: string | null
+          items: Json
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          total_amount?: number
+          payment_method?: string | null
+          items?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      workshop_settings: {
+        Row: {
+          id: number
+          setting_key: string
+          setting_value: string
+        }
+        Insert: {
+          id?: number
+          setting_key: string
+          setting_value: string
+        }
+        Update: {
+          id?: number
+          setting_key?: string
+          setting_value?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
