@@ -141,6 +141,14 @@ export interface Database {
           notes: string | null
           completed_at: string | null
           created_at: string
+          estimated_duration: number
+          start_time: string | null
+          end_time: string | null
+          elapsed_time: number
+          is_delayed: boolean
+          bay_number: string | null
+          technician_id: string | null
+          selected_services: any[]
         }
         Insert: {
           id?: string
@@ -155,6 +163,14 @@ export interface Database {
           notes?: string | null
           completed_at?: string | null
           created_at?: string
+          estimated_duration?: number
+          start_time?: string | null
+          end_time?: string | null
+          elapsed_time?: number
+          is_delayed?: boolean
+          bay_number?: string | null
+          technician_id?: string | null
+          selected_services?: any[]
         }
         Update: {
           id?: string
@@ -169,6 +185,14 @@ export interface Database {
           notes?: string | null
           completed_at?: string | null
           created_at?: string
+          estimated_duration?: number
+          start_time?: string | null
+          end_time?: string | null
+          elapsed_time?: number
+          is_delayed?: boolean
+          bay_number?: string | null
+          technician_id?: string | null
+          selected_services?: any[]
         }
         Relationships: [
           {
@@ -343,7 +367,7 @@ export interface Database {
     }
     Enums: {
       user_role: "Owner" | "Admin" | "Supervisor" | "Receptionist"
-      report_status: "تم الاستلام" | "قيد العمل" | "تم الانتهاء"
+      report_status: "تم الاستلام" | "قيد العمل" | "تم الانتهاء" | "متأخر" | "ملغى"
       service_status: "سليم" | "يحتاج صيانة" | "تالف"
     }
     CompositeTypes: {

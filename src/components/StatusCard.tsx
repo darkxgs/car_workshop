@@ -16,7 +16,7 @@ export function StatusCard({ title, subtitle, icon, borderColor }: StatusCardPro
                 {icon}
             </div>
             <div>
-                <p className="text-white font-semibold text-sm">{title}</p>
+                <p className="text-foreground font-semibold text-sm">{title}</p>
                 <p className="text-emerald-600 text-xs">{subtitle}</p>
             </div>
         </div>

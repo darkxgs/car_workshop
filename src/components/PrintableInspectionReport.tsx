@@ -1,304 +1,309 @@
-import React, { forwardRef, useState } from 'react';
-
-type ReportServiceResult = {
-    id: string;
-    category: string;
-    status: string;
-    notes: string | null;
-    service_price: number | null;
-};
+import React, { forwardRef } from 'react';
 
 interface PrintableInspectionReportProps {
     report: any;
-    services: ReportServiceResult[];
 }
 
 export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableInspectionReportProps>(({
-    report, services
+    report
 }, ref) => {
 
-    const [calibrateMode, setCalibrateMode] = useState(false);
+    const isPaperV2 = report?.selected_services?.[0]?.is_paper_v2_format === true;
+    const data = isPaperV2 ? report.selected_services[0] : null;
 
-    const [cfg, setCfg] = useState({
-        h1Top: 3.27, reportX: 89.54, dateX: 83.98,
-        h2Top: 10.42, h3Top: 14,
-        col1X: 6.46, col2X: 28.94, col3X: 50.69, col4X: 72.69,
+    // Checkbox Helper
+    const Check = ({ checked }: { checked?: boolean }) => (
+        <span style={{
+            display: 'inline-block',
+            width: '18px',
+            height: '18px',
+            border: '2px solid black',
+            marginRight: '5px',
+            marginLeft: '5px',
+            position: 'relative',
+            top: '3px',
+            textAlign: 'center',
+            lineHeight: '18px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            fontSize: '14px',
+        }}>
+            {checked ? '✓' : ''}
+        </span>
+    );
 
-        sec1Start: 22.25, sec1Gap: 2.48,
-        sec2Start: 49.94, sec2Gap: 2.48,
-        sec3Start: 65.46, sec3Gap: 2.48,
-        sec4Start: 83.32, sec4Gap: 2.48,
-        sec5Start: 13.08, sec5Gap: 2.48,
-        sec6Start: 31.05, sec6Gap: 2.48,
-        sec7Start: 54.03, sec7Gap: 2.48,
+    // Dotted line input helper
+    const Dotted = ({ val, width = '80px' }: { val?: string | number, width?: string }) => (
+        <span style={{
+            display: 'inline-block',
+            borderBottom: '1px dotted black',
+            minWidth: width,
+            margin: '0 5px',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '13px'
+        }}>
+            {val ?? ''}
+        </span>
+    );
 
-        checkX1: 29.49, checkX2: 35.1, checkX3: 40.5, notesX: 47.62,
-
-        evalDamY: 150, evalDamX: 15,
-        evalMainY: 68.37, evalMainX: 35.03,
-        evalHealY: 75, evalHealX: 15,
-        evalPercY: 78.36, evalPercX: 82.81
-    });
-
-    const updateCfg = (key: keyof typeof cfg, val: number) => {
-        setCfg(prev => ({ ...prev, [key]: val }));
-    };
-
-    const activeReport = calibrateMode ? {
-        report_number: '10029',
-        created_at: new Date().toISOString(),
-        odometer_reading: 55000,
-        total_price: 1500,
-        vehicles: {
-            make: 'لكزس', model: 'LX570', plate_number: '1234 ا ب ج', engine_size: '5.7L',
-            clients: { name: 'تجربة معايرة', phone: '0500000000' }
-        },
-        employees: { name: 'مهندس المعايرة' }
-    } : report;
-
-    // Draggable point renderer with 2D bounds and tooltip!
-    const pt = (
-        top: number, right: number, text: any, isCheck = false, isNotes = false,
-        dragKeyY?: keyof typeof cfg, dragKeyX?: keyof typeof cfg, tooltipText?: string
-    ) => {
-        if (!text) return null;
-
-        const handlePointerDown = (e: React.PointerEvent) => {
-            if (!calibrateMode || (!dragKeyY && !dragKeyX)) return;
-            e.preventDefault();
-
-            const parent = (e.currentTarget as HTMLElement).closest('.pdf-page') as HTMLElement;
-            if (!parent) return;
-
-            const startX = e.clientX;
-            const startY = e.clientY;
-            const initialTop = dragKeyY ? cfg[dragKeyY] : top;
-            const initialRight = dragKeyX ? cfg[dragKeyX] : right;
-            const rect = parent.getBoundingClientRect();
-
-            const onPointerMove = (moveEvent: PointerEvent) => {
-                if (dragKeyY) {
-                    const dy = moveEvent.clientY - startY;
-                    const newTop = initialTop + (dy / rect.height * 100);
-                    updateCfg(dragKeyY, parseFloat(newTop.toFixed(2)));
-                }
-                if (dragKeyX) {
-                    const dx = moveEvent.clientX - startX;
-                    const newRight = initialRight - (dx / rect.width * 100);
-                    updateCfg(dragKeyX, parseFloat(newRight.toFixed(2)));
-                }
-            };
-
-            const onPointerUp = () => {
-                window.removeEventListener('pointermove', onPointerMove);
-                window.removeEventListener('pointerup', onPointerUp);
-            };
-
-            window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('pointerup', onPointerUp);
-        };
-
-        const draggableStyle = calibrateMode && (dragKeyY || dragKeyX)
-            ? 'cursor-grab hover:ring-2 hover:ring-indigo-500 hover:bg-indigo-500/20 rounded z-50 transition-colors shadow-sm group relative inline-flex items-center justify-center'
-            : '';
-
-        const Tooltip = () => tooltipText && calibrateMode ? (
-            <span className="absolute -top-10 left-1/2 rtl:translate-x-1/2 ltr:-translate-x-1/2 whitespace-nowrap bg-indigo-600 text-white text-[10.5px] font-bold py-1.5 px-3 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl border border-indigo-400">
-                {tooltipText}
-            </span>
-        ) : null;
-
-        if (isCheck) {
-            return (
-                <div
-                    onPointerDown={handlePointerDown}
-                    style={{ position: 'absolute', top: `${top}%`, right: `${right}%`, fontSize: '15px', fontWeight: 'bold', color: '#111' }}
-                    className={draggableStyle}
-                >
-                    <Tooltip />
-                    ✓
-                </div>
-            );
-        }
+    // If it's the old format, show a fallback
+    if (!isPaperV2) {
         return (
-            <div
-                onPointerDown={handlePointerDown}
-                style={{
-                    position: 'absolute', top: `${top}%`, right: `${right}%`,
-                    width: isNotes ? '45%' : 'auto', textAlign: 'right',
-                    fontSize: '11px', fontWeight: '600', color: '#111', lineHeight: '1.4'
-                }}
-                className={draggableStyle}
-            >
-                <Tooltip />
-                {text}
+            <div ref={ref} dir="rtl" style={{ padding: '20px', fontFamily: 'Arial' }}>
+                <h2>عذراً، هذا الطلب تم حفظه بالتنسيق القديم ولا يدعم النموذج المطبوع الجديد.</h2>
             </div>
         );
-    };
+    }
 
-    const renderTable = (startKeyY: keyof typeof cfg, gapKeyY: keyof typeof cfg, items: string[], parentKeys: string[], sectionName: string) => {
-        const parentMatch = services.find(s => parentKeys.some(k => s.category.includes(k)));
-        const startY = cfg[startKeyY];
-        const gapY = cfg[gapKeyY];
-
-        return items.map((itemLabel, idx) => {
-            const y = startY + (idx * gapY);
-            let printStatus = '';
-            let printNotes = '';
-
-            if (calibrateMode) {
-                if (idx % 3 === 0) printStatus = 'سليم';
-                else if (idx % 3 === 1) printStatus = 'يحتاج صيانة';
-                else printStatus = 'تالف';
-
-                printNotes = 'ملاحظات تجريبية';
-            } else {
-                const exactSub = services.find(s => s.category.includes(itemLabel) || itemLabel.includes(s.category));
-                printStatus = exactSub ? exactSub.status : (parentMatch ? parentMatch.status : '');
-                // The user explicitly requested notes for ALL rows if available globally.
-                printNotes = exactSub ? (exactSub.notes || '') : (parentMatch ? (parentMatch.notes || '') : '');
-            }
-
-            // Only the FIRST row items are draggable explicitly to adjust entire section / column layout 
-            return (
-                <React.Fragment key={itemLabel}>
-                    {pt(y, cfg.checkX1, printStatus === 'سليم' ? '✓' : '', true, false, idx === 0 ? startKeyY : undefined, idx === 0 ? 'checkX1' : undefined, idx === 0 ? `فوق/تحت: الجدول | يسار/يمين: عمود الصح (سليم)` : undefined)}
-                    {pt(y, cfg.checkX2, printStatus === 'يحتاج صيانة' || printStatus === 'يحتاج صيانه' ? '✓' : '', true, false, idx === 0 ? startKeyY : undefined, idx === 0 ? 'checkX2' : undefined, idx === 0 ? `فوق/تحت: الجدول | يسار/يمين: عمود الصح (صيانة)` : undefined)}
-                    {pt(y, cfg.checkX3, printStatus === 'تالف' ? '✓' : '', true, false, idx === 0 ? startKeyY : undefined, idx === 0 ? 'checkX3' : undefined, idx === 0 ? `فوق/تحت: الجدول | يسار/يمين: عمود الصح (تالف)` : undefined)}
-
-                    {/* Notes item controls Y offset and X offset for entire section and notes column */}
-                    {pt(y, cfg.notesX, printNotes, false, true, idx === 0 ? startKeyY : undefined, idx === 0 ? 'notesX' : undefined, idx === 0 ? `أعلى/اسفل: بداية جدول ${sectionName} | يسار/يمين: عمود الملاحظات` : undefined)}
-                </React.Fragment>
-            );
-        });
-    };
-
-    // Calculate final score
-    const calculateScore = () => {
-        if (!services || services.length === 0) return { percent: 100, status: 'سليم' };
-
-        let healthyCount = 0;
-        let totalItems = 0;
-
-        services.forEach(s => {
-            if (['سليم', 'جيد', 'ممتاز', 'يحتاج صيانة', 'يحتاج صيانه', 'تالف'].includes(s.status)) {
-                totalItems++;
-                if (['سليم', 'جيد', 'ممتاز'].includes(s.status)) healthyCount++;
-            }
-        });
-
-        if (totalItems === 0) return { percent: 100, status: 'سليم' };
-
-        const percent = Math.round((healthyCount / totalItems) * 100);
-        let status = 'سليم';
-        if (percent < 50) status = 'تالف';
-        else if (percent < 90) status = 'يحتاج صيانة';
-
-        return { percent, status };
-    };
-
-    const finalResult = calculateScore();
-    const evaluatedStatus = calibrateMode ? 'يحتاج صيانة' : finalResult.status;
-    const evaluatedPercent = calibrateMode ? 85 : finalResult.percent;
+    const s = data?.services || {};
+    const fs = data?.freeServices || {};
+    const p = data?.pricing || {};
+    const v = Array.isArray(report?.vehicles) ? (report.vehicles[0] || {}) : (report?.vehicles || {});
+    const client = Array.isArray(v?.clients) ? (v.clients[0] || {}) : (v?.clients || {});
+    const openTimeValue = report?.start_time || report?.created_at;
+    const closeTimeValue = report?.completed_at;
+    const openTime = openTimeValue ? new Date(openTimeValue).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+    const closeTime = closeTimeValue ? new Date(closeTimeValue).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
 
     return (
-        <div className="relative">
-            {/* Calibration Control Panel */}
-            <div className="print:hidden bg-slate-900 text-white p-5 mb-4 rounded-xl shadow-xl sticky top-4 z-50 border border-slate-700 w-full" dir="rtl">
-                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+        <div className="relative print-page-wrapper">
+            <style type="text/css" media="print">
+                {`
+                    @page {
+                        size: A4 portrait;
+                        margin: 0 !important;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                        background-color: white;
+                    }
+                    * {
+                        font-family: Arial, sans-serif;
+                    }
+                    .print-page-wrapper {
+                        width: 210mm;
+                        height: 297mm;
+                        overflow: hidden;
+                        margin: 0 auto;
+                    }
+                    .print-page-content {
+                        width: 100%;
+                        transform-origin: top center;
+                        transform: scale(0.9);
+                        line-height: 1.15;
+                    }
+                `}
+            </style>
+
+            <div ref={ref} className="mx-auto text-black bg-white print-page-content" dir="rtl" style={{ maxWidth: '800px', padding: '8mm 8mm', boxSizing: 'border-box', fontSize: '13px' }}>
+
+                {/* 1. Header Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div style={{ flex: 1 }}></div>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ display: 'inline-block', backgroundColor: '#333', color: 'white', padding: '8px 20px', fontSize: '24px', fontWeight: 'bold' }}>
+                            هندسة <span style={{ color: '#ff4d4d' }}>السيارات</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Top Info Grid */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontWeight: 'bold' }}>
                     <div>
-                        <h3 className="text-xl font-bold text-indigo-400">نمط السحب الدقيق 2D الحُر</h3>
-                        <p className="text-xs text-slate-400 mt-1">
-                            يمكنك الآن سحب <strong className="text-white">أيييي عنصر</strong> يمين/يسار وأعلى/أسفل في نفس الوقت بحرية تامة!
-                        </p>
+                        <div style={{ marginBottom: '10px' }}>
+                            التاريخ <span style={{ fontSize: '16px', borderBottom: '1px solid black', padding: '0 10px' }}>
+                                {new Date().toLocaleDateString('en-GB')}
+                            </span>
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            رقم الطلب : <Dotted val={report.report_number?.toString()} width="100px" />
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            موظف الاستقبال : <Dotted val={report.receptionist?.name} width="150px" />
+                        </div>
+                        <div>
+                            اسم الفني : <Dotted width="200px" />
+                        </div>
                     </div>
-                    <button
-                        onClick={() => setCalibrateMode(!calibrateMode)}
-                        className={`px-5 py-2.5 rounded-lg font-bold transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] ${calibrateMode ? 'bg-rose-500 hover:bg-rose-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                    >
-                        {calibrateMode ? 'حفظ وإيقاف السحب والإفلات' : 'تفعيل نمط السحب والإفلات 2D'}
-                    </button>
-                </div>
-
-                {calibrateMode && (
-                    <div className="mt-4 p-4 bg-black/50 border border-emerald-500/30 rounded-lg" dir="ltr">
-                        <p className="text-emerald-400 text-sm mb-2 font-bold flex items-center gap-2">
-                            <span>✅</span> When perfect, copy this JSON and send it in chat:
-                        </p>
-                        <code className="text-[11px] text-green-300 font-mono select-all break-words max-w-full block whitespace-pre-wrap leading-relaxed">
-                            {JSON.stringify(cfg)}
-                        </code>
+                    <div>
+                        <div style={{ marginBottom: '25px' }}>
+                            وقت فتح الطلب: <Dotted val={openTime} width="120px" />
+                        </div>
+                        <div>
+                            وقت الانتهاء: <Dotted val={closeTime} width="120px" />
+                        </div>
                     </div>
-                )}
-            </div>
-
-            <div ref={ref} className="w-[210mm] mx-auto text-black" dir="rtl">
-                {/* Page 1 */}
-                <div className="pdf-page w-[210mm] h-[297mm] relative overflow-hidden bg-[url('/page1.png')] bg-[length:100%_100%] print:break-after-page mb-8 print:mb-0 shadow-lg print:shadow-none bg-white font-sans">
-
-                    {/* Header Information Map */}
-                    {pt(cfg.h1Top, cfg.reportX, activeReport?.report_number, false, false, 'h1Top', 'reportX', 'رقم التقرير (أفقي وعمودي)')}
-                    {pt(cfg.h1Top + 1.7, cfg.dateX, activeReport?.created_at ? new Date(activeReport.created_at).toLocaleDateString('ar-SA') : '', false, false, 'h1Top', 'dateX', 'تاريخ التقرير (أفقي، وعمودي السطر الأول)')}
-
-                    {/* Header Row 1 - Move vertically together, AND horizontally independent! */}
-                    {pt(cfg.h2Top, cfg.col1X, activeReport?.vehicles?.make, false, false, 'h2Top', 'col1X', 'نوع المركبة (السحب يتحكم بعامود 1 وفوق/تحت للسطر كله)')}
-                    {pt(cfg.h2Top, cfg.col2X, activeReport?.vehicles?.model, false, false, 'h2Top', 'col2X', 'الموديل (يتحكم بعامود 2 وفوق/تحت للسطر)')}
-                    {pt(cfg.h2Top, cfg.col3X, activeReport?.vehicles?.plate_number, false, false, 'h2Top', 'col3X', 'رقم اللوحة (يتحكم بعامود 3 وفوق/تحت للسطر)')}
-                    {pt(cfg.h2Top, cfg.col4X, activeReport?.odometer_reading ? `${activeReport.odometer_reading} KM` : '', false, false, 'h2Top', 'col4X', 'العداد (يتحكم بعامود 4 وفوق/تحت للسطر)')}
-
-                    {/* Header Row 2 */}
-                    {pt(cfg.h3Top, cfg.col1X, activeReport?.vehicles?.clients?.name, false, false, 'h3Top', 'col1X', 'اسم الزبون (يتحكم بعامود 1 وفوق/تحت للسطر الثاني)')}
-                    {pt(cfg.h3Top, cfg.col2X, activeReport?.vehicles?.clients?.phone, false, false, 'h3Top', 'col2X', '(يتحكم بعامود 2 وفوق/تحت)')}
-                    {pt(cfg.h3Top, cfg.col3X, activeReport?.vehicles?.engine_size || '-', false, false, 'h3Top', 'col3X', '(يتحكم بعامود 3)')}
-                    {pt(cfg.h3Top, cfg.col4X, activeReport?.employees?.name || 'فني الصيانة', false, false, 'h3Top', 'col4X', '(يتحكم بعامود 4)')}
-
-                    {/* Section 1: Engine Exact Spelling */}
-                    {renderTable('sec1Start', 'sec1Gap', [
-                        'البلكات (شمعات الاشتعال)', 'نوذلات', 'حساسات', 'قايش', 'بكرات',
-                        'تسريب زيت (نضوج)', 'الفيول بم', 'دهن المحرك', 'التوربو'
-                    ], ['محرك', 'Engine'], 'المحرك')}
-
-                    {/* Section 2: Transmission */}
-                    {renderTable('sec2Start', 'sec2Gap', [
-                        'فحص كهربائي بالجهاز', 'فحص او تغيير زيت الكير', 'تسريب الكير', 'فلتر الكير'
-                    ], ['ناقل', 'جير', 'قير', 'كير'], 'الكير')}
-
-                    {/* Section 3: Brakes */}
-                    {renderTable('sec3Start', 'sec3Gap', [
-                        'فحص فلنجات امامي', 'فحص فلنجات خلفي', 'فحص دسكات امامي', 'فحص دسكات خلفي', 'فحص دهن البريك'
-                    ], ['فرامل', 'بريك'], 'البريك')}
-
-                    {/* Section 4: Suspension */}
-                    {renderTable('sec4Start', 'sec4Gap', [
-                        'هزة امامي', 'هزة خلفي', 'فحص الاجزاء المتحركة', 'ميزانية الكترونية'
-                    ], ['حدادية', 'عفشة', 'مقصات', 'سسبنشن'], 'الحدادية')}
                 </div>
 
-                {/* Page 2 */}
-                <div className="pdf-page w-[210mm] h-[297mm] relative overflow-hidden bg-[url('/page2.png')] bg-[length:100%_100%] print:break-after-page shadow-lg print:shadow-none bg-white mt-4 font-sans">
+                <hr style={{ borderTop: '2px dashed black', margin: '15px 0' }} />
 
-                    {/* Section 5: Filters */}
-                    {renderTable('sec5Start', 'sec5Gap', [
-                        'فلتر هواء', 'فلتر تبريد', 'فلتر بانزين', 'فلتر زيت', 'فلتر بطارية'
-                    ], ['فلتر', 'فلاتر'], 'الفلاتر')}
-
-                    {/* Section 6: Cooling */}
-                    {renderTable('sec6Start', 'sec6Gap', [
-                        'الراديتور', 'ضغط الجوينات', 'الدببة', 'قبق الراديتور', 'ماء الراديتور', 'التسريب', 'فحص الفان كهربائياً'
-                    ], ['تبريد', 'راديتور'], 'التبريد')}
-
-                    {/* Section 7 & 8: Tires & Electricity */}
-                    {renderTable('sec7Start', 'sec7Gap', [
-                        'الاطارات الامامية', 'الاطارات الخلفية', 'ضغط الاطارات', 'عمر البطارية', 'الداينمو', 'الدنارة الامامية', 'الدنارة الخلفية'
-                    ], ['كهرباء', 'بطارية', 'إطارات', 'انارة'], 'الاطارات')}
-
-                    {/* Final Evaluaton Block (Bottom Left) -- Mathematical % and Checkbox */}
-                    {pt(cfg.evalDamY, cfg.evalDamX, evaluatedStatus === 'تالف' ? '✓' : '', true, false, 'evalDamY', 'evalDamX', 'صح التالف')}
-                    {pt(cfg.evalMainY, cfg.evalMainX, evaluatedStatus === 'يحتاج صيانة' || evaluatedStatus === 'يحتاج صيانه' ? '✓' : '', true, false, 'evalMainY', 'evalMainX', 'صح الصيانة')}
-                    {pt(cfg.evalHealY, cfg.evalHealX, evaluatedStatus === 'سليم' ? '✓' : '', true, false, 'evalHealY', 'evalHealX', 'صح السليم')}
-
-                    {pt(cfg.evalPercY, cfg.evalPercX, `${evaluatedPercent}%`, false, true, 'evalPercY', 'evalPercX', 'نسبة التقييم')}
+                {/* 3. Client & Vehicle Details */}
+                <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
+                    <div style={{ marginBottom: '15px', fontSize: '15px' }}>بيانات العميل :</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '20px' }}>
+                        <div>اسم العميل : <Dotted val={client.name} width="300px" /></div>
+                        <div>رقم العميل : <Dotted val={client.phone} width="300px" /></div>
+                        <div>نوع السيارة : <Dotted val={v.make} width="250px" /></div>
+                        <div>موديل السيارة : <Dotted val={v.model} width="250px" /></div>
+                        <div>حجم المحرك : <Dotted val={v.engine_size} width="250px" /></div>
+                        <div>عداد الكيلومتر : <Dotted val={report.odometer_reading?.toString()} width="200px" /></div>
+                    </div>
                 </div>
+
+                <hr style={{ borderTop: '1px solid #ccc', margin: '15px 0' }} />
+
+                {/* 4. Free Services */}
+                <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
+                    <div style={{ marginBottom: '10px' }}>خدمات الفحص المجاني :</div>
+                    <div style={{ display: 'flex', gap: '40px', paddingRight: '20px' }}>
+                        <div>ماء المساحات: <Check checked={fs.windshieldWater} /></div>
+                        <div>ضغط الإطارات: <Check checked={fs.tirePressure} /></div>
+                        <div>تنظيف محرك بالبخار: <Check checked={fs.engineClean} /></div>
+                    </div>
+                </div>
+
+                {/* 5. Main Services Bordered Box */}
+                <div style={{ border: '2px solid black', padding: '10px', backgroundColor: '#fafafa' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '15px', fontSize: '15px' }}>
+                        خدمات العميل :- من 1-14 فحص دوري مع كل زيارة
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', fontSize: '13px', fontWeight: 'bold' }}>
+
+                        {/* 1 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            1- زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.engineOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.engineOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع الزيت: <Dotted val={s.engineOil?.details?.brand} /> &nbsp;&nbsp;
+                            درجة اللزوجة: <Dotted val={s.engineOil?.details?.viscosity} width="60px" /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.engineOil?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.engineOil?.price} width="60px" />
+                        </div>
+
+                        {/* 2 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            2- فلتر زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.oilFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.oilFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.oilFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.oilFilter?.price} width="60px" />
+                        </div>
+
+                        {/* 3 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            3- فلتر الهواء: &nbsp;&nbsp;جيد <Check checked={s.airFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.airFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.airFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.airFilter?.price} width="60px" />
+                        </div>
+
+                        {/* 4 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            4- فلتر التكييف: &nbsp;&nbsp;جيد <Check checked={s.acFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.acFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.acFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.acFilter?.price} width="60px" />
+                        </div>
+
+                        {/* 5 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            5- زيت الفتيس: &nbsp;&nbsp;جيد <Check checked={s.transOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.transOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع الزيت: <Dotted val={s.transOil?.details?.type} /> &nbsp;&nbsp;
+                            الكمية: <Dotted val={s.transOil?.details?.qty} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.transOil?.price} width="60px" />
+                        </div>
+
+                        {/* 6 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            6- ماء الراديتر: &nbsp;&nbsp;جيد <Check checked={s.coolant?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.coolant?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع الماء: <Dotted val={s.coolant?.details?.type} /> &nbsp;&nbsp;
+                            الكمية: <Dotted val={s.coolant?.details?.qty} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.coolant?.price} width="60px" />
+                        </div>
+
+                        {/* 7 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            7- البطارية: &nbsp;&nbsp;جيد <Check checked={s.battery?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.battery?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع البطارية والمقاس: <Dotted val={s.battery?.details?.type} width="120px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.battery?.price} width="60px" />
+                        </div>
+
+                        {/* 8 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            8- زيت الفرامل: &nbsp;&nbsp;جيد <Check checked={s.brakeFluid?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.brakeFluid?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.brakeFluid?.price} width="60px" />
+                        </div>
+
+                        {/* 9 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            9- تيل الفرامل: &nbsp;&nbsp;جيد <Check checked={s.brakeCable?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.brakeCable?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.brakeCable?.price} width="60px" />
+                        </div>
+
+                        {/* 10 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            10- شمعات الاحتراق: &nbsp;&nbsp;جيد <Check checked={s.sparkPlugs?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.sparkPlugs?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع الشمعات: <Dotted val={s.sparkPlugs?.details?.type} /> &nbsp;&nbsp;
+                            العدد: <Dotted val={s.sparkPlugs?.details?.num} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.sparkPlugs?.price} width="60px" />
+                        </div>
+
+                        {/* 11 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            11- سيور المحرك: &nbsp;&nbsp;جيد <Check checked={s.engineBelts?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.engineBelts?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع السيور: <Dotted val={s.engineBelts?.details?.type} /> &nbsp;&nbsp;
+                            العدد: <Dotted val={s.engineBelts?.details?.num} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.engineBelts?.price} width="60px" />
+                        </div>
+
+                        {/* 12 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            12- المساعدين: &nbsp;&nbsp;جيد <Check checked={s.shockAbsorbers?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.shockAbsorbers?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            نوع المساعدين: <Dotted val={s.shockAbsorbers?.details?.type} /> &nbsp;&nbsp;
+                            العدد: <Dotted val={s.shockAbsorbers?.details?.num} width="60px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.shockAbsorbers?.price} width="60px" />
+                        </div>
+
+                        {/* 13 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            13- الهيدروليك والمصمات: &nbsp;&nbsp;جيد <Check checked={s.hydraulics?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.hydraulics?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
+                            النوع والمقاس: <Dotted val={s.hydraulics?.details?.type} width="180px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.hydraulics?.price} width="60px" />
+                        </div>
+
+                        {/* 14 */}
+                        <div style={{ lineHeight: 1.4 }}>
+                            14- ملاحظة الصيانة: <Dotted val={s.workshopNotes?.details?.notes} width="300px" /> &nbsp;&nbsp;
+                            السعر: <Dotted val={s.workshopNotes?.price} width="60px" />
+                        </div>
+
+                    </div>
+                </div>
+
+                {/* 6. Footer Totals & Signatures */}
+                <div style={{ marginTop: '20px', fontWeight: 'bold' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+                        <div>المجموع الكلي: <Dotted val={p.totalPrice} width="80px" /></div>
+                        <div>الواصل: <Dotted val={p.amountReceived} width="80px" /></div>
+                        <div>مدين لنا: <Dotted val={p.amountOwedByClient} width="80px" /></div>
+                        <div>دائن علينا: <Dotted val={p.amountOwedToClient} width="80px" /></div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            توقيع الزبون: <br /><br /><Dotted width="120px" />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            توقيع موظف الاستقبال: <br /><br /><Dotted width="120px" />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            توقيع مشرف الصيانة: <br /><br /><Dotted width="120px" />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            توقيع الكاشير: <br /><br /><Dotted width="120px" />
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
