@@ -334,7 +334,6 @@ export default function ReportsPage() {
                             <div className="shadow-2xl mx-auto min-w-[794px] w-[210mm] bg-[#f8fafc] text-slate-900 rounded-lg overflow-hidden flex justify-center py-4 print:hidden">
                                 <PrintableInspectionReport 
                                     report={selectedReport}
-                                    services={reportServices}
                                 />
                             </div>
 
@@ -343,7 +342,6 @@ export default function ReportsPage() {
                                 <div className="flex flex-col items-center w-full">
                                     <PrintableInspectionReport 
                                         report={selectedReport}
-                                        services={reportServices}
                                     />
                                 </div>
                             </div>
