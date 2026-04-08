@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loading || debugError) {
         return (
             <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4">
-                <div className="flex flex-col items-center justify-center gap-5 max-w-lg w-full bg-slate-900/50 p-8 rounded-3xl border border-slate-800">
+                <div className="flex flex-col items-center justify-center gap-5 max-w-lg w-full bg-card/50 p-8 rounded-3xl border border-border">
                     {debugError ? (
                         <>
                             <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
@@ -214,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             </div>
                             <div className="text-center">
                                 <p className="text-rose-500 font-bold mb-2">حدث خطأ أثناء الاتصال</p>
-                                <div className="bg-black/50 border border-slate-800 p-4 rounded-xl text-left text-xs text-slate-300 font-mono mb-6 overflow-auto max-h-40 break-words">
+                                <div className="bg-muted/80 border border-border p-4 rounded-xl text-left text-xs text-muted-foreground font-mono mb-6 overflow-auto max-h-40 break-words">
                                     {debugError}
                                 </div>
                                 <button
@@ -232,9 +232,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 <RefreshCw className="text-orange-400" size={28} />
                             </div>
                             <div className="text-center">
-                                <p className="text-white font-bold mb-1">استغرق التحميل وقتاً طويلاً</p>
-                                <p className="text-slate-400 text-sm mb-4">النظام عالق في المرحلة التالية:</p>
-                                <div className="bg-black/50 border border-slate-800 py-2 px-4 rounded-lg text-emerald-400 font-mono text-sm mb-6 inline-block">
+                                <p className="text-foreground font-bold mb-1">استغرق التحميل وقتاً طويلاً</p>
+                                <p className="text-muted-foreground text-sm mb-4">النظام عالق في المرحلة التالية:</p>
+                                <div className="bg-muted/80 border border-border py-2 px-4 rounded-lg text-emerald-400 font-mono text-sm mb-6 inline-block">
                                     {debugMsg}
                                 </div>
                                 <button
@@ -250,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         <>
                             <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
                             <div className="text-center space-y-2">
-                                <p className="text-white font-bold">جاري تشغيل النظام...</p>
+                                <p className="text-foreground font-bold">جاري تشغيل النظام...</p>
                                 <p className="text-emerald-500 text-sm font-mono bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                                     {debugMsg}
                                 </p>

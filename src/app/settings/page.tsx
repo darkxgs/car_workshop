@@ -14,10 +14,12 @@ export default function SettingsPage() {
     
     // Auth & Employees State
     const [employees, setEmployees] = useState<any[]>([]);
+    const [branches, setBranches] = useState<any[]>([]);
     const [loadingEnv, setLoadingEnv] = useState(true);
 
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -29,30 +31,49 @@ export default function SettingsPage() {
         role: "Receptionist" as UserRole
     });
 
-    const fetchEmployees = async () => {
+    const [branchData, setBranchData] = useState({
+        name: "",
+        address: ""
+    });
+
+    const fetchAllData = async () => {
         try {
-            const { data, error } = await supabase
+            // Fetch Employees
+            const { data: empData, error: empErr } = await supabase
                 .from('employees')
                 .select('*')
                 .order('created_at', { ascending: false });
-            if (!error && data) setEmployees(data);
-            else if (error) console.error("Failed to fetch employees:", error);
+            if (!empErr && empData) setEmployees(empData);
+            
+            // Fetch Branches
+            const { data: bData, error: bErr } = await supabase
+                .from('branches')
+                .select('*')
+                .order('created_at', { ascending: true });
+            if (!bErr && bData) setBranches(bData);
+
         } catch (e) {
-            console.error("Exception fetching employees:", e);
+            console.error("Exception fetching settings data:", e);
         } finally {
             setLoadingEnv(false);
         }
     };
 
     useEffect(() => {
-        // Wait until role has been resolved before fetching
-        if (employeeRole === null) return; // still loading
+        if (employeeRole === null) return; 
         if (employeeRole === "Admin" || employeeRole === "Owner") {
-            fetchEmployees();
+            fetchAllData();
         } else {
             setLoadingEnv(false);
         }
     }, [employeeRole]);
+
+    const handleDeleteBranch = async (id: string, name: string) => {
+        if (confirm(`هل أنت متأكد من حذف الفرع ${name}؟ سيتم فقدان ارتباطاته.`)) {
+            await supabase.from('branches').delete().eq('id', id);
+            fetchAllData();
+        }
+    };
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,12 +85,27 @@ export default function SettingsPage() {
         if (res.success) {
             setIsAddModalOpen(false);
             setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
-            // Immediately re-fetch to show the new employee without manual refresh
-            await fetchEmployees();
+            await fetchAllData();
         } else {
             setFormError(res.error || "فشل في إنشاء الحساب. لعل البريد الإلكتروني مستخدم مسبقاً.");
         }
         
+        setIsSubmitting(false);
+    };
+
+    const handleCreateBranch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        
+        const { error } = await supabase.from('branches').insert([{ name: branchData.name, address: branchData.address }]);
+        
+        if (!error) {
+            setIsBranchModalOpen(false);
+            setBranchData({ name: "", address: "" });
+            await fetchAllData();
+        } else {
+            alert("خطأ أثناء إضافة الفرع، ربما قاعدة البيانات غير المحدثة؟");
+        }
         setIsSubmitting(false);
     };
 
@@ -80,11 +116,11 @@ export default function SettingsPage() {
     if (employeeRole !== "Admin" && employeeRole !== "Owner") {
         return (
             <div className="p-8 flex items-center justify-center min-h-[50vh] animate-fade-in" dir="rtl">
-                <div className="glass-card p-8 rounded-2xl border-rose-900/40 text-center max-w-md w-full relative overflow-hidden">
+                <div className="glass-card p-8 rounded-2xl border-border text-center max-w-md w-full relative overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-rose-500/10 blur-[50px] rounded-full pointer-events-none" />
                     <AlertCircle className="mx-auto text-rose-500 mb-4 relative z-10" size={48} />
-                    <h2 className="text-2xl font-bold text-white mb-2 relative z-10">غير مصرح لك</h2>
-                    <p className="text-slate-400 relative z-10">عذراً، صفحة الإعدادات وصلاحيات الموظفين مخصصة للإدارة العليا فقط.</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2 relative z-10">غير مصرح لك</h2>
+                    <p className="text-muted-foreground relative z-10">عذراً، صفحة الإعدادات وصلاحيات الموظفين مخصصة للإدارة العليا فقط.</p>
                 </div>
             </div>
         );
@@ -94,12 +130,12 @@ export default function SettingsPage() {
         <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-24" dir={t.common.dashboard === "لوحة التحكم" ? "rtl" : "ltr"}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
+                    <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
                         <Settings className="text-rose-500" size={32} />
-                        الإعدادات
+                        الإعدادات المركزية
                     </h1>
-                    <p className="text-slate-400">
-                        إدارة الفروع وصلاحيات المستخدمين والرسائل الآلية
+                    <p className="text-muted-foreground">
+                        إدارة الفروع وصلاحيات المستخدمين المسموح لهم بالدخول للنظام.
                     </p>
                 </div>
             </div>
@@ -107,40 +143,54 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Branches Settings */}
                 <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-rose-500/20 pb-4">
+                    <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2 border-b border-rose-500/20 pb-4">
                         <Building2 className="text-rose-400" size={24} />
-                        إعدادات الفروع
+                        إعدادات الفروع (Branches)
                     </h2>
                     
-                    <div className="space-y-4">
-                        <div className="p-4 bg-slate-900/50 border border-slate-700 rounded-xl flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-rose-500/20 rounded-lg text-rose-400">
-                                    <MapPin size={20} />
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {branches.map((branch, idx) => (
+                            <div key={branch.id} className="p-4 bg-card/50 border border-border hover:border-rose-500/30 transition-colors rounded-xl flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+                                        <MapPin size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-foreground font-bold">{branch.name}</h4>
+                                        <p className="text-xs text-muted-foreground">{branch.address || 'عنوان غير مسجل'}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className="text-white font-bold">الفرع الرئيسي</h4>
-                                    <p className="text-xs text-slate-400">الرياض - شارع التحلية</p>
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${idx === 0 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
+                                        {idx === 0 ? 'الرئيسي نشط' : 'فرعي'}
+                                    </span>
+                                    {idx !== 0 && (
+                                        <button onClick={() => handleDeleteBranch(branch.id, branch.name)} className="p-1.5 hover:bg-rose-500/10 hover:text-rose-500 text-muted-foreground rounded transition-colors" title="حذف الفرع">
+                                            <X size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs border border-emerald-500/20">نشط</span>
-                        </div>
-                        <button className="w-full py-3 rounded-xl border border-dashed border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm font-medium">
-                            + إضافة فرع جديد
+                        ))}
+                        {branches.length === 0 && (
+                            <p className="text-center text-muted-foreground text-sm py-4">تأكد من تشغيل ملف SQL لإنشاء جدول الفروع.</p>
+                        )}
+                        <button onClick={() => setIsBranchModalOpen(true)} className="w-full py-3 rounded-xl border border-dashed border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm font-medium hover:border-rose-500/50">
+                            + إضافة فرع جديد للنظام
                         </button>
                     </div>
                 </div>
 
                 {/* WhatsApp Integration API */}
                 <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-blue-500/20 pb-4">
+                    <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2 border-b border-blue-500/20 pb-4">
                         <MessageCircle className="text-blue-400" size={24} />
                         ربط واتساب API (WhatsApp)
                     </h2>
                     
                     <div className="space-y-5">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300 ml-1">مفتاح الربط (API Key)</label>
+                            <label className="text-sm font-medium text-muted-foreground ml-1">مفتاح الربط (API Key)</label>
                             <input 
                                 type="password" 
                                 placeholder="************************"
@@ -149,13 +199,13 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300 ml-1">رسالة الترحيب الآلية</label>
+                            <label className="text-sm font-medium text-muted-foreground ml-1">رسالة الترحيب الآلية</label>
                             <textarea 
                                 placeholder="مرحباً [الاسم]، تم استلام سيارتك [النوع] وجاري العمل عليها..."
                                 className="input-field min-h-[100px] text-sm resize-none"
                             />
                         </div>
-                        <button className="w-full py-2.5 rounded-xl bg-slate-800 text-white hover:bg-slate-700 transition flex items-center justify-center gap-2 border border-slate-700">
+                        <button className="w-full py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted transition flex items-center justify-center gap-2 border border-border">
                             <Save size={18} /> حفظ إعدادات الرسائل
                         </button>
                     </div>
@@ -163,44 +213,44 @@ export default function SettingsPage() {
 
                 {/* Users Management */}
                 <div className="glass-card p-6 rounded-2xl md:col-span-2">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-700 pb-4">
-                        <Users className="text-cyan-400" size={24} />
-                        إدارة المستخدمين
+                    <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2 border-b border-border pb-4">
+                        <Users className="text-cyan-500" size={24} />
+                        إدارة المستخدمين النشطين
                     </h2>
                     
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-right text-sm">
                             <thead>
-                                <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/30">
+                                <tr className="border-b border-border text-muted-foreground bg-card/30">
                                     <th className="py-3 px-4 font-medium">الاسم</th>
-                                    <th className="py-3 px-4 font-medium">المنصب (Role)</th>
+                                    <th className="py-3 px-4 font-medium text-center">الصلاحية (الولوج)</th>
                                     <th className="py-3 px-4 font-medium">رقم الهاتف</th>
                                     <th className="py-3 px-4 font-medium">تاريخ الإنضمام</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {employees.map(emp => (
-                                    <tr key={emp.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
-                                        <td className="py-4 px-4 font-bold text-white flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 font-mono text-xs">{emp.name.charAt(0)}</div>
+                                    <tr key={emp.id} className="border-b border-border hover:bg-muted/20 transition-colors">
+                                        <td className="py-4 px-4 font-bold text-foreground flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-cyan-950/30 text-cyan-500 flex items-center justify-center border border-cyan-900/50 font-mono text-xs shadow-sm">{emp.name.charAt(0)}</div>
                                             {emp.name}
                                         </td>
-                                        <td className="py-4 px-4">
-                                            <span className={`px-2 py-1 rounded-md text-xs border ${
-                                                emp.role === 'Admin' || emp.role === 'Owner' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                                                emp.role === 'Supervisor' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                                                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                        <td className="py-4 px-4 text-center">
+                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold border inline-block min-w-[80px] ${
+                                                emp.role === 'Admin' || emp.role === 'Owner' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                                emp.role === 'Supervisor' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                                'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                             }`}>
-                                                {emp.role}
+                                                {emp.role === 'Admin' ? 'مدير عام' : emp.role === 'Supervisor' ? 'مشرف فني' : 'استقبال'}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-4 text-slate-300 font-mono" dir="ltr">{emp.phone || '-'}</td>
-                                        <td className="py-4 px-4 text-slate-400 font-mono">{new Date(emp.created_at).toLocaleDateString()}</td>
+                                        <td className="py-4 px-4 text-muted-foreground font-mono" dir="ltr">{emp.phone || 'لا يوجد'}</td>
+                                        <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString()}</td>
                                     </tr>
                                 ))}
                                 {employees.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="text-center py-8 text-slate-500 font-bold">لم يتم العثور على أي موظف مسجل!</td>
+                                        <td colSpan={4} className="text-center py-8 text-muted-foreground font-bold">لم يتم العثور على مستخدمين!</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -210,30 +260,55 @@ export default function SettingsPage() {
                     <div className="mt-4 flex justify-end">
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
-                            className="px-5 py-2.5 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 font-bold rounded-xl transition flex items-center gap-2"
+                            className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                         >
-                            <Plus size={18} /> إضافة عضو جديد
+                            <Plus size={18} /> إنشاء حساب دخول جديد
                         </button>
                     </div>
                 </div>
             </div>
 
+            {/* ADD BRANCH MODAL */}
+            {isBranchModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
+                    <form onSubmit={handleCreateBranch} className="bg-card border border-border w-full max-w-sm rounded-[24px] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200 text-right">
+                        <div className="p-5 border-b border-border bg-muted/30 flex justify-between items-center">
+                            <h2 className="text-lg font-bold text-foreground">إضافة فرع جديد</h2>
+                            <button type="button" onClick={() => setIsBranchModalOpen(false)} className="text-muted-foreground hover:bg-background p-1.5 rounded-lg transition-colors"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="text-sm font-bold text-muted-foreground block mb-2">اسم الفرع <span className="text-rose-500">*</span></label>
+                                <input required type="text" value={branchData.name} onChange={e => setBranchData({...branchData, name: e.target.value})} className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-rose-500" placeholder="مثال: الفرع الشمالي" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-muted-foreground block mb-2">العنوان الجغرافي</label>
+                                <input type="text" value={branchData.address} onChange={e => setBranchData({...branchData, address: e.target.value})} className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-rose-500" placeholder="مثال: الرياض - شارع التخصصي" />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-border bg-muted/30 flex gap-3">
+                            <button type="submit" disabled={isSubmitting} className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold transition-colors shadow-lg shadow-rose-500/20">
+                                {isSubmitting ? 'جاري الإضافة...' : 'حفظ الفرع'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {/* ADD EMPLOYEE MODAL */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
-                    <form onSubmit={handleCreateUser} className="bg-[#050505] border border-cyan-900/40 rounded-3xl w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col animate-slide-up relative">
-                        {/* Header */}
-                        <div className="p-6 border-b border-slate-800 bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between shrink-0">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Users className="text-cyan-500" /> إضافة موظف جديد
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
+                    <form onSubmit={handleCreateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
+                        <div className="p-6 border-b border-border bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between shrink-0">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <Users className="text-cyan-500" /> إضافة مستخدم جديد للنظام (Access)
                             </h2>
-                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white bg-[#111] p-1.5 rounded-lg border border-slate-800">
+                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg border border-border">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        {/* Form Body */}
-                        <div className="p-6 space-y-4 overflow-y-auto w-full">
+                        <div className="p-6 space-y-4 overflow-y-auto w-full custom-scrollbar">
                             {formError && (
                                 <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 p-3 rounded-xl text-sm flex gap-2">
                                     <AlertCircle size={18} className="shrink-0" />
@@ -242,41 +317,40 @@ export default function SettingsPage() {
                             )}
                             
                             <div className="space-y-2">
-                                <label htmlFor="emp-name" className="text-sm font-medium text-slate-300">الاسم الكامل</label>
-                                <input id="emp-name" name="name" required type="text" className="input-field" placeholder="مثال: أحمد عبد الله" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                <label htmlFor="emp-name" className="text-sm font-medium text-muted-foreground">الاسم الكامل</label>
+                                <input id="emp-name" name="name" required type="text" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" placeholder="مثال: أحمد عبد الله" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="emp-email" className="text-sm font-medium text-slate-300">البريد الإلكتروني (لتسجيل الدخول)</label>
-                                <input id="emp-email" name="email" required type="email" className="input-field" dir="ltr" placeholder="employee@autoworkshop.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                                <label htmlFor="emp-email" className="text-sm font-medium text-muted-foreground">البريد الإلكتروني (لتسجيل الدخول)</label>
+                                <input id="emp-email" name="email" required type="email" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 text-left" dir="ltr" placeholder="employee@autoworkshop.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="emp-password" className="text-sm font-medium text-slate-300">كلمة المرور المشفرة</label>
-                                <input id="emp-password" name="password" required minLength={6} type="password" autoComplete="new-password" className="input-field font-mono text-left tracking-widest" dir="ltr" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                                <label htmlFor="emp-password" className="text-sm font-medium text-muted-foreground">كلمة المرور المشفرة</label>
+                                <input id="emp-password" name="password" required minLength={6} type="password" autoComplete="new-password" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left tracking-widest" dir="ltr" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 mt-2">
                                 <div className="space-y-2">
-                                    <label htmlFor="emp-role" className="text-sm font-medium text-slate-300">المنصب والصلاحية</label>
-                                    <select id="emp-role" name="role" className="input-field font-bold text-cyan-400 bg-cyan-950/20 border-cyan-900/50" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
+                                    <label htmlFor="emp-role" className="text-sm font-medium text-muted-foreground">المنصب الدقيق والصلاحية</label>
+                                    <select id="emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
                                         <option value="Admin">مدير عام (أقصى صلاحية)</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label htmlFor="emp-phone" className="text-sm font-medium text-slate-300">رقم التواصل</label>
-                                    <input id="emp-phone" name="phone" type="text" className="input-field" dir="ltr" placeholder="+964..." value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                    <label htmlFor="emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال للتنبيهات</label>
+                                    <input id="emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="p-6 border-t border-slate-800 bg-[#0a0a0a] flex justify-end gap-3 shrink-0">
-                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 rounded-xl text-slate-300 hover:bg-[#111] transition-colors font-medium">إلغاء</button>
+                        <div className="p-6 border-t border-border bg-card flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
                             <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.2)] disabled:opacity-50">
-                                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} صناعة الحساب
+                                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} صناعة وتخزين الحساب
                             </button>
                         </div>
                     </form>

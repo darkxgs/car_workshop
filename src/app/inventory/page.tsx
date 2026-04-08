@@ -1,328 +1,316 @@
 "use client";
 
-import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { PackageOpen, Plus, Search, Filter, Loader2, Save, X, AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/lib/AuthProvider";
+import { Search, Plus, Package, AlertTriangle, CheckCircle2, TrendingDown, TrendingUp, Edit2, Box, Trash2 } from "lucide-react";
 
-interface InventoryItem {
+type InventoryItem = {
     id: string;
-    item_code: string;
     name: string;
-    category: string;
-    purchase_price: number;
-    sell_price: number;
+    item_code: string | null;
+    category: string | null;
     quantity: number;
     min_quantity: number;
-}
+    purchase_price: number | null;
+    sell_price: number | null;
+    updated_at: string;
+};
 
 export default function InventoryPage() {
-    const { t } = useLanguage();
-    const { employeeRole } = useAuth();
-    
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const PAGE_SIZE = 12;
     
+    // Stats
+    const [stats, setStats] = useState({ totalItems: 0, lowStock: 0, totalValue: 0 });
+
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [saving, setSaving] = useState(false);
-    
+    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
     // Form State
-    const [formData, setFormData] = useState({
-        item_code: "",
-        name: "",
-        category: "قطع غيار عامة",
-        purchase_price: "",
-        sell_price: "",
-        quantity: "",
-        min_quantity: "5"
-    });
-
-    // Debounce search input
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
-
-    // Reset pagination
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedSearch]);
-
-    const fetchInventory = async () => {
-        setLoading(true);
-        try {
-            const from = (page - 1) * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            let query = supabase
-                .from('inventory')
-                .select('*', { count: 'exact' });
-
-            if (debouncedSearch) {
-                query = query.or(`name.ilike.%${debouncedSearch}%,item_code.ilike.%${debouncedSearch}%,category.ilike.%${debouncedSearch}%`);
-            }
-
-            const { data, count, error } = await query
-                .order('name')
-                .range(from, to);
-
-            if (error) throw error;
-            setItems(data as InventoryItem[]);
-            setTotalPages(count ? Math.max(1, Math.ceil(count / PAGE_SIZE)) : 1);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const [formName, setFormName] = useState("");
+    const [formSku, setFormSku] = useState("");
+    const [formCategory, setFormCategory] = useState("قطع غيار");
+    const [formQuantity, setFormQuantity] = useState("10");
+    const [formMinQuantity, setFormMinQuantity] = useState("2");
+    const [formPurchasePrice, setFormPurchasePrice] = useState("0");
+    const [formSellPrice, setFormSellPrice] = useState("0");
 
     useEffect(() => {
         fetchInventory();
-    }, [page, debouncedSearch]);
+    }, []);
+
+    const fetchInventory = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('inventory')
+            .select('*')
+            .order('name');
+
+        if (!error && data) {
+            setItems(data as any);
+            const lowStockCount = data.filter(i => (i.quantity || 0) <= (i.min_quantity || 0)).length;
+            const value = data.reduce((sum, item) => sum + ((item.quantity || 0) * (item.purchase_price || 0)), 0);
+            
+            setStats({
+                totalItems: data.length,
+                lowStock: lowStockCount,
+                totalValue: value
+            });
+        }
+        setLoading(false);
+    };
+
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('en-US').format(val || 0);
+    };
+
+    const openModal = (item?: InventoryItem) => {
+        if (item) {
+            setEditingItem(item);
+            setFormName(item.name);
+            setFormSku(item.item_code || "");
+            setFormCategory(item.category || "قطع غيار");
+            setFormQuantity(item.quantity.toString());
+            setFormMinQuantity(item.min_quantity.toString());
+            setFormPurchasePrice((item.purchase_price || 0).toString());
+            setFormSellPrice((item.sell_price || 0).toString());
+        } else {
+            setEditingItem(null);
+            setFormName(""); setFormSku(""); setFormCategory("قطع غيار");
+            setFormQuantity("10"); setFormMinQuantity("2"); setFormPurchasePrice("0"); setFormSellPrice("0");
+        }
+        setIsModalOpen(true);
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSaving(true);
-        try {
-            const { error } = await supabase.from('inventory').insert([{
-                item_code: formData.item_code,
-                name: formData.name,
-                category: formData.category,
-                purchase_price: parseFloat(formData.purchase_price) || 0,
-                sell_price: parseFloat(formData.sell_price) || 0,
-                quantity: parseInt(formData.quantity) || 0,
-                min_quantity: parseInt(formData.min_quantity) || 5,
-                branch_id: null
-            }]);
+        const payload = {
+            name: formName, item_code: formSku || "SYS-" + Math.floor(Math.random()*10000), category: formCategory,
+            quantity: parseInt(formQuantity), min_quantity: parseInt(formMinQuantity),
+            purchase_price: parseFloat(formPurchasePrice), sell_price: parseFloat(formSellPrice)
+        };
 
-            if (error) throw error;
-            setIsModalOpen(false);
-            setFormData({ item_code: "", name: "", category: "قطع غيار عامة", purchase_price: "", sell_price: "", quantity: "", min_quantity: "5" });
+        if (editingItem) {
+            await supabase.from('inventory').update(payload).eq('id', editingItem.id);
+        } else {
+            await supabase.from('inventory').insert([payload]);
+        }
+        
+        setIsModalOpen(false);
+        fetchInventory();
+    };
+
+    const handleDelete = async (id: string) => {
+        if (confirm("هل أنت متأكد من حذف هذا الصنف؟")) {
+            await supabase.from('inventory').delete().eq('id', id);
             fetchInventory();
-        } catch (err) {
-            console.error(err);
-            alert("حدث خطأ أثناء الحفظ");
-        } finally {
-            setSaving(false);
         }
     };
 
-    // Removed client-side filteredItems completely. We map directly over `items`.
-
-    if (employeeRole === "Receptionist") {
-        return (
-            <div className="p-8 flex items-center justify-center min-h-[50vh] animate-fade-in" dir="rtl">
-                <div className="glass-card p-8 rounded-2xl border-rose-900/40 text-center max-w-md w-full relative overflow-hidden">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-rose-500/10 blur-[50px] rounded-full pointer-events-none" />
-                    <AlertCircle className="mx-auto text-rose-500 mb-4 relative z-10" size={48} />
-                    <h2 className="text-2xl font-bold text-white mb-2 relative z-10">غير مصرح لك</h2>
-                    <p className="text-slate-400 relative z-10">عذراً، صفحة المخزون والأسعار غير متاحة لحساب الاستقبال.</p>
-                </div>
-            </div>
-        );
-    }
+    const filteredItems = items.filter(item => 
+        item.name.includes(searchTerm) || 
+        (item.item_code && item.item_code.includes(searchTerm)) ||
+        (item.category && item.category.includes(searchTerm))
+    );
 
     return (
-        <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-24" dir={t.common.dashboard === "لوحة التحكم" ? "rtl" : "ltr"}>
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
-                        <PackageOpen className="text-rose-500" size={32} />
-                        المخزن والقطع
-                    </h1>
-                    <p className="text-slate-400">
-                        إدارة جرد قطع الغيار والزيوت والأسعار
-                    </p>
-                </div>
-                <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 whitespace-nowrap shadow-[0_0_20px_rgba(225,29,72,0.2)] transition-all border border-rose-500/50"
-                >
-                    <Plus size={20} />
-                    إضافة صنف جديد
-                </button>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none z-10" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="البحث برقم القطعة أو الاسم..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="input-field w-full"
-                        style={{ paddingRight: '3rem' }}
-                    />
-                </div>
-                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-[#111] border border-slate-800 rounded-xl text-slate-300 hover:text-white hover:bg-[#1a1a1a] transition">
-                    <Filter size={18} />
-                    تصنيف
-                </button>
-            </div>
-
-            {/* Data Table */}
-            <div className="glass-card rounded-2xl overflow-hidden border border-rose-900/20 shadow-xl shadow-black">
-                <div className="overflow-x-auto min-h-[400px]">
-                    {loading ? (
-                        <div className="flex justify-center items-center h-[300px]">
-                            <Loader2 className="animate-spin text-rose-500 w-10 h-10" />
+        <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
+            <div className="max-w-[1400px] mx-auto space-y-8 animate-fade-in">
+                
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
+                            <Package className="text-purple-500" size={32} />
+                            إدارة المخزون
+                        </h1>
+                        <p className="text-muted-foreground">
+                            مراقبة وتتبع قطع الغيار، الزيوت، والمستهلكات إضافة وحذف
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="relative flex-1 md:w-80">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                            <input 
+                                type="text" 
+                                placeholder="ابحث باسم القطعة، أو الـ SKU..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-card border border-border rounded-xl py-2.5 pr-10 pl-4 text-foreground placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                            />
                         </div>
-                    ) : (
-                        <table className="w-full data-table text-right text-sm">
+                        <button onClick={() => openModal()} className="bg-purple-600 hover:bg-purple-500 text-foreground px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shrink-0">
+                            <Plus size={18} /> <span className="hidden sm:inline">صنف جديد</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Micro Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="glass-card p-5 rounded-2xl border-border flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20"><Box size={24} /></div>
+                        <div>
+                            <p className="text-muted-foreground text-sm font-bold mb-1">إجمالي الأصناف</p>
+                            <p className="text-2xl font-bold text-foreground">{stats.totalItems}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="glass-card p-5 rounded-2xl border-border flex items-center gap-4 group hover:border-rose-500/50 transition-colors">
+                        <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20"><AlertTriangle size={24} /></div>
+                        <div>
+                            <p className="text-muted-foreground text-sm font-bold mb-1">يتطلب إعادة طلب (Low Stock)</p>
+                            <p className="text-2xl font-bold text-foreground group-hover:text-rose-400 transition-colors">{stats.lowStock}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="glass-card p-5 rounded-2xl border-border flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20"><TrendingUp size={24} /></div>
+                        <div>
+                            <p className="text-muted-foreground text-sm font-bold mb-1">القيمة التقديرية (التكلفة)</p>
+                            <p className="text-2xl font-bold text-foreground" dir="ltr">{formatCurrency(stats.totalValue)}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Inventory Table */}
+                <div className="glass-card rounded-2xl border-border overflow-hidden">
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-right border-collapse">
                             <thead>
-                                <tr className="bg-[#0a0a0a] border-b border-rose-900/30">
-                                    <th className="font-medium text-slate-400">رمز القطعة (Code)</th>
-                                    <th className="font-medium text-slate-400">اسم القطعة</th>
-                                    <th className="font-medium text-slate-400">التصنيف</th>
-                                    <th className="font-medium text-slate-400">سعر الشراء</th>
-                                    <th className="font-medium text-slate-400">سعر البيع</th>
-                                    <th className="font-medium text-slate-400">المتوفر</th>
-                                    <th className="font-medium text-slate-400">الحالة</th>
+                                <tr className="bg-card border-b border-border">
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">رمز القطعة (SKU)</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap w-1/3">الاسم والفئة</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap text-center">الكمية والمخزون</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">السعر (شراء / بيع)</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap text-left">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {items.length === 0 ? (
+                                {loading && (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-12 text-slate-500 font-medium border-0">
-                                            لا توجد قطع تتطابق مع بحثك في الخادم
+                                        <td colSpan={5} className="p-12 text-center text-muted-foreground">جاري تحميل المخزون...</td>
+                                    </tr>
+                                )}
+                                {!loading && filteredItems.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="p-12 text-center text-muted-foreground">
+                                            المخزون فارغ أو لا يوجد قطعة مطابقة لبحثك. اضغط على (صنف جديد) برتقالي فوق للإضافة.
                                         </td>
                                     </tr>
-                                ) : (
-                                    items.map((item) => {
-                                        const isLow = item.quantity <= item.min_quantity;
-                                        const isZero = item.quantity === 0;
-                                        return (
-                                            <tr key={item.id} className="hover:bg-white/5 transition-colors border-b border-slate-800/70">
-                                                <td className="font-mono text-slate-400">{item.item_code}</td>
-                                                <td className="font-bold text-white">{item.name}</td>
-                                                <td>
-                                                    <span className="px-3 py-1 bg-[#111] rounded-lg text-xs text-slate-300 border border-slate-800">
-                                                        {item.category}
+                                )}
+                                {!loading && filteredItems.map((item) => {
+                                    const isLowStock = item.quantity <= item.min_quantity;
+                                    
+                                    return (
+                                        <tr key={item.id} className="border-b border-border hover:bg-muted/20 transition-colors">
+                                            <td className="p-4 align-middle">
+                                                <span className="font-mono text-sm bg-background px-2 py-1 rounded border border-border text-muted-foreground">
+                                                    {item.item_code || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 align-middle">
+                                                <p className="font-bold text-foreground">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">{item.category || 'بدون فئة'}</p>
+                                            </td>
+                                            <td className="p-4 align-middle text-center">
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <span className={`text-xl font-bold font-mono ${isLowStock ? 'text-rose-500' : 'text-foreground'}`}>
+                                                        {item.quantity}
                                                     </span>
-                                                </td>
-                                                <td className="text-slate-400 font-mono" dir="ltr">{item.purchase_price} د.ع</td>
-                                                <td className="text-emerald-400 font-bold font-mono" dir="ltr">{item.sell_price} د.ع</td>
-                                                <td className={`font-bold text-lg ${isZero ? "text-rose-600" : isLow ? "text-amber-500" : "text-emerald-400"}`}>
-                                                    {item.quantity}
-                                                </td>
-                                                <td>
-                                                    {isZero ? (
-                                                        <span className="px-3 py-1 bg-rose-500/10 text-rose-500 rounded border border-rose-500/20 text-xs font-bold">
-                                                            نفذت الكمية
-                                                        </span>
-                                                    ) : isLow ? (
-                                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded border border-amber-500/20 text-xs font-bold">
-                                                            إعادة طلب
+                                                    {isLowStock ? (
+                                                        <span className="text-xs font-bold px-2 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded flex items-center gap-1">
+                                                            <TrendingDown size={12} /> منخفض
                                                         </span>
                                                     ) : (
-                                                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20 text-xs font-bold">
-                                                            متوفر
+                                                        <span className="text-xs font-bold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded flex items-center gap-1">
+                                                            <CheckCircle2 size={12} /> جيد
                                                         </span>
                                                     )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground mt-1 uppercase">الحد الأدنى: {item.min_quantity}</p>
+                                            </td>
+                                            <td className="p-4 align-middle">
+                                                <div className="space-y-1 font-mono text-sm">
+                                                    <div className="text-muted-foreground flex items-center gap-1"><span className="text-xs text-slate-600">شراء:</span> {formatCurrency(item.purchase_price || 0)}</div>
+                                                    <div className="text-emerald-400 font-bold flex items-center gap-1"><span className="text-xs text-emerald-600">بيع:</span> {formatCurrency(item.sell_price || 0)}</div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 align-middle text-left">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => openModal(item)} className="p-2 bg-muted hover:bg-blue-600 hover:text-foreground text-muted-foreground rounded-lg transition-colors">
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(item.id)} className="p-2 bg-muted hover:bg-rose-600 hover:text-foreground text-muted-foreground rounded-lg transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
-                    )}
-                </div>
-                
-                {/* Server-Side Pagination Controls */}
-                <div className="p-4 bg-[#0a0a0a] border-t border-rose-900/30 flex items-center justify-between shadow-inner shrink-0 mt-auto">
-                    <button 
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1 || loading}
-                        className="px-4 py-2 bg-black border border-slate-800 text-slate-300 rounded-xl hover:bg-[#111] hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold shadow-sm"
-                    >
-                        السابق
-                    </button>
-                    <div className="flex flex-col items-center">
-                        <span className="text-xs text-slate-500 font-bold mb-1">
-                            {loading ? <Loader2 className="animate-spin w-4 h-4 inline text-rose-500" /> : 'المخزون المتوفر'}
-                        </span>
-                        <span className="text-sm text-slate-300 font-bold bg-[#111] px-4 py-1.5 rounded-full border border-slate-800 shadow-inner">
-                            صفحة <span className="text-rose-400">{page}</span> من {totalPages}
-                        </span>
                     </div>
-                    <button 
-                        onClick={() => setPage(p => p + 1)}
-                        disabled={page >= totalPages || loading}
-                        className="px-4 py-2 bg-black border border-slate-800 text-slate-300 rounded-xl hover:bg-[#111] hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold shadow-sm"
-                    >
-                        التالي
-                    </button>
                 </div>
             </div>
-            
-            {/* Add Item Modal */}
+
+            {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <form onSubmit={handleSave} className="bg-black border border-rose-900/40 rounded-2xl w-full max-w-2xl shadow-[0_0_50px_rgba(225,29,72,0.15)] overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
-                        <div className="flex justify-between items-center p-6 border-b border-slate-800/80 bg-[#0a0a0a] shrink-0">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Plus className="text-rose-500" /> إضافة صنف جديد
-                            </h2>
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors bg-[#111] border border-slate-800 p-1.5 rounded-lg">
-                                <X size={20} />
-                            </button>
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-border flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-foreground">{editingItem ? 'تعديل الصنف' : 'إضافة صنف جديد للبضاعة'}</h2>
                         </div>
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الاسم القطعة <span className="text-rose-500">*</span></label>
+                                    <input type="text" required value={formName} onChange={e => setFormName(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">كود الـ SKU (اختياري)</label>
+                                    <input type="text" value={formSku} onChange={e => setFormSku(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground font-mono focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الفئة</label>
+                                    <select value={formCategory} onChange={e => setFormCategory(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500 appearance-none">
+                                        <option value="قطع غيار">قطع غيار محركات</option>
+                                        <option value="زيوت">زيوت وسوائل</option>
+                                        <option value="تكييف">تبريد وتكييف</option>
+                                        <option value="كهرباء">كهرباء وإلكترونيات</option>
+                                        <option value="مستهلكات">مستهلكات (فلاتر/بواجي)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الكمية الحالية <span className="text-rose-500">*</span></label>
+                                    <input type="number" required value={formQuantity} onChange={e => setFormQuantity(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الحد الأدنى للتنبيه</label>
+                                    <input type="number" required value={formMinQuantity} onChange={e => setFormMinQuantity(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">سعر الشراء (التكلفة)</label>
+                                    <input type="number" required step="0.01" value={formPurchasePrice} onChange={e => setFormPurchasePrice(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">سعر البيع للعميل <span className="text-rose-500">*</span></label>
+                                    <input type="number" required step="0.01" value={formSellPrice} onChange={e => setFormSellPrice(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500 font-bold text-emerald-400" />
+                                </div>
+                            </div>
 
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 overflow-y-auto w-full">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">اسم القطعة</label>
-                                <input required type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            <div className="pt-4 flex gap-3">
+                                <button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-500 text-foreground py-2.5 rounded-xl font-bold transition-colors">
+                                    حفظ البيانات
+                                </button>
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-muted hover:bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">
+                                    إلغاء
+                                </button>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">رمز القطعة (Code)</label>
-                                <input required type="text" className="input-field" dir="ltr" value={formData.item_code} onChange={e => setFormData({...formData, item_code: e.target.value})} />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-sm font-medium text-slate-300">التصنيف</label>
-                                <select className="input-field" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                                    <option>قطع غيار عامة</option>
-                                    <option>زيوت وسوائل</option>
-                                    <option>كهرباء ومحرك</option>
-                                    <option>عضلات وفرامل</option>
-                                    <option>فلاتر</option>
-                                </select>
-                            </div>
-                            <div className="space-y-2 border-t border-slate-800 pt-4">
-                                <label className="text-sm font-medium text-slate-300">سعر الشراء (IQD)</label>
-                                <input required type="number" step="1" className="input-field" dir="ltr" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} />
-                            </div>
-                            <div className="space-y-2 border-t border-slate-800 pt-4">
-                                <label className="text-sm font-medium text-slate-300">سعر البيع (IQD)</label>
-                                <input required type="number" step="1" className="input-field" dir="ltr" value={formData.sell_price} onChange={e => setFormData({...formData, sell_price: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">الكمية المتوفرة</label>
-                                <input required type="number" className="input-field" dir="ltr" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-300">حد التنبيه (Low Stock) <span className="text-amber-500 text-xs px-1">*(مثال 5)*</span></label>
-                                <input required type="number" className="input-field" dir="ltr" value={formData.min_quantity} onChange={e => setFormData({...formData, min_quantity: e.target.value})} />
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t border-slate-800/80 flex justify-end gap-3 bg-[#0a0a0a] shrink-0">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-xl text-slate-300 hover:bg-[#111] border border-transparent hover:border-slate-800 transition-colors font-medium">إلغاء</button>
-                            <button type="submit" disabled={saving} className="px-6 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(225,29,72,0.2)] disabled:opacity-50">
-                                {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} حفظ الصنف
-                            </button>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

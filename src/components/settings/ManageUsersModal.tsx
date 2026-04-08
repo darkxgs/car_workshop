@@ -84,7 +84,7 @@ export function ManageUsersModal({ isOpen, onClose }: ManageUsersModalProps) {
                                         {user.role === 'Admin' ? <Shield size={18} /> : <User size={18} />}
                                     </div>
                                     <div>
-                                        <p className="text-white font-medium text-sm">{user.name}</p>
+                                        <p className="text-foreground font-medium text-sm">{user.name}</p>
                                         <p className="text-emerald-500/70 text-xs mt-0.5">{user.email}</p>
                                     </div>
                                 </div>

@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+
+export default function PrintPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const [report, setReport] = useState<any>(null);
+    const [services, setServices] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const { data: reportData } = await supabase
+                .from("inspection_reports")
+                .select(`
+                    id, report_number, status, created_at, completed_at, odometer_reading,
+                    estimated_duration, elapsed_time, start_time, selected_services, notes,
+                    vehicles (make, model, plate_number, engine_size, clients (name, phone)),
+                    receptionist:receptionist_id(name)
+                `)
+                .eq("id", id)
+                .single();
+
+            if (reportData) {
+                setReport(reportData);
+                const { data: svcs } = await supabase
+                    .from("report_services")
+                    .select("*")
+                    .eq("report_id", id);
+                setServices(svcs || []);
+            }
+            setLoading(false);
+        };
+
+        fetchData();
+    }, [id]);
+
+    useEffect(() => {
+        // Auto-trigger print once data is loaded
+        if (!loading && report) {
+            setTimeout(() => window.print(), 500);
+        }
+    }, [loading, report]);
+
+    if (loading) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Arial", direction: "rtl" }}>
+                <p>جاري تحضير التقرير للطباعة...</p>
+            </div>
+        );
+    }
+
+    if (!report) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Arial", direction: "rtl" }}>
+                <p>لم يتم العثور على التقرير.</p>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <style>{`
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                html, body { background: white; }
+                @media screen {
+                    body { padding: 20px; background: #f5f5f5; }
+                }
+                @media print {
+                    html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+                    @page { size: A4 portrait; margin: 0; }
+                }
+                .no-print-btn {
+                    position: fixed; bottom: 20px; right: 20px;
+                    background: #dc2626; color: white; border: none;
+                    padding: 12px 24px; border-radius: 8px; font-size: 16px;
+                    cursor: pointer; font-family: Arial; z-index: 999;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                }
+                @media print { .no-print-btn { display: none !important; } }
+            `}</style>
+
+            <button className="no-print-btn" onClick={() => window.print()}>
+                🖨️ طباعة مرة أخرى
+            </button>
+
+            <PrintableInspectionReport report={report} services={services} />
+        </>
+    );
+}

@@ -22,8 +22,8 @@ const data = [
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 shadow-lg">
-                <p className="text-white font-medium">{label}</p>
+            <div className="bg-muted border border-border rounded-xl p-3 shadow-lg">
+                <p className="text-foreground font-medium">{label}</p>
                 <p className="text-sm text-amber-400">{payload[0].value} عامل</p>
             </div>
         );
@@ -34,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 export function LaborChart() {
     return (
         <div className="chart-container">
-            <h3 className="font-display text-lg font-semibold text-white mb-6">توزيع العمالة حسب التخصص</h3>
+            <h3 className="font-display text-lg font-semibold text-foreground mb-6">توزيع العمالة حسب التخصص</h3>
             <div className="w-full h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>

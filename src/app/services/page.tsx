@@ -283,11 +283,11 @@ export default function ServicesPage() {
     if (employeeRole === "Receptionist") {
         return (
             <div className="p-8 flex items-center justify-center min-h-[50vh] animate-fade-in" dir="rtl">
-                <div className="bg-black/40 border border-rose-900/40 p-8 rounded-2xl text-center max-w-md w-full relative overflow-hidden">
+                <div className="bg-background/40 border border-border p-8 rounded-2xl text-center max-w-md w-full relative overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-rose-500/10 blur-[50px] rounded-full pointer-events-none" />
                     <AlertCircle className="mx-auto text-rose-500 mb-4 relative z-10" size={48} />
-                    <h2 className="text-2xl font-bold text-white mb-2 relative z-10">غير مصرح لك</h2>
-                    <p className="text-slate-400 relative z-10">عذراً، صفحة تشخيص المركبات وتسعير الخدمات مهندسين وفنيين الورشة فقط.</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2 relative z-10">غير مصرح لك</h2>
+                    <p className="text-muted-foreground relative z-10">عذراً، صفحة تشخيص المركبات وتسعير الخدمات مهندسين وفنيين الورشة فقط.</p>
                 </div>
             </div>
         );
@@ -297,34 +297,34 @@ export default function ServicesPage() {
         <div className="p-4 md:p-8 space-y-6 animate-fade-in pb-32" dir={t.common.dashboard === "لوحة التحكم" ? "rtl" : "ltr"}>
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
+                <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
                     <Wrench className="text-rose-500" size={32} />
                     إدارة الفحص المفصل
                 </h1>
-                <p className="text-slate-400">
+                <p className="text-muted-foreground">
                     تقييم الأجزاء التفصيلية، أجور الايدي العاملة، وإدراج قطع المخزن
                 </p>
             </div>
 
             {successMessage && (
-                <div className="bg-emerald-950/40 border border-emerald-900/50 rounded-xl p-4 flex gap-3 text-emerald-300 animate-slide-up shadow-xl">
+                <div className="bg-emerald-500/10 border border-emerald-900/50 rounded-xl p-4 flex gap-3 text-emerald-300 animate-slide-up shadow-xl">
                     <CheckCircle2 size={24} /> 
                     <p className="font-bold">{successMessage}</p>
                 </div>
             )}
 
             {/* Vehicle Selector Banner */}
-            <div className="bg-[#050505]/90 backdrop-blur-md border border-rose-900/20 rounded-xl p-6 shadow-2xl flex flex-col gap-4 relative overflow-hidden">
+            <div className="bg-card/90 backdrop-blur-md border border-rose-900/20 rounded-xl p-6 shadow-2xl flex flex-col gap-4 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full pointer-events-none" />
                 {reports.length === 0 ? (
-                    <div className="text-center text-slate-400 py-4 font-bold text-lg relative z-10">لا توجد سيارات بانتظار الفحص حالياً. ممتاز!</div>
+                    <div className="text-center text-muted-foreground py-4 font-bold text-lg relative z-10">لا توجد سيارات بانتظار الفحص حالياً. ممتاز!</div>
                 ) : (
                     <>
                         <div className="flex flex-col md:flex-row gap-4 justify-between md:items-center relative z-10">
                             <div className="flex-1 w-full max-w-lg">
                                 <label className="text-sm font-bold text-rose-300 mb-2 block">اختر السيارة قيد العمل:</label>
                                 <select 
-                                    className="input-field appearance-none bg-black font-bold text-white w-full border-rose-900/30 ring-2 ring-transparent focus:ring-rose-500/20"
+                                    className="input-field appearance-none bg-background font-bold text-foreground w-full border-border ring-2 ring-transparent focus:ring-rose-500/20"
                                     value={selectedReportId}
                                     onChange={(e) => setSelectedReportId(e.target.value)}
                                 >
@@ -337,14 +337,14 @@ export default function ServicesPage() {
                             </div>
 
                             {selectedReport && (
-                                <div className="flex bg-[#0a0a0a] p-4 rounded-xl border border-slate-800/80 items-center justify-between gap-6 shadow-inner">
+                                <div className="flex bg-card p-4 rounded-xl border border-border items-center justify-between gap-6 shadow-inner">
                                     <div>
-                                        <span className="text-slate-500 text-xs block mb-1">العميل</span>
+                                        <span className="text-muted-foreground text-xs block mb-1">العميل</span>
                                         <span className="text-rose-300 font-bold">{selectedReport.vehicles.clients?.name}</span>
                                     </div>
-                                    <div className="h-10 w-px bg-slate-800/80"></div>
+                                    <div className="h-10 w-px bg-muted/80"></div>
                                     <div>
-                                        <span className="text-slate-500 text-xs block mb-1">العداد</span>
+                                        <span className="text-muted-foreground text-xs block mb-1">العداد</span>
                                         <span className="text-emerald-400 font-bold font-mono tracking-wider" dir="ltr">{selectedReport.odometer_reading?.toLocaleString()} KM</span>
                                     </div>
                                 </div>
@@ -362,26 +362,26 @@ export default function ServicesPage() {
                         const allHealthy = category.items.every(item => (statuses[item] || "سليم") === "سليم");
                         
                         return (
-                            <div key={category.id} className="bg-black/40 border border-slate-800/80 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
+                            <div key={category.id} className="bg-background/40 border border-border rounded-xl overflow-hidden shadow-xl transition-all duration-300">
                                 {/* Accordion Header */}
                                 <div 
                                     onClick={() => toggleAccordion(category.id)}
                                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors select-none"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-rose-500/20 text-rose-400' : 'bg-[#111] border border-slate-800 text-slate-400'}`}>
+                                        <div className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-rose-500/20 text-rose-400' : 'bg-muted border border-border text-muted-foreground'}`}>
                                             {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-bold text-white tracking-wide">{category.name}</h3>
-                                            <p className="text-xs text-slate-500">{category.items.length} نقاط فحص</p>
+                                            <h3 className="text-lg font-bold text-foreground tracking-wide">{category.name}</h3>
+                                            <p className="text-xs text-muted-foreground">{category.items.length} نقاط فحص</p>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-4">
                                         <button 
                                             onClick={(e) => setAllSaliem(category.items, e)}
-                                            className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${allHealthy ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-black text-slate-400 border-slate-700 hover:text-emerald-400 hover:border-emerald-500/40'}`}
+                                            className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${allHealthy ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-background text-muted-foreground border-border hover:text-emerald-400 hover:border-emerald-500/40'}`}
                                         >
                                             <CheckSquare size={14} />
                                             {allHealthy ? 'تم تحديد الكل كسليم' : 'تحديد الكل كنظيف'}
@@ -391,23 +391,23 @@ export default function ServicesPage() {
 
                                 {/* Accordion Content */}
                                 {isExpanded && (
-                                    <div className="p-4 pt-0 border-t border-slate-800/30 bg-[#050505]">
+                                    <div className="p-4 pt-0 border-t border-border bg-background">
                                         <div className="space-y-4 mt-4">
                                             {category.items.map((itemName, index) => {
                                                 const isActiveStatus = statuses[itemName] || "سليم";
                                                 
                                                 return (
-                                                    <div key={itemName} className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-4 items-center bg-[#0a0a0a] p-3 lg:p-4 rounded-xl border border-slate-800/40 shadow-inner">
+                                                    <div key={itemName} className="grid grid-cols-2 lg:grid-cols-12 gap-3 lg:gap-4 items-center bg-card p-3 lg:p-4 rounded-xl border border-border shadow-inner">
                                                         
                                                         <div className="col-span-2 lg:col-span-3 flex items-center gap-3">
-                                                            <div className="bg-[#111] border border-slate-800 text-slate-400 text-xs w-6 h-6 rounded flex flex-col items-center justify-center font-mono font-bold shrink-0">{index + 1}</div>
-                                                            <span className="font-bold text-slate-200 text-sm">{itemName}</span>
+                                                            <div className="bg-muted border border-border text-muted-foreground text-xs w-6 h-6 rounded flex flex-col items-center justify-center font-mono font-bold shrink-0">{index + 1}</div>
+                                                            <span className="font-bold text-foreground text-sm">{itemName}</span>
                                                         </div>
 
                                                         <div className="col-span-2 lg:col-span-4 flex gap-2">
                                                             {(["سليم", "يحتاج صيانة", "تالف"] as ServiceStatus[]).map((statusOption) => {
                                                                 const isActive = isActiveStatus === statusOption;
-                                                                let activeColors = "text-slate-500 hover:bg-[#111]";
+                                                                let activeColors = "text-muted-foreground hover:bg-muted";
                                                                 let Icon = CheckCircle2;
                                                                 
                                                                 if (isActive) {
@@ -434,26 +434,26 @@ export default function ServicesPage() {
 
                                                         <div className="col-span-1 lg:col-span-3">
                                                             <div className="relative">
-                                                                <FileText className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hidden sm:block" size={14} />
+                                                                <FileText className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hidden sm:block" size={14} />
                                                                 <input 
                                                                     type="text"
                                                                     placeholder="ملاحظة الفحص..."
                                                                     value={notes[itemName] || ''}
                                                                     onChange={(e) => handleNoteChange(itemName, e.target.value)}
-                                                                    className="input-field text-xs sm:pr-9 h-9 w-full bg-black border-slate-700/50 focus:border-rose-400 focus:bg-[#050505] placeholder:text-[10px] sm:placeholder:text-xs"
+                                                                    className="input-field text-xs sm:pr-9 h-9 w-full bg-background border-border focus:border-rose-400 focus:bg-card placeholder:text-[10px] sm:placeholder:text-xs"
                                                                 />
                                                             </div>
                                                         </div>
 
                                                         <div className="col-span-1 lg:col-span-2">
                                                             <div className="relative">
-                                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 text-[9px] font-bold">IQD</span>
+                                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-[9px] font-bold">IQD</span>
                                                                 <input 
                                                                     type="number" 
                                                                     placeholder="أجور اليد"
                                                                     value={prices[itemName] || ''}
                                                                     onChange={(e) => handlePriceChange(itemName, e.target.value)}
-                                                                    className="input-field pl-8 h-9 shrink-0 w-full text-xs text-right bg-black border-slate-700/50 placeholder:text-[10px] sm:placeholder:text-xs focus:border-rose-400 focus:bg-[#050505]"
+                                                                    className="input-field pl-8 h-9 shrink-0 w-full text-xs text-right bg-background border-border placeholder:text-[10px] sm:placeholder:text-xs focus:border-rose-400 focus:bg-card"
                                                                     dir="ltr"
                                                                 />
                                                             </div>
@@ -469,14 +469,14 @@ export default function ServicesPage() {
                     })}
 
                     {/* INVENTORY / USED PARTS SECTION */}
-                    <div className="mt-8 bg-black/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                        <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+                    <div className="mt-8 bg-card/80 border border-border rounded-2xl overflow-hidden shadow-xl">
+                        <div className="p-6 border-b border-border flex items-center justify-between">
                             <div>
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                                     <PackagePlus className="text-rose-500" />
                                     قطع الغيار المستخدمة
                                 </h3>
-                                <p className="text-slate-400 text-sm mt-1">
+                                <p className="text-muted-foreground text-sm mt-1">
                                     أضف القطع المستخدمة في العمل. سيتم سحبها تلقائياً من المخزون بعد الحفظ.
                                 </p>
                             </div>
@@ -491,26 +491,26 @@ export default function ServicesPage() {
 
                         <div className="p-6">
                             {usedParts.length === 0 ? (
-                                <div className="text-center py-6 text-slate-500 bg-[#050505] rounded-xl border border-dashed border-slate-800">
+                                <div className="text-center py-6 text-muted-foreground bg-background rounded-xl border border-dashed border-border">
                                     لم يتم تحديد أي قطع مستخدمة لهذا التقرير بعد.
                                 </div>
                             ) : (
                                 <div className="space-y-3">
                                     {usedParts.map(part => (
-                                        <div key={part.inventory_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0a0a0a] p-4 rounded-xl border border-slate-800">
+                                        <div key={part.inventory_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
                                             <div>
-                                                <h4 className="font-bold text-white">{part.name}</h4>
-                                                <span className="text-xs text-slate-500 font-mono">CODE: {part.item_code} | {part.sell_price} IQD</span>
+                                                <h4 className="font-bold text-foreground">{part.name}</h4>
+                                                <span className="text-xs text-muted-foreground font-mono">CODE: {part.item_code} | {part.sell_price} IQD</span>
                                             </div>
                                             
                                             <div className="flex items-center gap-6">
-                                                <div className="flex items-center gap-3 bg-black px-3 py-1.5 rounded-lg border border-slate-700">
-                                                    <span className="text-xs text-slate-400 flex-1 whitespace-nowrap">الكمية:</span>
+                                                <div className="flex items-center gap-3 bg-background px-3 py-1.5 rounded-lg border border-border">
+                                                    <span className="text-xs text-muted-foreground flex-1 whitespace-nowrap">الكمية:</span>
                                                     <input 
                                                         type="number"
                                                         value={part.quantity_used}
                                                         onChange={(e) => updateUsedPartQty(part.inventory_id, parseInt(e.target.value))}
-                                                        className="w-16 bg-transparent text-white font-bold text-center outline-none border-b border-rose-500/50 focus:border-rose-400"
+                                                        className="w-16 bg-transparent text-foreground font-bold text-center outline-none border-b border-rose-500/50 focus:border-rose-400"
                                                         dir="ltr"
                                                         min="1"
                                                         max={part.max_quantity}
@@ -519,7 +519,7 @@ export default function ServicesPage() {
                                                 <div className="text-emerald-400 font-bold font-mono tracking-widest hidden sm:block">
                                                     {part.quantity_used * part.sell_price} IQD
                                                 </div>
-                                                <button onClick={() => removeUsedPart(part.inventory_id)} className="text-slate-500 hover:text-rose-500 transition-colors bg-[#111] p-2 rounded-lg">
+                                                <button onClick={() => removeUsedPart(part.inventory_id)} className="text-muted-foreground hover:text-rose-500 transition-colors bg-muted p-2 rounded-lg">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -534,12 +534,12 @@ export default function ServicesPage() {
 
             {/* Total Footer */}
             {selectedReportId && (
-                <div className="fixed bottom-0 right-0 lg:right-64 left-0 h-24 bg-black/90 backdrop-blur-xl border-t border-rose-900/40 flex flex-col sm:flex-row items-center justify-between px-6 lg:px-12 z-20 shadow-[0_-10px_40px_rgba(225,29,72,0.1)] gap-2 py-3">
+                <div className="fixed bottom-0 right-0 lg:right-64 left-0 h-24 bg-background/90 backdrop-blur-xl border-t border-border flex flex-col sm:flex-row items-center justify-between px-6 lg:px-12 z-20 shadow-[0_-10px_40px_rgba(225,29,72,0.1)] gap-2 py-3">
                     <div className="flex flex-col">
-                        <span className="text-slate-400 text-xs font-medium">الإجمالي المبدئي (شامل أجور اليد وقطع المخزن)</span>
+                        <span className="text-muted-foreground text-xs font-medium">الإجمالي المبدئي (شامل أجور اليد وقطع المخزن)</span>
                         <div className="flex items-center gap-3">
                             <span className="text-xs text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded font-bold border border-rose-500/20">{usedParts.length} قطع</span>
-                            <span className="text-2xl font-bold font-display text-white truncate text-shadow-glow" dir="ltr">{computeTotal()} <span className="text-rose-500 text-lg">IQD</span></span>
+                            <span className="text-2xl font-bold font-display text-foreground truncate text-shadow-glow" dir="ltr">{computeTotal()} <span className="text-rose-500 text-lg">IQD</span></span>
                         </div>
                     </div>
                     <button 
@@ -555,19 +555,19 @@ export default function ServicesPage() {
 
             {/* Selecting Parts Modal */}
             {isPartsModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in">
-                    <div className="bg-[#050505] w-full max-w-3xl rounded-2xl border border-rose-900/40 shadow-[0_0_50px_rgba(225,29,72,0.15)] flex flex-col max-h-[85vh] overflow-hidden">
-                        <div className="p-6 border-b border-slate-800 bg-[#0a0a0a] flex items-center justify-between shrink-0">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[99999] flex justify-center items-center p-4 animate-fade-in">
+                    <div className="bg-background w-full max-w-3xl rounded-2xl border border-border shadow-[0_0_50px_rgba(225,29,72,0.15)] flex flex-col max-h-[85vh] overflow-hidden">
+                        <div className="p-6 border-b border-border bg-card flex items-center justify-between shrink-0">
+                            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <Search className="text-rose-500" />
                                 البحث عن قطع غيار
                             </h3>
-                            <button onClick={() => setIsPartsModalOpen(false)} className="text-slate-400 hover:text-white bg-[#111] border border-slate-800 p-2 rounded-lg transition-colors">
+                            <button onClick={() => setIsPartsModalOpen(false)} className="text-muted-foreground hover:text-foreground bg-muted border border-border p-2 rounded-lg transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className="p-4 border-b border-slate-800 shrink-0">
+                        <div className="p-4 border-b border-border shrink-0">
                             <input 
                                 type="text"
                                 placeholder="بحث بالاسم أو كود القطعة..."
@@ -581,18 +581,18 @@ export default function ServicesPage() {
                             {isSearchingParts ? (
                                 <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-rose-500 w-8 h-8" /></div>
                             ) : inventoryItems.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500 font-bold">لا يوجد قطع مطابقة لطلبك في الخادم.</div>
+                                <div className="p-8 text-center text-muted-foreground font-bold">لا يوجد قطع مطابقة لطلبك في الخادم.</div>
                             ) : (
                                 inventoryItems.map(item => {
                                     const attached = usedParts.find(p => p.inventory_id === item.id);
                                     const isAttached = !!attached;
 
                                     return (
-                                        <div key={item.id} className="flex items-center justify-between p-4 bg-[#0a0a0a] border border-slate-800/80 rounded-xl hover:bg-[#111] transition-colors">
+                                        <div key={item.id} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:bg-muted transition-colors">
                                             <div>
-                                                <h4 className="font-bold text-slate-200">{item.name}</h4>
+                                                <h4 className="font-bold text-foreground">{item.name}</h4>
                                                 <div className="flex items-center gap-3 text-xs mt-1">
-                                                    <span className="text-slate-500 font-mono">CODE: {item.item_code}</span>
+                                                    <span className="text-muted-foreground font-mono">CODE: {item.item_code}</span>
                                                     <span className="text-rose-400 font-mono">{item.sell_price} IQD</span>
                                                     <span className="text-emerald-500 bg-emerald-500/10 px-1.5 rounded">متوفر: {item.quantity}</span>
                                                 </div>

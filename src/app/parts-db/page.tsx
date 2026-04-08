@@ -1,129 +1,350 @@
 "use client";
 
-import { useState } from "react";
-import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { Database, Search, FileCog, Plus, Filter, Wrench, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Search, ShoppingCart, Plus, Minus, Trash2, Wallet, Receipt, CreditCard, ChevronLeft, Package } from "lucide-react";
+import Link from "next/link";
 
-export default function PartsDatabasePage() {
-    const { t } = useLanguage();
+type InventoryItem = {
+    id: string;
+    name: string;
+    category: string | null;
+    quantity: number;
+    sell_price: number | null;
+};
+
+type CartItem = InventoryItem & { cartQuantity: number };
+
+export default function PartsPOSPage() {
+    const [items, setItems] = useState<InventoryItem[]>([]);
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [processing, setProcessing] = useState(false);
+    const [successMsg, setSuccessMsg] = useState("");
+    const [taxNumber, setTaxNumber] = useState("غير محدد");
+    const [lastTransaction, setLastTransaction] = useState<{ id: string | number, cart: CartItem[], total: number, time: string, method: string } | null>(null);
 
-    // Mock Database
-    const mockDbParts = [
-        { id: 1, code: "OIL-10W40-M", brand: "Mobil 1", type: "زيت محرك", price: 150, compModels: "عام - سيارات الركاب" },
-        { id: 2, code: "OIL-5W30-T", brand: "Toyota Genuine", type: "زيت محرك", price: 180, compModels: "تويوتا (كامري، كورولا، يارس)" },
-        { id: 3, code: "SPRK-DEN-01", brand: "Denso Iridium", type: "بواجي", price: 45, compModels: "تويوتا، هوندا، نيسان" },
-        { id: 4, code: "FLT-AIR-K&N", brand: "K&N", type: "فلتر هواء", price: 320, compModels: "متعدد (تحتاج تحقق)" },
-        { id: 5, code: "BRK-PAD-AC", brand: "ACDelco", type: "تيل فرامل", price: 210, compModels: "شفروليه، جمس، كاديلاك" }
-    ];
+    useEffect(() => {
+        fetchInventory();
+        fetchTaxNumber();
+    }, []);
 
-    const filteredParts = mockDbParts.filter(p => 
-        p.code.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.type.includes(searchTerm) ||
-        p.compModels.includes(searchTerm)
-    );
+    const fetchTaxNumber = async () => {
+        const { data } = await supabase.from('workshop_settings' as any).select('setting_value').eq('setting_key', 'tax_number').single();
+        if (data) setTaxNumber((data as any).setting_value);
+    };
+
+    const fetchInventory = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('inventory')
+            .select('id, name, category, quantity, sell_price')
+            .order('name');
+
+        if (!error && data) {
+            setItems(data as any);
+        }
+        setLoading(false);
+    };
+
+    const addToCart = (item: InventoryItem) => {
+        if (item.quantity <= 0) return alert("الكمية المتاحة غير كافية!");
+        setCart(prev => {
+            const existing = prev.find(i => i.id === item.id);
+            if (existing) {
+                if (existing.cartQuantity >= item.quantity) {
+                    alert("لقد تجاوزت المخزون المتاح!");
+                    return prev;
+                }
+                return prev.map(i => i.id === item.id ? { ...i, cartQuantity: i.cartQuantity + 1 } : i);
+            }
+            return [...prev, { ...item, cartQuantity: 1 }];
+        });
+    };
+
+    const updateQuantity = (id: string, delta: number) => {
+        setCart(prev => prev.map(item => {
+            if (item.id === id) {
+                const newQ = item.cartQuantity + delta;
+                if (newQ > item.quantity || newQ < 1) return item;
+                return { ...item, cartQuantity: newQ };
+            }
+            return item;
+        }));
+    };
+
+    const removeFromCart = (id: string) => {
+        setCart(prev => prev.filter(i => i.id !== id));
+    };
+
+    const totalAmount = cart.reduce((sum, item) => sum + (item.cartQuantity * (item.sell_price || 0)), 0);
+
+    const handleCheckout = async (paymentMethod: string) => {
+        if (cart.length === 0) return;
+        setProcessing(true);
+
+        try {
+            // 1. Deduct from inventory
+            for (let item of cart) {
+                const newQuantity = item.quantity - item.cartQuantity;
+                await supabase.from('inventory').update({ quantity: newQuantity }).eq('id', item.id);
+            }
+
+            // 2. Log REAL sale to database to get an Auto-Increment ID
+            const { data: saleData } = await supabase.from('pos_sales' as any).insert({
+                total_amount: totalAmount,
+                payment_method: paymentMethod === 'cash' ? 'نقدي' : 'بطاقة',
+                items: cart
+            }).select('id').single();
+
+            const invoiceId = saleData ? (saleData as any).id : Math.floor(Math.random() * 90000);
+
+            setLastTransaction({
+                id: invoiceId,
+                cart: [...cart],
+                total: totalAmount,
+                time: new Date().toLocaleString('ar-SA'),
+                method: paymentMethod === 'cash' ? 'نقدي' : 'بطاقة'
+            });
+
+            setCart([]);
+            setSuccessMsg("تم الدفع وخصم الكميات من المستودع بنجاح!");
+            fetchInventory(); // refresh
+
+        } catch (error) {
+            alert("حدث خطأ أثناء إتمام العملية.");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const filteredItems = items.filter(item => item.name.includes(searchTerm) || (item.category && item.category.includes(searchTerm)));
 
     return (
-        <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-24" dir={t.common.dashboard === "لوحة التحكم" ? "rtl" : "ltr"}>
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
-                        <Database className="text-rose-500" size={32} />
-                        قاعدة بيانات القطع السريعة
-                    </h1>
-                    <p className="text-slate-400">
-                        موسوعة القطع البديلة واقتراحات توافقية القطع للسيارات
-                    </p>
-                </div>
-                <button className="btn-primary bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20 flex gap-2">
-                    <Plus size={18} /> إضافة قطعة للقاعدة
-                </button>
-            </div>
-
-            {/* Smart Suggestion Panel */}
-            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group border-rose-900/30">
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-rose-500/10 blur-[80px] rounded-full pointer-events-none" />
-                
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-rose-900/50 pb-4">
-                    <FileCog className="text-rose-400" size={24} />
-                    الاقتراح الذكي للقطع والزيوت
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <input type="text" placeholder="نوع السيارة (مثال: تويوتا)" className="input-field" />
-                    <input type="text" placeholder="الموديل (مثال: كامري)" className="input-field" />
-                    <input type="text" placeholder="حجم المحرك (مثال: 2.5L)" className="input-field" dir="ltr" />
-                    <button className="bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20">
-                        <Wrench size={18} /> بحث التوافق
-                    </button>
+        <>
+        <div className="min-h-screen p-6 font-ibm flex flex-col md:flex-row gap-6 max-w-[1600px] mx-auto relative print:hidden" dir="rtl">
+            
+            {/* Left: Products Grid (65%) */}
+            <div className="flex-1 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
+                            <ShoppingCart className="text-amber-500" size={32} />
+                            المبيعات المباشرة للقطع (POS)
+                        </h1>
+                        <p className="text-muted-foreground mt-1">بيع قطع غيار بدون أمر صيانة، ويتم دمج الأرباح وخصم المخزون أوتوماتيكياً.</p>
+                    </div>
                 </div>
 
-                <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm text-center">أدخل بيانات السيارة أعلاه للحصول على اقتراحات القطع، الزيوت الموصى بها، والبدائل المتاحة لتبسيط عملية الفحص وتقليل الأخطاء.</p>
-                </div>
-            </div>
-
-            {/* Search */}
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none z-10" size={18} />
+                <div className="relative">
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                     <input 
                         type="text" 
-                        placeholder="البحث باسم الشركة المصنعة، الموديل، الكود..." 
+                        placeholder="ابحث باسم القطعة، القسم، الرقم..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="input-field w-full"
-                        style={{ paddingRight: '3rem' }}
+                        className="w-full bg-card border border-border rounded-xl py-4 pr-12 xl:pr-14 pl-4 text-lg text-foreground placeholder-slate-500 focus:outline-none focus:border-amber-500/50 shadow-sm"
                     />
                 </div>
-                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-300 hover:text-white hover:bg-slate-700 transition">
-                    <Filter size={18} />
-                    الماركات
-                </button>
+
+                {loading ? (
+                    <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" /></div>
+                ) : filteredItems.length === 0 ? (
+                    <div className="text-center p-16 glass-card rounded-3xl border-dashed border-2 border-border">
+                        <Package size={48} className="text-slate-700 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-foreground mb-2">المستودع فارغ أو لا يوجد قطعة بهذا الاسم</h3>
+                        <p className="text-muted-foreground mb-6">يجب إضافة القطع أولاً في قسم إدارة المخزون لتتمكن من بيعها هنا.</p>
+                        <Link href="/inventory" className="px-6 py-2.5 bg-muted hover:bg-card text-foreground rounded-xl inline-flex items-center gap-2 transition-colors">
+                            الذهاب لإدارة المخزون
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredItems.map(item => (
+                            <button 
+                                key={item.id} 
+                                onClick={() => addToCart(item)}
+                                disabled={item.quantity <= 0}
+                                className={`flex flex-col text-right p-4 rounded-2xl border transition-all duration-200 shadow-sm ${item.quantity > 0 ? 'bg-muted hover:bg-card border-border border-border hover:border-amber-500/30' : 'bg-card border-slate-900 opacity-50 cursor-not-allowed'}`}
+                            >
+                                <div className="text-xs text-muted-foreground px-2 py-0.5 bg-background rounded block w-max mb-3 border border-border">{item.category || "قطع غيار"}</div>
+                                <h3 className="font-bold text-foreground mb-2 leading-tight flex-1">{item.name}</h3>
+                                <div className="w-full flex items-center justify-between mt-2 pt-3 border-t border-border">
+                                    <span className="font-mono font-bold text-lg text-emerald-400">{item.sell_price || 0}</span>
+                                    <span className={`text-[10px] px-2 py-1 rounded font-bold ${item.quantity > 0 ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-500'}`}>
+                                        متاح: {item.quantity}
+                                    </span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Parts Catalog */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredParts.map(part => (
-                    <div key={part.id} className="glass-card p-5 rounded-2xl border-t-2 border-t-slate-800 hover:border-t-rose-500/50 transition-all group">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-md mb-2 inline-block">
-                                    {part.type}
-                                </span>
-                                <h3 className="text-lg font-bold text-white tracking-wide">{part.brand}</h3>
-                                <p className="text-slate-400 text-sm font-mono mt-1" dir="ltr">{part.code}</p>
+            {/* Right: Cart (35%) */}
+            <div className="w-full md:w-[400px] xl:w-[450px] shrink-0 bg-card border border-border rounded-3xl overflow-hidden flex flex-col h-[calc(100vh-3rem)] sticky top-6 shadow-2xl">
+                <div className="p-6 border-b border-border bg-muted">
+                    <h2 className="text-xl font-bold text-foreground flex items-center justify-between">
+                        فاتورة البيع الحالية
+                        <span className="bg-amber-500/10 text-amber-500 text-sm px-3 py-1 rounded-full">{cart.length} أصناف</span>
+                    </h2>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
+                    {cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                            <Receipt size={64} className="text-slate-800" />
+                            <p>الفاتورة فارغة</p>
+                        </div>
+                    ) : cart.map((item, idx) => (
+                        <div key={idx} className="flex flex-col bg-muted border border-border p-3 rounded-xl">
+                            <div className="flex justify-between items-start mb-3">
+                                <h4 className="text-foreground font-bold text-sm leading-tight pr-2">{item.name}</h4>
+                                <button onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:bg-rose-500/10 group-hover:border-rose-500/30 transition-colors">
-                                <Database size={18} className="text-slate-400 group-hover:text-rose-400" />
+                            <div className="flex justify-between items-center bg-background p-2 rounded-lg border border-border">
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center bg-muted text-foreground rounded hover:bg-background"><Plus size={14} /></button>
+                                    <span className="font-mono font-bold text-foreground w-4 text-center">{item.cartQuantity}</span>
+                                    <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-muted text-foreground rounded hover:bg-background"><Minus size={14} /></button>
+                                </div>
+                                <span className="font-mono font-bold text-emerald-400">{(item.cartQuantity * (item.sell_price || 0)).toLocaleString()} د.ع</span>
                             </div>
                         </div>
+                    ))}
+                </div>
 
-                        <div className="space-y-3 pt-4 border-t border-slate-800 mb-4">
-                            <div className="flex flex-col">
-                                <span className="text-slate-500 text-xs mb-1">السيارات المتوافقة:</span>
-                                <span className="text-slate-300 text-sm font-medium">{part.compModels}</span>
-                            </div>
+                <div className="p-6 border-t border-border bg-muted">
+                    <div className="flex justify-between items-center mb-6">
+                        <span className="text-muted-foreground text-lg">الإجمالي:</span>
+                        <span className="text-4xl font-display font-bold text-foreground">{totalAmount.toLocaleString()} <span className="text-lg text-emerald-400">د.ع</span></span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            disabled={cart.length === 0 || processing}
+                            onClick={() => handleCheckout('cash')}
+                            className="flex items-center justify-center gap-2 p-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+                        >
+                            <Wallet size={20} /> دفع نقدي
+                        </button>
+                        <button 
+                            disabled={cart.length === 0 || processing}
+                            onClick={() => handleCheckout('card')}
+                            className="flex items-center justify-center gap-2 p-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+                        >
+                            <CreditCard size={20} /> بطاقة بنكية
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Success Modal & Print Trigger */}
+            {lastTransaction && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 flex items-center justify-center p-4 print:hidden">
+                    <div className="bg-card border border-emerald-500/50 rounded-3xl w-full max-w-md overflow-hidden animate-scale-in p-8 text-center shadow-[0_0_50px_rgba(16,185,129,0.15)]">
+                        <div className="w-20 h-20 bg-emerald-500/10 rounded-full mx-auto flex items-center justify-center mb-6">
+                            <Receipt size={40} className="text-emerald-500" />
                         </div>
+                        <h2 className="text-2xl font-bold text-foreground mb-2">تمت عملية البيع بنجاح!</h2>
+                        <p className="text-muted-foreground mb-8 font-mono text-xl">{lastTransaction.total.toLocaleString()} د.ع</p>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-800">
-                            <span className="text-2xl font-bold font-mono text-white">{part.price} <span className="text-rose-500 text-sm">IQD</span></span>
-                            <button className="text-sm font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-                                <CheckCircle2 size={16} className="text-emerald-400" />
-                                تحديد للورشة
+                        <div className="flex flex-col gap-3">
+                            <button onClick={() => window.print()} className="w-full py-3.5 bg-muted hover:bg-card text-foreground font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                طباعة الفاتورة (Receipt)
+                            </button>
+                            <button onClick={() => { setLastTransaction(null); setSuccessMsg(""); }} className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-colors">
+                                عميل جديد
                             </button>
                         </div>
                     </div>
-                ))}
-            </div>
-            
-            {filteredParts.length === 0 && (
-                <div className="text-center py-12">
-                    <p className="text-slate-500 text-lg">لم يتم العثور على قطع تطابق بحثك.</p>
                 </div>
             )}
         </div>
+
+            {/* Hidden Printable Invoice (Tailored for PDF & Print) */}
+            {lastTransaction && (
+                <div className="hidden print:block absolute top-0 left-0 w-full bg-white text-black font-ibm z-50 p-8" dir="rtl" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    {/* Header */}
+                    <div className="flex justify-between items-start border-b-2 border-slate-200 pb-6 mb-6">
+                        <div>
+                            <h1 className="text-3xl font-display font-black text-slate-900 mb-1">مركز العناية بالمركبات</h1>
+                            <p className="text-muted-foreground font-bold">فاتورة مبيعات قطع غيار (ضريبية)</p>
+                            <p className="text-sm text-muted-foreground mt-2">الرقم الضريبي: {taxNumber}</p>
+                        </div>
+                        <div className="text-left">
+                            <div className="bg-slate-100 px-4 py-2 rounded-lg border border-slate-200 inline-block mb-3">
+                                <p className="text-xs text-muted-foreground mb-1">رقم الفاتورة (حقيقي)</p>
+                                <p className="font-mono font-bold text-lg text-slate-900">#{lastTransaction.id}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Meta Info */}
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div>
+                            <p className="text-sm text-muted-foreground font-bold mb-1">تاريخ ووقت الإصدار:</p>
+                            <p className="font-mono text-slate-900">{lastTransaction.time}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground font-bold mb-1">طريقة الدفع:</p>
+                            <p className="font-bold text-slate-900 bg-slate-100 inline-block px-3 py-1 rounded">{lastTransaction.method}</p>
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <table className="w-full text-right border-collapse mb-8">
+                        <thead>
+                            <tr className="bg-slate-100 border-y-2 border-slate-300">
+                                <th className="py-3 px-4 font-bold text-slate-700 w-12 text-center">م</th>
+                                <th className="py-3 px-4 font-bold text-slate-700">البيان (القطعة)</th>
+                                <th className="py-3 px-4 font-bold text-slate-700 text-center">الكمية</th>
+                                <th className="py-3 px-4 font-bold text-slate-700 text-center">سعر الوحدة</th>
+                                <th className="py-3 px-4 font-bold text-slate-700 text-left">الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {lastTransaction.cart.map((item, id) => (
+                                <tr key={id}>
+                                    <td className="py-4 px-4 text-center text-muted-foreground">{id + 1}</td>
+                                    <td className="py-4 px-4 font-bold text-slate-900">{item.name}</td>
+                                    <td className="py-4 px-4 text-center font-mono">{item.cartQuantity}</td>
+                                    <td className="py-4 px-4 text-center font-mono">{(item.sell_price || 0).toLocaleString()}</td>
+                                    <td className="py-4 px-4 text-left font-mono font-bold text-slate-900">
+                                        {(item.cartQuantity * (item.sell_price || 0)).toLocaleString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {/* Totals */}
+                    <div className="flex justify-end mb-12">
+                        <div className="w-1/2 md:w-1/3 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-slate-600">المجموع الفرعي:</span>
+                                <span className="font-mono text-slate-900 text-sm">{(lastTransaction.total).toLocaleString()} د.ع</span>
+                            </div>
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-slate-600">الضريبة (0%):</span>
+                                <span className="font-mono text-slate-900 text-sm">0.00 د.ع</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-3 border-t-2 border-slate-300">
+                                <span className="font-bold text-lg text-slate-900">الإجمالي النهائي:</span>
+                                <span className="font-display font-bold text-2xl text-slate-900">{(lastTransaction.total).toLocaleString()} <span className="text-sm">د.ع</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer / T&C */}
+                    <div className="border-t border-slate-200 pt-6 text-center">
+                        <p className="text-sm text-muted-foreground font-bold mb-1">شكراً لتسوقكم معنا ونتمنى لكم قيادة آمنة!</p>
+                        <p className="text-xs text-muted-foreground">البضاعة المباعة لا ترد ولا تستبدل إلا في حال وجود عيب مصنعي خلال 3 أيام بجلب أصل الفاتورة.</p>
+                        <p className="text-xs text-muted-foreground mt-4 font-mono">ERP Automated System Invoice</p>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

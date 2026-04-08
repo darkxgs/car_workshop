@@ -1,0 +1,83 @@
+{
+  "services": [
+    {
+      "id": "sv-01",
+      "name": "تغيير زيت المحرك (Engine Oil Change)",
+      "category": "Engine",
+      "estimatedMinutes": 15,
+      "defaultPrice": 15000
+    },
+    {
+      "id": "sv-02",
+      "name": "تغيير فلتر الزيت (Oil Filter)",
+      "category": "Filters",
+      "estimatedMinutes": 5,
+      "defaultPrice": 5000
+    },
+    {
+      "id": "sv-03",
+      "name": "تغيير فلتر الهواء (Air Filter)",
+      "category": "Filters",
+      "estimatedMinutes": 5,
+      "defaultPrice": 8000
+    },
+    {
+      "id": "sv-04",
+      "name": "تغيير فلتر التكييف (AC Filter)",
+      "category": "Cooling",
+      "estimatedMinutes": 10,
+      "defaultPrice": 12000
+    },
+    {
+      "id": "sv-05",
+      "name": "تغيير زيت ناقل الحركة (Transmission Oil)",
+      "category": "Transmission",
+      "estimatedMinutes": 30,
+      "defaultPrice": 45000
+    },
+    {
+      "id": "sv-06",
+      "name": "تغيير ماء الرادياتير (Radiator Water)",
+      "category": "Cooling",
+      "estimatedMinutes": 15,
+      "defaultPrice": 18000
+    },
+    {
+      "id": "sv-07",
+      "name": "استبدال شمعات الاحتراق (Spark Plugs)",
+      "category": "Engine",
+      "estimatedMinutes": 20,
+      "defaultPrice": 25000
+    }
+  ],
+  "inspections": [
+    {
+      "id": "ins-01",
+      "name": "فحص كمبيوتر (OBD Scan)",
+      "category": "Diagnostics",
+      "estimatedMinutes": 10,
+      "defaultPrice": 20000
+    },
+    {
+      "id": "ins-02",
+      "name": "فحص الفرامل (Brake Check)",
+      "category": "Brakes",
+      "estimatedMinutes": 15,
+      "defaultPrice": 10000
+    },
+    {
+      "id": "ins-03",
+      "name": "فحص السوائل (Fluid Check)",
+      "category": "Maintenance",
+      "estimatedMinutes": 5,
+      "defaultPrice": 5000
+    },
+    {
+      "id": "ins-04",
+      "name": "فحص عام شامل (General Inspection)",
+      "category": "Diagnostics",
+      "estimatedMinutes": 30,
+      "defaultPrice": 35000
+    }
+  ]
+}

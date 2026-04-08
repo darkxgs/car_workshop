@@ -44,7 +44,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
 
     return (
         <div className="chart-container mt-6">
-            <h3 className="font-display text-base font-bold text-white mb-5">{t.charts.profitTrendTitle}</h3>
+            <h3 className="font-display text-base font-bold text-foreground mb-5">{t.charts.profitTrendTitle}</h3>
             <div className="w-full h-[280px]">
                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>

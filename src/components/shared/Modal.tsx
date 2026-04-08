@@ -42,7 +42,7 @@ export function Modal({ isOpen, onClose, title, children, size = "md" }: ModalPr
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-emerald-900/40">
-                    <h2 className="font-display font-bold text-white text-lg">{title}</h2>
+                    <h2 className="font-display font-bold text-foreground text-lg">{title}</h2>
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:text-white hover:bg-rose-500/20 transition-all"
@@ -118,7 +118,7 @@ export function ConfirmDelete({ isOpen, onClose, onConfirm, itemName, title = "�
             <p className="text-emerald-200 text-sm mb-6">
                 {itemName ? (
                     <>
-                        {title}{" "}<strong className="text-white">«{itemName}»</strong>؟ <br/>
+                        {title}{" "}<strong className="text-foreground">«{itemName}»</strong>؟ <br/>
                         {description}
                     </>
                 ) : (

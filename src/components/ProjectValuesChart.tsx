@@ -44,7 +44,7 @@ export function ProjectValuesChart({ data }: ProjectValuesChartProps) {
 
     return (
         <div className="chart-container mt-6">
-            <h3 className="font-display text-base font-bold text-white mb-5">{t.charts.projectValuesTitle}</h3>
+            <h3 className="font-display text-base font-bold text-foreground mb-5">{t.charts.projectValuesTitle}</h3>
             <div className="w-full h-[280px]">
                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
