@@ -88,7 +88,7 @@ export default function PrintPage() {
                 🖨️ طباعة مرة أخرى
             </button>
 
-            <PrintableInspectionReport report={report} services={services} />
+            <PrintableInspectionReport report={report} />
         </>
     );
 }
