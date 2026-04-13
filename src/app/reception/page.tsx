@@ -34,13 +34,17 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         detailFields: [
             { key: "brand",      label: "اسم الزيت" },
             { key: "viscosity",  label: "اللزوجة" },
-            { key: "filterNum",  label: "رقم فلتر الزيت" },
+            { key: "liters",     label: "عدد اللترات" },
+            { key: "unitPrice",  label: "سعر اللتر" },
         ],
     },
     {
         key: "oilFilter",
         label: "فلتر الزيت",
-        detailFields: [{ key: "filterNum", label: "رقم الفلتر" }],
+        detailFields: [
+            { key: "type",       label: "نوع الفلتر" },
+            { key: "filterNum",  label: "رقم الفلتر" }
+        ],
     },
     {
         key: "airFilter",
@@ -208,10 +212,19 @@ export default function ReceptionPage() {
 
     // Update a service's detail field
     const setServiceDetail = (key: string, field: string, value: string) => {
-        setServices(prev => ({
-            ...prev,
-            [key]: { ...prev[key], details: { ...prev[key].details, [field]: value } }
-        }));
+        setServices(prev => {
+            const newDet = { ...prev[key].details, [field]: value };
+            let newPrice = prev[key].price;
+            if (key === 'engineOil' && (field === 'liters' || field === 'unitPrice')) {
+                const l = parseFloat(field === 'liters' ? value : newDet.liters) || 0;
+                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
+                newPrice = (l * up) > 0 ? (l * up).toString() : '';
+            }
+            return {
+                ...prev,
+                [key]: { ...prev[key], details: newDet, price: newPrice }
+            };
+        });
     };
 
     // Update a service's price
