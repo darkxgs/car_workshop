@@ -179,14 +179,15 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                             1- زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.engineOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.engineOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
                             نوع الزيت: <Dotted val={s.engineOil?.details?.brand} /> &nbsp;&nbsp;
                             درجة اللزوجة: <Dotted val={s.engineOil?.details?.viscosity} width="60px" /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.engineOil?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
+                            عدد اللترات: <Dotted val={s.engineOil?.details?.liters} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.engineOil?.price} width="60px" />
                         </div>
 
                         {/* 2 */}
                         <div style={{ lineHeight: 1.4 }}>
                             2- فلتر زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.oilFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.oilFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.oilFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            نوع الفلتر: <Dotted val={s.oilFilter?.details?.type} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.oilFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.oilFilter?.price} width="60px" />
                         </div>
 
