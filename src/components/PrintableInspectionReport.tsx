@@ -180,6 +180,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                             نوع الزيت: <Dotted val={s.engineOil?.details?.brand} /> &nbsp;&nbsp;
                             درجة اللزوجة: <Dotted val={s.engineOil?.details?.viscosity} width="60px" /> &nbsp;&nbsp;
                             عدد اللترات: <Dotted val={s.engineOil?.details?.liters} width="60px" /> &nbsp;&nbsp;
+                            سعر اللتر: <Dotted val={s.engineOil?.details?.unitPrice} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.engineOil?.price} width="60px" />
                         </div>
 
@@ -209,7 +210,8 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                         <div style={{ lineHeight: 1.4 }}>
                             5- زيت الفتيس: &nbsp;&nbsp;جيد <Check checked={s.transOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.transOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
                             نوع الزيت: <Dotted val={s.transOil?.details?.type} /> &nbsp;&nbsp;
-                            الكمية: <Dotted val={s.transOil?.details?.qty} width="60px" /> &nbsp;&nbsp;
+                            عدد اللترات: <Dotted val={s.transOil?.details?.qty} width="60px" /> &nbsp;&nbsp;
+                            سعر اللتر: <Dotted val={s.transOil?.details?.unitPrice} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.transOil?.price} width="60px" />
                         </div>
 

@@ -61,7 +61,8 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         label: "زيت الفتيس (ناقل الحركة)",
         detailFields: [
             { key: "type", label: "نوع الزيت" },
-            { key: "qty",  label: "الكمية" },
+            { key: "qty",  label: "عدد اللترات" },
+            { key: "unitPrice", label: "سعر اللتر" },
         ],
     },
     {
@@ -219,6 +220,11 @@ export default function ReceptionPage() {
                 const l = parseFloat(field === 'liters' ? value : newDet.liters) || 0;
                 const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
                 newPrice = (l * up) > 0 ? (l * up).toString() : '';
+            }
+            if (key === 'transOil' && (field === 'qty' || field === 'unitPrice')) {
+                const q = parseFloat(field === 'qty' ? value : newDet.qty) || 0;
+                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
+                newPrice = (q * up) > 0 ? (q * up).toString() : '';
             }
             return {
                 ...prev,
