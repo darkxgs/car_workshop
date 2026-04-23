@@ -195,14 +195,16 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                         {/* 3 */}
                         <div style={{ lineHeight: 1.4 }}>
                             3- فلتر الهواء: &nbsp;&nbsp;جيد <Check checked={s.airFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.airFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.airFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            نوع الفلتر: <Dotted val={s.airFilter?.details?.type} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.airFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.airFilter?.price} width="60px" />
                         </div>
 
                         {/* 4 */}
                         <div style={{ lineHeight: 1.4 }}>
                             4- فلتر التكييف: &nbsp;&nbsp;جيد <Check checked={s.acFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.acFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.acFilter?.details?.filterNum} /> &nbsp;&nbsp;
+                            نوع الفلتر: <Dotted val={s.acFilter?.details?.type} /> &nbsp;&nbsp;
+                            رقم الفلتر: <Dotted val={s.acFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
                             السعر: <Dotted val={s.acFilter?.price} width="60px" />
                         </div>
 

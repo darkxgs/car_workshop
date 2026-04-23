@@ -49,12 +49,18 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
     {
         key: "airFilter",
         label: "فلتر الهواء",
-        detailFields: [{ key: "filterNum", label: "رقم الفلتر" }],
+        detailFields: [
+            { key: "type",       label: "نوع الفلتر" },
+            { key: "filterNum",  label: "رقم الفلتر" }
+        ],
     },
     {
         key: "acFilter",
         label: "فلتر التكييف",
-        detailFields: [{ key: "filterNum", label: "رقم الفلتر" }],
+        detailFields: [
+            { key: "type",       label: "نوع الفلتر" },
+            { key: "filterNum",  label: "رقم الفلتر" }
+        ],
     },
     {
         key: "transOil",
