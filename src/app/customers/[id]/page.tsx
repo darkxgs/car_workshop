@@ -158,12 +158,7 @@ export default function CustomerProfilePage() {
                                     <Phone size={14} className="text-rose-400" />
                                     <span dir="ltr">{client.phone}</span>
                                 </div>
-                                {client.email && (
-                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                        <Mail size={14} className="text-blue-400" />
-                                        <span dir="ltr">{client.email}</span>
-                                    </div>
-                                )}
+
                                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                     <Calendar size={14} className="text-emerald-400" />
                                     <span>عميل منذ: {new Date(client.created_at).toLocaleDateString("ar-SA")}</span>
