@@ -70,22 +70,24 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         const isGood   = status === 'جيد';
         const isChange = status === 'يحتاج تغيير';
         return (
-            <span style={{ display: 'inline-flex', gap: '10px' }}>
+            <span style={{ display: 'inline-flex', gap: '6px' }}>
                 <span style={{
-                    padding: '1px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                    padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: 700,
                     backgroundColor: isGood ? '#dcfce7' : '#f3f4f6',
-                    color: isGood ? '#15803d' : '#6b7280',
-                    border: `1px solid ${isGood ? '#86efac' : '#d1d5db'}`,
+                    color: isGood ? '#15803d' : '#9ca3af',
+                    border: `1px solid ${isGood ? '#86efac' : '#e5e7eb'}`,
+                    whiteSpace: 'nowrap',
                 }}>
                     <Tick ok={isGood} /> جيد
                 </span>
                 <span style={{
-                    padding: '1px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                    padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: 700,
                     backgroundColor: isChange ? '#fee2e2' : '#f3f4f6',
-                    color: isChange ? '#dc2626' : '#6b7280',
-                    border: `1px solid ${isChange ? '#fca5a5' : '#d1d5db'}`,
+                    color: isChange ? '#dc2626' : '#9ca3af',
+                    border: `1px solid ${isChange ? '#fca5a5' : '#e5e7eb'}`,
+                    whiteSpace: 'nowrap',
                 }}>
-                    <Tick ok={isChange} /> يحتاج تغيير
+                    <Tick ok={isChange} /> تغيير
                 </span>
             </span>
         );
@@ -102,24 +104,24 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         const svc = (s as any)[svcKey] || {};
         return (
             <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: '5px 6px', textAlign: 'center', fontWeight: 700, fontSize: '12px', color: '#6b7280', width: '22px', verticalAlign: 'top', paddingTop: '7px' }}>{num}</td>
-                <td style={{ padding: '5px 8px', fontWeight: 700, fontSize: '12px', width: '115px', verticalAlign: 'top', paddingTop: '7px', whiteSpace: 'nowrap' }}>{label}</td>
-                <td style={{ padding: '5px 8px', verticalAlign: 'top', paddingTop: '7px' }}>
+                <td style={{ padding: '3px 4px', textAlign: 'center', fontWeight: 700, fontSize: '10px', color: '#6b7280', width: '20px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{num}</td>
+                <td style={{ padding: '3px 5px', fontWeight: 700, fontSize: '10px', width: '105px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{label}</td>
+                <td style={{ padding: '3px 5px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     <StatusBadge status={svc.status} />
                 </td>
-                <td style={{ padding: '5px 8px', verticalAlign: 'top' }}>
+                <td style={{ padding: '3px 5px', verticalAlign: 'middle', overflow: 'hidden' }}>
                     {fields && fields.length > 0 && (
-                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                        <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap', fontSize: '10px' }}>
                             {fields.map(f => (
-                                <span key={f.key} style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
-                                    {f.label}: <Val v={svc.details?.[f.key]} w={55} />
+                                <span key={f.key} style={{ whiteSpace: 'nowrap', fontSize: '10px' }}>
+                                    {f.label}: <Val v={svc.details?.[f.key]} w={42} />
                                 </span>
                             ))}
                         </span>
                     )}
                 </td>
-                <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700, fontSize: '12px', width: '65px', verticalAlign: 'top', paddingTop: '7px', whiteSpace: 'nowrap' }}>
-                    <Val v={svc.price} w={55} />
+                <td style={{ padding: '3px 5px', textAlign: 'center', fontWeight: 700, fontSize: '10px', width: '58px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    <Val v={svc.price} w={48} />
                 </td>
             </tr>
         );
@@ -149,11 +151,11 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 body  { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
                 * { font-family: 'Segoe UI', Arial, sans-serif; }
                 .print-page-wrapper { width: 210mm; min-height: 297mm; overflow: hidden; margin: 0 auto; }
-                .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.92); line-height: 1.3; }
+                .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.86); line-height: 1.2; }
             `}</style>
 
             <div ref={ref} dir="rtl" className="print-page-content"
-                style={{ maxWidth: '800px', margin: '0 auto', padding: '6mm 8mm', boxSizing: 'border-box', fontSize: '12px', color: '#1a1a2e', backgroundColor: '#fff' }}>
+                style={{ maxWidth: '800px', margin: '0 auto', padding: '6mm 8mm', boxSizing: 'border-box', fontSize: '11px', color: '#1a1a2e', backgroundColor: '#fff' }}>
 
                 {/* ══ HEADER ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -245,14 +247,14 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                         <span style={{ fontWeight: 800, fontSize: '12px' }}>خدمات العميل — الفحص الدوري مع كل زيارة</span>
                         <span style={{ fontSize: '10px', color: '#94a3b8' }}>14 خدمة أساسية</span>
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', tableLayout: 'fixed' }}>
                         <thead>
-                            <tr style={{ background: '#f1f5f9', fontSize: '10px', color: '#64748b', fontWeight: 700 }}>
-                                <th style={{ padding: '4px 6px', width: '22px' }}>#</th>
-                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>الخدمة</th>
-                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>الحالة</th>
-                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>التفاصيل</th>
-                                <th style={{ padding: '4px 8px', width: '65px', textAlign: 'center' }}>السعر (د.ع)</th>
+                            <tr style={{ background: '#f1f5f9', fontSize: '9px', color: '#64748b', fontWeight: 700 }}>
+                                <th style={{ padding: '3px 4px', width: '20px' }}>#</th>
+                                <th style={{ padding: '3px 5px', textAlign: 'right', width: '105px' }}>الخدمة</th>
+                                <th style={{ padding: '3px 5px', textAlign: 'right', width: '125px' }}>الحالة</th>
+                                <th style={{ padding: '3px 5px', textAlign: 'right' }}>التفاصيل</th>
+                                <th style={{ padding: '3px 5px', width: '58px', textAlign: 'center' }}>السعر (د.ع)</th>
                             </tr>
                         </thead>
                         <tbody>
