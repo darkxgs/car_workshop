@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert, Trash2 } from "lucide-react";
+import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert, Trash2, FolderOpen } from "lucide-react";
 import Link from "next/link";
 
 type ClientWithVehicles = {
@@ -172,14 +172,16 @@ export default function CustomersPage() {
                                     </tr>
                                 )}
                                 {!loading && filteredClients.map((client) => (
-                                    <tr key={client.id} className="border-b border-border hover:bg-muted/20 transition-colors">
+                                    <tr key={client.id} className="border-b border-border hover:bg-muted/20 transition-colors group">
                                         <td className="p-4 align-top">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-rose-400 font-bold text-lg shrink-0">
                                                     {client.name.charAt(0)}
                                                 </div>
-                                                <div className="font-bold text-foreground text-base">
-                                                    {client.name}
+                                                <div>
+                                                    <Link href={`/customers/${client.id}`} className="font-bold text-foreground text-base hover:text-rose-400 transition-colors">
+                                                        {client.name}
+                                                    </Link>
                                                 </div>
                                             </div>
                                         </td>
@@ -213,6 +215,14 @@ export default function CustomersPage() {
                                         </td>
                                         <td className="p-4 align-top">
                                             <div className="flex items-center justify-end gap-2">
+                                                <Link
+                                                    href={`/customers/${client.id}`}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition-colors"
+                                                    title="عرض الملف الكامل"
+                                                >
+                                                    <FolderOpen size={14} />
+                                                    عرض الملف
+                                                </Link>
                                                 <button 
                                                     onClick={() => handleEditClick(client)}
                                                     className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"

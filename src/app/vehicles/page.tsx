@@ -204,6 +204,11 @@ export default function VehiclesPage() {
                                             </div>
                                         </td>
                                         <td className="p-4 align-top">
+                                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                                <Box size={14} className="text-muted-foreground" /> {vehicle.engine_size || 'غير مدرج'}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 align-top">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button 
                                                     onClick={() => handleEditClick(vehicle)}
