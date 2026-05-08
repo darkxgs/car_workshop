@@ -36,6 +36,7 @@ import {
     PieChart,
     Bell,
     FolderOpen,
+    FileSpreadsheet,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
@@ -72,9 +73,13 @@ export function Sidebar() {
             items: [
                 { href: "/customers", label: "سجل العملاء", icon: <Users size={20} /> },
                 { href: "/vehicles", label: "ملف المركبات", icon: <Car size={20} /> },
-                // { href: "/warranty", label: "إدارة الضمانات", icon: <ShieldCheck size={20} /> },
-                // { href: "/inventory", label: "المخزن الاستراتيجي", icon: <PackageOpen size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
-                // { href: "/parts-db", label: "المبيعات المباشرة (POS)", icon: <Database size={20} />, roles: ["Owner", "Admin", "Supervisor"] }
+            ]
+        },
+        {
+            title: "التقارير والتصدير",
+            items: [
+                { href: "/reports",        label: "الفواتير والتقارير (PDF)", icon: <FileText size={20} />,        roles: ["Owner", "Admin", "Supervisor"] },
+                { href: "/reports/export", label: "تصدير البيانات (Excel)",   icon: <FileSpreadsheet size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
             ]
         },
         /* -- مخفية مؤقتاً لتبسيط النظام بناءً على طلب العميل --

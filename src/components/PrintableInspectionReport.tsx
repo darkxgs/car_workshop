@@ -4,50 +4,11 @@ interface PrintableInspectionReportProps {
     report: any;
 }
 
-export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableInspectionReportProps>(({
-    report
-}, ref) => {
+export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableInspectionReportProps>(({ report }, ref) => {
 
     const isPaperV2 = report?.selected_services?.[0]?.is_paper_v2_format === true;
-    const data = isPaperV2 ? report.selected_services[0] : null;
+    const data      = isPaperV2 ? report.selected_services[0] : null;
 
-    // Checkbox Helper
-    const Check = ({ checked }: { checked?: boolean }) => (
-        <span style={{
-            display: 'inline-block',
-            width: '18px',
-            height: '18px',
-            border: '2px solid black',
-            marginRight: '5px',
-            marginLeft: '5px',
-            position: 'relative',
-            top: '3px',
-            textAlign: 'center',
-            lineHeight: '18px',
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            fontSize: '14px',
-        }}>
-            {checked ? '✓' : ''}
-        </span>
-    );
-
-    // Dotted line input helper
-    const Dotted = ({ val, width = '80px' }: { val?: string | number, width?: string }) => (
-        <span style={{
-            display: 'inline-block',
-            borderBottom: '1px dotted black',
-            minWidth: width,
-            margin: '0 5px',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontSize: '13px'
-        }}>
-            {val ?? ''}
-        </span>
-    );
-
-    // If it's the old format, show a fallback
     if (!isPaperV2) {
         return (
             <div ref={ref} dir="rtl" style={{ padding: '20px', fontFamily: 'Arial' }}>
@@ -56,259 +17,304 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         );
     }
 
-    const s = data?.services || {};
-    const fs = data?.freeServices || {};
-    const p = data?.pricing || {};
-    const v = Array.isArray(report?.vehicles) ? (report.vehicles[0] || {}) : (report?.vehicles || {});
-    const client = Array.isArray(v?.clients) ? (v.clients[0] || {}) : (v?.clients || {});
-    const openTimeValue = report?.start_time || report?.created_at;
-    const closeTimeValue = report?.completed_at;
-    const openTime = openTimeValue ? new Date(openTimeValue).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
-    const closeTime = closeTimeValue ? new Date(closeTimeValue).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+    const s       = data?.services     || {};
+    const fs      = data?.freeServices || {};
+    const p       = data?.pricing      || {};
+    const customs = data?.customServices || [];
+    const booklet = data?.booklet      || {};
+
+    const v      = Array.isArray(report?.vehicles) ? (report.vehicles[0] || {}) : (report?.vehicles || {});
+    const client = Array.isArray(v?.clients)       ? (v.clients[0]       || {}) : (v?.clients       || {});
+
+    const openTime  = report?.start_time    ? new Date(report.start_time).toLocaleTimeString('ar-IQ',  { hour: '2-digit', minute: '2-digit' }) : '___________';
+    const closeTime = report?.completed_at  ? new Date(report.completed_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' }) : '___________';
+    const dateStr   = report?.created_at    ? new Date(report.created_at).toLocaleDateString('ar-IQ') : new Date().toLocaleDateString('ar-IQ');
+
+    /* ── Reusable helpers ── */
+    const Val = ({ v: val, w = 80 }: { v?: string | number; w?: number }) => (
+        <span style={{
+            display: 'inline-block',
+            borderBottom: '1.5px solid #1a1a2e',
+            minWidth: `${w}px`,
+            padding: '0 4px',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '12px',
+            color: val ? '#1a1a2e' : '#888',
+        }}>
+            {val ?? ''}
+        </span>
+    );
+
+    const Tick = ({ ok }: { ok?: boolean }) => (
+        <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '16px',
+            height: '16px',
+            border: '1.5px solid',
+            borderColor: ok ? '#16a34a' : '#9ca3af',
+            borderRadius: '3px',
+            backgroundColor: ok ? '#dcfce7' : 'transparent',
+            color: '#16a34a',
+            fontWeight: 900,
+            fontSize: '11px',
+            marginRight: '2px',
+        }}>
+            {ok ? '✓' : ''}
+        </span>
+    );
+
+    const StatusBadge = ({ status }: { status?: string }) => {
+        const isGood   = status === 'جيد';
+        const isChange = status === 'يحتاج تغيير';
+        return (
+            <span style={{ display: 'inline-flex', gap: '10px' }}>
+                <span style={{
+                    padding: '1px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                    backgroundColor: isGood ? '#dcfce7' : '#f3f4f6',
+                    color: isGood ? '#15803d' : '#6b7280',
+                    border: `1px solid ${isGood ? '#86efac' : '#d1d5db'}`,
+                }}>
+                    <Tick ok={isGood} /> جيد
+                </span>
+                <span style={{
+                    padding: '1px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                    backgroundColor: isChange ? '#fee2e2' : '#f3f4f6',
+                    color: isChange ? '#dc2626' : '#6b7280',
+                    border: `1px solid ${isChange ? '#fca5a5' : '#d1d5db'}`,
+                }}>
+                    <Tick ok={isChange} /> يحتاج تغيير
+                </span>
+            </span>
+        );
+    };
+
+    const SvcRow = ({
+        num, label, svcKey, fields,
+    }: {
+        num: number;
+        label: string;
+        svcKey: string;
+        fields?: { key: string; label: string }[];
+    }) => {
+        const svc = (s as any)[svcKey] || {};
+        return (
+            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <td style={{ padding: '5px 6px', textAlign: 'center', fontWeight: 700, fontSize: '12px', color: '#6b7280', width: '22px', verticalAlign: 'top', paddingTop: '7px' }}>{num}</td>
+                <td style={{ padding: '5px 8px', fontWeight: 700, fontSize: '12px', width: '115px', verticalAlign: 'top', paddingTop: '7px', whiteSpace: 'nowrap' }}>{label}</td>
+                <td style={{ padding: '5px 8px', verticalAlign: 'top', paddingTop: '7px' }}>
+                    <StatusBadge status={svc.status} />
+                </td>
+                <td style={{ padding: '5px 8px', verticalAlign: 'top' }}>
+                    {fields && fields.length > 0 && (
+                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                            {fields.map(f => (
+                                <span key={f.key} style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                    {f.label}: <Val v={svc.details?.[f.key]} w={55} />
+                                </span>
+                            ))}
+                        </span>
+                    )}
+                </td>
+                <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700, fontSize: '12px', width: '65px', verticalAlign: 'top', paddingTop: '7px', whiteSpace: 'nowrap' }}>
+                    <Val v={svc.price} w={55} />
+                </td>
+            </tr>
+        );
+    };
+
+    const SERVICES = [
+        { key: 'engineOil',        label: 'زيت المحرك',          fields: [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
+        { key: 'oilFilter',        label: 'فلتر زيت المحرك',     fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'airFilter',        label: 'فلتر الهواء',          fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'acFilter',         label: 'فلتر التبريد',         fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'brakeFluid',       label: 'زيت المكابح',          fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
+        { key: 'coolant',          label: 'ماء الراديتر',         fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'battery',          label: 'البطارية',              fields: [{ key: 'type', label: 'النوع والسعة' }] },
+        { key: 'engineBelts',      label: 'قايش المحرك',          fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'brakePads',        label: 'دسكات السيارة',         fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'sparkPlugs',       label: 'شمعات الاحتراق',       fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'gearboxHydraulic', label: 'هايدروليك الكير',      fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
+        { key: 'wipers',           label: 'الماسحات',              fields: [{ key: 'type', label: 'النوع' }] },
+        { key: 'additives',        label: 'المضافات والمحسنات',   fields: [{ key: 'notes', label: 'المنتج' }] },
+        { key: 'maintenanceUnits', label: 'حدات الصيانة',         fields: [{ key: 'notes', label: 'الوصف' }] },
+    ];
 
     return (
         <div className="relative print-page-wrapper">
-            <style type="text/css" media="print">
-                {`
-                    @page {
-                        size: A4 portrait;
-                        margin: 0 !important;
-                    }
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                        background-color: white;
-                    }
-                    * {
-                        font-family: Arial, sans-serif;
-                    }
-                    .print-page-wrapper {
-                        width: 210mm;
-                        height: 297mm;
-                        overflow: hidden;
-                        margin: 0 auto;
-                    }
-                    .print-page-content {
-                        width: 100%;
-                        transform-origin: top center;
-                        transform: scale(0.9);
-                        line-height: 1.15;
-                    }
-                `}
-            </style>
+            <style type="text/css" media="print">{`
+                @page { size: A4 portrait; margin: 0 !important; }
+                body  { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                * { font-family: 'Segoe UI', Arial, sans-serif; }
+                .print-page-wrapper { width: 210mm; min-height: 297mm; overflow: hidden; margin: 0 auto; }
+                .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.92); line-height: 1.3; }
+            `}</style>
 
-            <div ref={ref} className="mx-auto text-black bg-white print-page-content" dir="rtl" style={{ maxWidth: '800px', padding: '8mm 8mm', boxSizing: 'border-box', fontSize: '13px' }}>
+            <div ref={ref} dir="rtl" className="print-page-content"
+                style={{ maxWidth: '800px', margin: '0 auto', padding: '6mm 8mm', boxSizing: 'border-box', fontSize: '12px', color: '#1a1a2e', backgroundColor: '#fff' }}>
 
-                {/* 1. Header Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ flex: 1 }}></div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ display: 'inline-block', backgroundColor: '#333', color: 'white', padding: '8px 20px', fontSize: '24px', fontWeight: 'bold' }}>
-                            هندسة <span style={{ color: '#ff4d4d' }}>السيارات</span>
+                {/* ══ HEADER ══ */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '10px', color: '#6b7280' }}>رقم الطلب</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#dc2626', letterSpacing: '-0.5px' }}>
+                            #{report.report_number ?? '—'}
                         </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ background: 'linear-gradient(135deg,#1a1a2e 0%,#2d2d5e 100%)', color: 'white', padding: '8px 24px', borderRadius: '10px', display: 'inline-block' }}>
+                            <div style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '1px' }}>
+                                هندسة <span style={{ color: '#f87171' }}>السيارات</span>
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '1px' }}>Car Engineering Center</div>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>التاريخ</div>
+                        <div style={{ fontWeight: 700, fontSize: '13px' }}>{dateStr}</div>
                     </div>
                 </div>
 
-                {/* 2. Top Info Grid */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontWeight: 'bold' }}>
-                    <div>
-                        <div style={{ marginBottom: '10px' }}>
-                            التاريخ <span style={{ fontSize: '16px', borderBottom: '1px solid black', padding: '0 10px' }}>
-                                {new Date().toLocaleDateString('en-GB')}
+                {/* ══ META STRIP ══ */}
+                <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '7px 14px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '11px', flexWrap: 'wrap', gap: '4px' }}>
+                    <span>وقت الفتح: <strong>{openTime}</strong></span>
+                    <span>وقت الانتهاء: <strong>{closeTime}</strong></span>
+                    <span>موظف الاستقبال: <strong>{report.receptionist?.name || '___________'}</strong></span>
+                    <span>اسم الفني: <strong>___________</strong></span>
+                </div>
+
+                {/* ══ BOOKLET ══ */}
+                <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '8px', padding: '6px 14px', display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '10px', fontSize: '11px', flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#92400e' }}>دفتر الخدمة :</strong>
+                    {['جديد', 'قديم', 'لا يوجد'].map(opt => (
+                        <span key={opt} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{
+                                width: '14px', height: '14px', border: '1.5px solid #92400e', borderRadius: '3px', display: 'inline-flex',
+                                alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 900,
+                                backgroundColor: booklet.type === opt ? '#fef08a' : 'transparent',
+                            }}>
+                                {booklet.type === opt ? '✓' : ''}
                             </span>
+                            دفتر {opt}
+                        </span>
+                    ))}
+                    {booklet.type && booklet.type !== 'لا يوجد' && booklet.changes && (
+                        <span style={{ marginRight: '10px' }}>عدد التبديلات: <strong style={{ color: '#92400e' }}>{booklet.changes}</strong></span>
+                    )}
+                </div>
+
+                {/* ══ CLIENT + VEHICLE ══ */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
+                        <div style={{ fontWeight: 800, fontSize: '11px', color: '#dc2626', borderBottom: '1px solid #fca5a5', paddingBottom: '4px', marginBottom: '6px' }}>
+                            👤 بيانات العميل
                         </div>
-                        <div style={{ marginBottom: '10px' }}>
-                            رقم الطلب : <Dotted val={report.report_number?.toString()} width="100px" />
-                        </div>
-                        <div style={{ marginBottom: '10px' }}>
-                            موظف الاستقبال : <Dotted val={report.receptionist?.name} width="150px" />
-                        </div>
-                        <div>
-                            اسم الفني : <Dotted width="200px" />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                            <div>الاسم: <Val v={client.name} w={130} /></div>
+                            <div>رقم الهاتف: <Val v={client.phone} w={115} /></div>
                         </div>
                     </div>
-                    <div>
-                        <div style={{ marginBottom: '25px' }}>
-                            وقت فتح الطلب: <Dotted val={openTime} width="120px" />
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
+                        <div style={{ fontWeight: 800, fontSize: '11px', color: '#dc2626', borderBottom: '1px solid #fca5a5', paddingBottom: '4px', marginBottom: '6px' }}>
+                            🚗 بيانات السيارة
                         </div>
-                        <div>
-                            وقت الانتهاء: <Dotted val={closeTime} width="120px" />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '11px' }}>
+                            <div>النوع: <Val v={v.make} w={60} /></div>
+                            <div>الموديل: <Val v={v.model} w={60} /></div>
+                            <div>المحرك: <Val v={v.engine_size} w={50} /></div>
+                            <div>الكيلومتر: <Val v={report.odometer_reading} w={50} /></div>
                         </div>
                     </div>
                 </div>
 
-                <hr style={{ borderTop: '2px dashed black', margin: '15px 0' }} />
-
-                {/* 3. Client & Vehicle Details */}
-                <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-                    <div style={{ marginBottom: '15px', fontSize: '15px' }}>بيانات العميل :</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '20px' }}>
-                        <div>اسم العميل : <Dotted val={client.name} width="300px" /></div>
-                        <div>رقم العميل : <Dotted val={client.phone} width="300px" /></div>
-                        <div>نوع السيارة : <Dotted val={v.make} width="250px" /></div>
-                        <div>موديل السيارة : <Dotted val={v.model} width="250px" /></div>
-                        <div>حجم المحرك : <Dotted val={v.engine_size} width="250px" /></div>
-                        <div>عداد الكيلومتر : <Dotted val={report.odometer_reading?.toString()} width="200px" /></div>
-                    </div>
+                {/* ══ FREE SERVICES ══ */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '6px 14px', display: 'flex', gap: '24px', marginBottom: '10px', fontSize: '11px', alignItems: 'center' }}>
+                    <strong style={{ color: '#166534', whiteSpace: 'nowrap' }}>✅ خدمات مجانية:</strong>
+                    {[{ key: 'windshieldWater', label: 'ماء المساحات' }, { key: 'tirePressure', label: 'ضغط الإطارات' }, { key: 'engineClean', label: 'تنظيف المحرك بالبخار' }].map(f => (
+                        <span key={f.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: (fs as any)[f.key] ? '#15803d' : '#9ca3af' }}>
+                            <Tick ok={(fs as any)[f.key]} /> {f.label}
+                        </span>
+                    ))}
                 </div>
 
-                <hr style={{ borderTop: '1px solid #ccc', margin: '15px 0' }} />
-
-                {/* 4. Free Services */}
-                <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-                    <div style={{ marginBottom: '10px' }}>خدمات الفحص المجاني :</div>
-                    <div style={{ display: 'flex', gap: '40px', paddingRight: '20px' }}>
-                        <div>ماء المساحات: <Check checked={fs.windshieldWater} /></div>
-                        <div>ضغط الإطارات: <Check checked={fs.tirePressure} /></div>
-                        <div>تنظيف محرك بالبخار: <Check checked={fs.engineClean} /></div>
+                {/* ══ MAIN SERVICES TABLE ══ */}
+                <div style={{ border: '1.5px solid #1a1a2e', borderRadius: '8px', overflow: 'hidden', marginBottom: '10px' }}>
+                    <div style={{ background: 'linear-gradient(90deg,#1a1a2e,#2d2d5e)', color: 'white', padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800, fontSize: '12px' }}>خدمات العميل — الفحص الدوري مع كل زيارة</span>
+                        <span style={{ fontSize: '10px', color: '#94a3b8' }}>14 خدمة أساسية</span>
                     </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                        <thead>
+                            <tr style={{ background: '#f1f5f9', fontSize: '10px', color: '#64748b', fontWeight: 700 }}>
+                                <th style={{ padding: '4px 6px', width: '22px' }}>#</th>
+                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>الخدمة</th>
+                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>الحالة</th>
+                                <th style={{ padding: '4px 8px', textAlign: 'right' }}>التفاصيل</th>
+                                <th style={{ padding: '4px 8px', width: '65px', textAlign: 'center' }}>السعر (د.ع)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {SERVICES.map((svc, i) => (
+                                <SvcRow key={svc.key} num={i + 1} label={svc.label} svcKey={svc.key} fields={svc.fields} />
+                            ))}
+                            {/* Custom extra services */}
+                            {customs.filter((c: any) => c.label).map((c: any, i: number) => (
+                                <tr key={c.id} style={{ borderBottom: '1px solid #e5e7eb', background: '#fffbeb' }}>
+                                    <td style={{ padding: '5px 6px', textAlign: 'center', fontWeight: 700, fontSize: '12px', color: '#92400e' }}>{SERVICES.length + i + 1}</td>
+                                    <td style={{ padding: '5px 8px', fontWeight: 700, fontSize: '12px', color: '#92400e' }}>{c.label}</td>
+                                    <td style={{ padding: '5px 8px' }}><StatusBadge status={c.status} /></td>
+                                    <td style={{ padding: '5px 8px', fontSize: '11px', color: '#6b7280' }}>خدمة إضافية</td>
+                                    <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700 }}>
+                                        <Val v={c.price} w={55} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
 
-                {/* 5. Main Services Bordered Box */}
-                <div style={{ border: '2px solid black', padding: '10px', backgroundColor: '#fafafa' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '15px', fontSize: '15px' }}>
-                        خدمات العميل :- من 1-14 فحص دوري مع كل زيارة
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', fontSize: '13px', fontWeight: 'bold' }}>
-
-                        {/* 1 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            1- زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.engineOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.engineOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الزيت: <Dotted val={s.engineOil?.details?.brand} /> &nbsp;&nbsp;
-                            درجة اللزوجة: <Dotted val={s.engineOil?.details?.viscosity} width="60px" /> &nbsp;&nbsp;
-                            عدد اللترات: <Dotted val={s.engineOil?.details?.liters} width="60px" /> &nbsp;&nbsp;
-                            سعر اللتر: <Dotted val={s.engineOil?.details?.unitPrice} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.engineOil?.price} width="60px" />
+                {/* ══ TOTALS ══ */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '12px' }}>
+                    {[
+                        { label: 'المجموع الكلي', val: p.totalPrice,          color: '#1a1a2e' },
+                        { label: 'المبلغ الواصل', val: p.amountReceived,       color: '#15803d' },
+                        { label: 'مدين لنا',       val: p.amountOwedByClient,  color: '#dc2626' },
+                        { label: 'دائن علينا',     val: p.amountOwedToClient,  color: '#2563eb' },
+                    ].map(item => (
+                        <div key={item.label} style={{ border: `1.5px solid ${item.color}22`, borderRadius: '8px', padding: '6px 10px', textAlign: 'center', background: `${item.color}08` }}>
+                            <div style={{ fontSize: '10px', color: '#6b7280', marginBottom: '2px' }}>{item.label}</div>
+                            <div style={{ fontWeight: 900, fontSize: '14px', color: item.color }}>
+                                {item.val || '—'}
+                            </div>
+                            {item.val && <div style={{ fontSize: '9px', color: '#9ca3af' }}>د.ع</div>}
                         </div>
-
-                        {/* 2 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            2- فلتر زيت المحرك: &nbsp;&nbsp;جيد <Check checked={s.oilFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.oilFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الفلتر: <Dotted val={s.oilFilter?.details?.type} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.oilFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.oilFilter?.price} width="60px" />
-                        </div>
-
-                        {/* 3 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            3- فلتر الهواء: &nbsp;&nbsp;جيد <Check checked={s.airFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.airFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الفلتر: <Dotted val={s.airFilter?.details?.type} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.airFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.airFilter?.price} width="60px" />
-                        </div>
-
-                        {/* 4 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            4- فلتر التكييف: &nbsp;&nbsp;جيد <Check checked={s.acFilter?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.acFilter?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الفلتر: <Dotted val={s.acFilter?.details?.type} /> &nbsp;&nbsp;
-                            رقم الفلتر: <Dotted val={s.acFilter?.details?.filterNum} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.acFilter?.price} width="60px" />
-                        </div>
-
-                        {/* 5 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            5- زيت الفتيس: &nbsp;&nbsp;جيد <Check checked={s.transOil?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.transOil?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الزيت: <Dotted val={s.transOil?.details?.type} /> &nbsp;&nbsp;
-                            عدد اللترات: <Dotted val={s.transOil?.details?.qty} width="60px" /> &nbsp;&nbsp;
-                            سعر اللتر: <Dotted val={s.transOil?.details?.unitPrice} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.transOil?.price} width="60px" />
-                        </div>
-
-                        {/* 6 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            6- ماء الراديتر: &nbsp;&nbsp;جيد <Check checked={s.coolant?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.coolant?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الماء: <Dotted val={s.coolant?.details?.type} /> &nbsp;&nbsp;
-                            الكمية: <Dotted val={s.coolant?.details?.qty} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.coolant?.price} width="60px" />
-                        </div>
-
-                        {/* 7 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            7- البطارية: &nbsp;&nbsp;جيد <Check checked={s.battery?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.battery?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع البطارية والمقاس: <Dotted val={s.battery?.details?.type} width="120px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.battery?.price} width="60px" />
-                        </div>
-
-                        {/* 8 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            8- زيت الفرامل: &nbsp;&nbsp;جيد <Check checked={s.brakeFluid?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.brakeFluid?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.brakeFluid?.price} width="60px" />
-                        </div>
-
-                        {/* 9 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            9- تيل الفرامل: &nbsp;&nbsp;جيد <Check checked={s.brakeCable?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.brakeCable?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.brakeCable?.price} width="60px" />
-                        </div>
-
-                        {/* 10 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            10- شمعات الاحتراق: &nbsp;&nbsp;جيد <Check checked={s.sparkPlugs?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.sparkPlugs?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع الشمعات: <Dotted val={s.sparkPlugs?.details?.type} /> &nbsp;&nbsp;
-                            العدد: <Dotted val={s.sparkPlugs?.details?.num} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.sparkPlugs?.price} width="60px" />
-                        </div>
-
-                        {/* 11 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            11- سيور المحرك: &nbsp;&nbsp;جيد <Check checked={s.engineBelts?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.engineBelts?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع السيور: <Dotted val={s.engineBelts?.details?.type} /> &nbsp;&nbsp;
-                            العدد: <Dotted val={s.engineBelts?.details?.num} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.engineBelts?.price} width="60px" />
-                        </div>
-
-                        {/* 12 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            12- المساعدين: &nbsp;&nbsp;جيد <Check checked={s.shockAbsorbers?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.shockAbsorbers?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            نوع المساعدين: <Dotted val={s.shockAbsorbers?.details?.type} /> &nbsp;&nbsp;
-                            العدد: <Dotted val={s.shockAbsorbers?.details?.num} width="60px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.shockAbsorbers?.price} width="60px" />
-                        </div>
-
-                        {/* 13 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            13- الهيدروليك والمصمات: &nbsp;&nbsp;جيد <Check checked={s.hydraulics?.status === 'جيد'} /> &nbsp; يحتاج تبديل <Check checked={s.hydraulics?.status === 'يحتاج تغيير'} /> &nbsp;&nbsp;
-                            النوع والمقاس: <Dotted val={s.hydraulics?.details?.type} width="180px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.hydraulics?.price} width="60px" />
-                        </div>
-
-                        {/* 14 */}
-                        <div style={{ lineHeight: 1.4 }}>
-                            14- ملاحظة الصيانة: <Dotted val={s.workshopNotes?.details?.notes} width="300px" /> &nbsp;&nbsp;
-                            السعر: <Dotted val={s.workshopNotes?.price} width="60px" />
-                        </div>
-
-                    </div>
+                    ))}
                 </div>
 
-                {/* 6. Footer Totals & Signatures */}
-                <div style={{ marginTop: '20px', fontWeight: 'bold' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
-                        <div>المجموع الكلي: <Dotted val={p.totalPrice} width="80px" /></div>
-                        <div>الواصل: <Dotted val={p.amountReceived} width="80px" /></div>
-                        <div>مدين لنا: <Dotted val={p.amountOwedByClient} width="80px" /></div>
-                        <div>دائن علينا: <Dotted val={p.amountOwedToClient} width="80px" /></div>
+                {/* ══ NOTES ══ */}
+                {report.notes && (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', marginBottom: '10px', fontSize: '11px' }}>
+                        <strong>ملاحظات:</strong> {report.notes}
                     </div>
+                )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            توقيع الزبون: <br /><br /><Dotted width="120px" />
+                {/* ══ SIGNATURES ══ */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginTop: '10px' }}>
+                    {['توقيع الزبون', 'موظف الاستقبال', 'مشرف الصيانة', 'الكاشير'].map(sig => (
+                        <div key={sig} style={{ textAlign: 'center', borderTop: '1px dashed #9ca3af', paddingTop: '8px' }}>
+                            <div style={{ height: '28px' }} />
+                            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600 }}>{sig}</div>
                         </div>
-                        <div style={{ textAlign: 'center' }}>
-                            توقيع موظف الاستقبال: <br /><br /><Dotted width="120px" />
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            توقيع مشرف الصيانة: <br /><br /><Dotted width="120px" />
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            توقيع الكاشير: <br /><br /><Dotted width="120px" />
-                        </div>
-                    </div>
+                    ))}
                 </div>
 
+                {/* ══ FOOTER ══ */}
+                <div style={{ marginTop: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '5px', display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#9ca3af' }}>
+                    <span>Car Engineering Center — نظام إدارة الورشة</span>
+                    <span>طُبع بتاريخ: {new Date().toLocaleDateString('ar-IQ')} {new Date().toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
             </div>
         </div>
     );
