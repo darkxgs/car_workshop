@@ -34,7 +34,6 @@ type ClientProfile = {
     id: string;
     name: string;
     phone: string;
-    email: string | null;
     created_at: string;
     vehicles: Vehicle[];
 };
@@ -64,7 +63,7 @@ export default function CustomerProfilePage() {
         // Fetch client with vehicles
         const { data: clientData, error: clientErr } = await supabase
             .from("clients")
-            .select(`id, name, phone, email, created_at, vehicles (id, make, model, plate_number, engine_size, created_at)`)
+            .select(`id, name, phone, created_at, vehicles (id, make, model, plate_number, engine_size, created_at)`)
             .eq("id", id)
             .single();
 
