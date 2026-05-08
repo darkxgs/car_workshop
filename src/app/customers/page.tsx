@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert } from "lucide-react";
+import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 type ClientWithVehicles = {
@@ -19,6 +19,8 @@ export default function CustomersPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<ClientWithVehicles | null>(null);
 
     // Form state
     const [name, setName] = useState("");
@@ -47,13 +49,55 @@ export default function CustomersPage() {
 
     const handleAddClient = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await supabase.from('clients').insert([{ name, phone }]);
+        const { error } = await supabase.from('clients').insert([{ name, phone, email }]);
         if (!error) {
             setIsAddModalOpen(false);
             setName(""); setPhone(""); setEmail("");
             fetchClients();
         } else {
             alert("حدث خطأ أثناء إضافة العميل.");
+        }
+    };
+
+    const handleEditClick = (client: ClientWithVehicles) => {
+        setEditingClient(client);
+        setName(client.name);
+        setPhone(client.phone);
+        setEmail(client.email || "");
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingClient) return;
+
+        const { error } = await supabase
+            .from('clients')
+            .update({ name, phone, email })
+            .eq('id', editingClient.id);
+
+        if (!error) {
+            setIsEditModalOpen(false);
+            setEditingClient(null);
+            setName(""); setPhone(""); setEmail("");
+            fetchClients();
+        } else {
+            alert("حدث خطأ أثناء تحديث بيانات العميل.");
+        }
+    };
+
+    const handleDeleteClient = async (id: string) => {
+        if (!confirm("هل أنت متأكد من حذف هذا العميل؟ سيتم حذف جميع البيانات المرتبطة به.")) return;
+
+        const { error } = await supabase
+            .from('clients')
+            .delete()
+            .eq('id', id);
+
+        if (!error) {
+            fetchClients();
+        } else {
+            alert("حدث خطأ أثناء حذف العميل.");
         }
     };
 
@@ -108,6 +152,7 @@ export default function CustomersPage() {
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">معلومات التواصل</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">المركبات المسجلة</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">تاريخ التسجيل</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap text-left">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -166,6 +211,24 @@ export default function CustomersPage() {
                                         <td className="p-4 align-top text-muted-foreground text-sm">
                                             {new Date(client.created_at).toLocaleDateString('ar-SA')}
                                         </td>
+                                        <td className="p-4 align-top">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handleEditClick(client)}
+                                                    className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
+                                                    title="تعديل"
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteClient(client.id)}
+                                                    className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg transition-colors"
+                                                    title="حذف"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -213,6 +276,55 @@ export default function CustomersPage() {
                                     حفظ
                                 </button>
                                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-muted hover:bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Edit Client Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-border">
+                            <h2 className="text-xl font-bold text-foreground">تعديل بيانات العميل</h2>
+                        </div>
+                        <form onSubmit={handleUpdateClient} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-muted-foreground mb-1.5">اسم العميل *</label>
+                                <input 
+                                    type="text" required
+                                    value={name} onChange={e => setName(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-rose-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-muted-foreground mb-1.5">رقم الهاتف *</label>
+                                <input 
+                                    type="tel" required dir="ltr"
+                                    value={phone} onChange={e => setPhone(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-rose-500 text-right"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-muted-foreground mb-1.5">البريد الإلكتروني (اختياري)</label>
+                                <input 
+                                    type="email" dir="ltr"
+                                    value={email} onChange={e => setEmail(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-rose-500 text-right"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <button type="submit" className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-2.5 rounded-xl font-bold transition-colors">
+                                    تحديث
+                                </button>
+                                <button type="button" onClick={() => {
+                                    setIsEditModalOpen(false);
+                                    setEditingClient(null);
+                                    setName(""); setPhone(""); setEmail("");
+                                }} className="flex-1 bg-muted hover:bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">
                                     إلغاء
                                 </button>
                             </div>

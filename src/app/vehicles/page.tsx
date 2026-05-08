@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, Car, User, Hash, Box, Settings } from "lucide-react";
+import { Search, Plus, Car, User, Hash, Box, Settings, Edit2, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 type VehicleWithClient = {
@@ -19,6 +19,14 @@ export default function VehiclesPage() {
     const [vehicles, setVehicles] = useState<VehicleWithClient[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingVehicle, setEditingVehicle] = useState<VehicleWithClient | null>(null);
+
+    // Form state
+    const [make, setMake] = useState("");
+    const [model, setModel] = useState("");
+    const [plateNumber, setPlateNumber] = useState("");
+    const [engineSize, setEngineSize] = useState("");
 
     useEffect(() => {
         fetchVehicles();
@@ -30,7 +38,7 @@ export default function VehiclesPage() {
             .from('vehicles')
             .select(`
                 id, make, model, plate_number, engine_size, created_at,
-                clients (name, phone)
+                clients (id, name, phone)
             `)
             .order('created_at', { ascending: false });
 
@@ -38,6 +46,53 @@ export default function VehiclesPage() {
             setVehicles(data as any);
         }
         setLoading(false);
+    };
+
+    const handleEditClick = (vehicle: VehicleWithClient) => {
+        setEditingVehicle(vehicle);
+        setMake(vehicle.make);
+        setModel(vehicle.model);
+        setPlateNumber(vehicle.plate_number);
+        setEngineSize(vehicle.engine_size || "");
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateVehicle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingVehicle) return;
+
+        const { error } = await supabase
+            .from('vehicles')
+            .update({ 
+                make, 
+                model, 
+                plate_number: plateNumber, 
+                engine_size: engineSize 
+            })
+            .eq('id', editingVehicle.id);
+
+        if (!error) {
+            setIsEditModalOpen(false);
+            setEditingVehicle(null);
+            fetchVehicles();
+        } else {
+            alert("حدث خطأ أثناء تحديث بيانات المركبة.");
+        }
+    };
+
+    const handleDeleteVehicle = async (id: string) => {
+        if (!confirm("هل أنت متأكد من حذف هذه المركبة؟ سيتم حذف جميع البيانات المرتبطة بها مثل تقارير الفحص.")) return;
+
+        const { error } = await supabase
+            .from('vehicles')
+            .delete()
+            .eq('id', id);
+
+        if (!error) {
+            fetchVehicles();
+        } else {
+            alert("حدث خطأ أثناء حذف المركبة.");
+        }
     };
 
     const filteredVehicles = vehicles.filter(v => 
@@ -104,6 +159,7 @@ export default function VehiclesPage() {
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">رقم اللوحة (رقم الشاصي)</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">المالك</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">المحرك</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap text-left">العمليات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -148,8 +204,21 @@ export default function VehiclesPage() {
                                             </div>
                                         </td>
                                         <td className="p-4 align-top">
-                                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                                <Box size={14} className="text-muted-foreground" /> {vehicle.engine_size || 'غير مدرج'}
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handleEditClick(vehicle)}
+                                                    className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
+                                                    title="تعديل"
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteVehicle(vehicle.id)}
+                                                    className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg transition-colors"
+                                                    title="حذف"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -160,6 +229,65 @@ export default function VehiclesPage() {
                 </div>
 
             </div>
+            {/* Edit Vehicle Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-border">
+                            <h2 className="text-xl font-bold text-foreground">تعديل بيانات المركبة</h2>
+                        </div>
+                        <form onSubmit={handleUpdateVehicle} className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الماركة *</label>
+                                    <input 
+                                        type="text" required
+                                        value={make} onChange={e => setMake(e.target.value)}
+                                        className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">الموديل *</label>
+                                    <input 
+                                        type="text" required
+                                        value={model} onChange={e => setModel(e.target.value)}
+                                        className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-muted-foreground mb-1.5">رقم اللوحة *</label>
+                                <input 
+                                    type="text" required
+                                    value={plateNumber} onChange={e => setPlateNumber(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500 font-mono"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-muted-foreground mb-1.5">حجم المحرك</label>
+                                <input 
+                                    type="text"
+                                    value={engineSize} onChange={e => setEngineSize(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500"
+                                    placeholder="مثال: 2.0L"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold transition-colors">
+                                    تحديث
+                                </button>
+                                <button type="button" onClick={() => {
+                                    setIsEditModalOpen(false);
+                                    setEditingVehicle(null);
+                                }} className="flex-1 bg-muted hover:bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
