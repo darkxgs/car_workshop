@@ -26,107 +26,110 @@ const FREE_SERVICES = [
     { key: "engineClean",    label: "تنظيف محرك بالبخار" },
 ];
 
-// The 14 main services with their specific detail field labels
+// The 14 main services — updated to match official paper form
 const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; label: string }[] }[] = [
     {
         key: "engineOil",
         label: "زيت المحرك",
         detailFields: [
-            { key: "brand",      label: "اسم الزيت" },
-            { key: "viscosity",  label: "اللزوجة" },
-            { key: "liters",     label: "عدد اللترات" },
-            { key: "unitPrice",  label: "سعر اللتر" },
+            { key: "brand",     label: "نوع الزيت" },
+            { key: "viscosity", label: "درجة اللزوجة" },
+            { key: "liters",    label: "عدد اللترات" },
+            { key: "unitPrice", label: "سعر اللتر" },
         ],
     },
     {
         key: "oilFilter",
-        label: "فلتر الزيت",
+        label: "فلتر زيت المحرك",
         detailFields: [
-            { key: "type",       label: "نوع الفلتر" },
-            { key: "filterNum",  label: "رقم الفلتر" }
+            { key: "type",      label: "نوع الفلتر" },
+            { key: "filterNum", label: "رقم الفلتر" },
         ],
     },
     {
         key: "airFilter",
         label: "فلتر الهواء",
         detailFields: [
-            { key: "type",       label: "نوع الفلتر" },
-            { key: "filterNum",  label: "رقم الفلتر" }
+            { key: "type",      label: "نوع الفلتر" },
+            { key: "filterNum", label: "رقم الفلتر" },
         ],
     },
     {
         key: "acFilter",
-        label: "فلتر التكييف",
+        label: "فلتر التبريد",
         detailFields: [
-            { key: "type",       label: "نوع الفلتر" },
-            { key: "filterNum",  label: "رقم الفلتر" }
-        ],
-    },
-    {
-        key: "transOil",
-        label: "زيت الفتيس (ناقل الحركة)",
-        detailFields: [
-            { key: "type", label: "نوع الزيت" },
-            { key: "qty",  label: "عدد اللترات" },
-            { key: "unitPrice", label: "سعر اللتر" },
-        ],
-    },
-    {
-        key: "coolant",
-        label: "مياه التبريد (الراديتر)",
-        detailFields: [
-            { key: "type", label: "نوع المياه" },
-            { key: "qty",  label: "الكمية" },
+            { key: "type",      label: "نوع الفلتر" },
+            { key: "filterNum", label: "رقم الفلتر" },
         ],
     },
     {
         key: "brakeFluid",
-        label: "زيت الفرامل",
-        detailFields: [],
+        label: "زيت المكابح",
+        detailFields: [
+            { key: "type", label: "نوع الزيت" },
+            { key: "qty",  label: "عدد القطع" },
+        ],
+    },
+    {
+        key: "coolant",
+        label: "ماء الراديتر",
+        detailFields: [
+            { key: "type", label: "نوع الماء" },
+            { key: "qty",  label: "العدد" },
+            { key: "size", label: "الحجم (4L / 1L)" },
+        ],
     },
     {
         key: "battery",
         label: "البطارية",
-        detailFields: [{ key: "type", label: "نوع البطارية والمقاس" }],
+        detailFields: [{ key: "type", label: "نوع البطارية والسعة" }],
     },
     {
-        key: "brakeCable",
-        label: "تيل الفرامل",
-        detailFields: [],
+        key: "engineBelts",
+        label: "قايش المحرك",
+        detailFields: [
+            { key: "type", label: "نوع القايش" },
+            { key: "num",  label: "رقم القايش" },
+        ],
+    },
+    {
+        key: "brakePads",
+        label: "دسكات السيارة",
+        detailFields: [
+            { key: "type", label: "نوع الدسكات" },
+            { key: "num",  label: "رقم الدسكات" },
+        ],
     },
     {
         key: "sparkPlugs",
         label: "شمعات الاحتراق",
         detailFields: [
             { key: "type", label: "نوع الشمعات" },
-            { key: "num",  label: "العدد" },
+            { key: "num",  label: "رقم البلكات" },
         ],
     },
     {
-        key: "engineBelts",
-        label: "سيور المحرك",
+        key: "gearboxHydraulic",
+        label: "هايدروليك الكير",
         detailFields: [
-            { key: "type", label: "نوع السيور" },
-            { key: "num",  label: "العدد" },
+            { key: "type", label: "نوع الهيدروليك" },
+            { key: "qty",  label: "عدد اللترات" },
         ],
     },
     {
-        key: "shockAbsorbers",
-        label: "المساعدين",
-        detailFields: [
-            { key: "type", label: "نوع المساعدين" },
-            { key: "num",  label: "العدد" },
-        ],
+        key: "wipers",
+        label: "الماسحات",
+        detailFields: [{ key: "type", label: "نوع الماسحات" }],
     },
     {
-        key: "hydraulics",
-        label: "الهيدروليك والمصمات",
-        detailFields: [{ key: "type", label: "نوع ومقاس المصمات" }],
+        key: "additives",
+        label: "المضافات والمحسنات",
+        detailFields: [{ key: "notes", label: "اسم المنتج" }],
     },
     {
-        key: "workshopNotes",
-        label: "ملاحظة الصيانة",
-        detailFields: [{ key: "notes", label: "الملاحظات" }],
+        key: "maintenanceUnits",
+        label: "حدات الصيانة",
+        detailFields: [{ key: "notes", label: "وصف الحدة" }],
     },
 ];
 
@@ -142,6 +145,10 @@ export default function ReceptionPage() {
 
     // Wizard step
     const [step, setStep] = useState<Step>(1);
+
+    // ---------- Branches ----------
+    const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState<string>("");
 
     // ---------- STEP 1: Customer & Vehicle ----------
     const [name, setName] = useState("");
@@ -160,6 +167,7 @@ export default function ReceptionPage() {
         windshieldWater: false, tirePressure: false, engineClean: false,
     });
     const [services, setServices] = useState<Record<string, ServiceEntry>>(initServices());
+    const [customServices, setCustomServices] = useState<{ id: string; label: string; status: string; price: string }[]>([]);
 
     // ---------- STEP 3: Pricing & Notes ----------
     const [notes, setNotes] = useState("");
@@ -173,6 +181,21 @@ export default function ReceptionPage() {
     const [error, setError] = useState<string | null>(null);
     const [createdWorkOrderId, setCreatedWorkOrderId] = useState<string | null>(null);
     const [reportNumber, setReportNumber] = useState<number | null>(null);
+
+    // Fetch branches on mount
+    useEffect(() => {
+        supabase.from('branches').select('id, name').then(({ data }) => {
+            if (data) setBranches(data);
+        });
+    }, []);
+
+    // Custom services helpers
+    const addCustomService = () => {
+        setCustomServices(prev => [...prev, { id: Date.now().toString(), label: "", status: "", price: "" }]);
+    };
+    const removeCustomService = (id: string) => setCustomServices(prev => prev.filter(s => s.id !== id));
+    const setCustomSvcField = (id: string, field: string, value: string) =>
+        setCustomServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
 
     // Phone search
     useEffect(() => {
@@ -296,12 +319,14 @@ export default function ReceptionPage() {
                 is_paper_v2_format: true,
                 freeServices,
                 services,
+                customServices,
                 pricing: { totalPrice, amountReceived, amountOwedByClient, amountOwedToClient },
             };
 
+            const finalBranchId = selectedBranchId || branchId;
             const { data: rd, error: re } = await supabase.from('inspection_reports')
                 .insert({
-                    branch_id: branchId, vehicle_id: vehicleId, receptionist_id: employeeId,
+                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     status, total_price: parseFloat(totalPrice || "0"),
                     notes, start_time: startTime, estimated_duration: 60,
@@ -325,6 +350,8 @@ export default function ReceptionPage() {
         setOdometer(""); setPlateNumber(""); setNotes("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
+        setCustomServices([]);
+        setSelectedBranchId("");
         setTotalPrice(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null);
         setStep(1);
@@ -390,6 +417,21 @@ export default function ReceptionPage() {
                                 <label className="text-sm font-medium text-muted-foreground">اسم العميل <span className="text-rose-500">*</span></label>
                                 <input type="text" placeholder="مثال: أحمد محمد" className="input-field" value={name} onChange={e => setName(e.target.value)} />
                             </div>
+                            {branches.length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground">الفرع <span className="text-rose-500">*</span></label>
+                                    <select
+                                        value={selectedBranchId}
+                                        onChange={e => setSelectedBranchId(e.target.value)}
+                                        className="input-field"
+                                    >
+                                        <option value="">-- اختر الفرع --</option>
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -516,6 +558,62 @@ export default function ReceptionPage() {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+
+                        {/* Custom Extra Services */}
+                        <div>
+                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                                <h3 className="text-lg font-bold text-foreground">خدمات إضافية</h3>
+                                <button
+                                    type="button"
+                                    onClick={addCustomService}
+                                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl transition-colors"
+                                >
+                                    <span className="text-lg leading-none">+</span> إضافة خدمة
+                                </button>
+                            </div>
+                            {customServices.length === 0 && (
+                                <p className="text-muted-foreground text-sm text-center py-4">اضغط + لإضافة خدمة إضافية غير مدرجة في القائمة</p>
+                            )}
+                            <div className="space-y-3">
+                                {customServices.map((cs, idx) => (
+                                    <div key={cs.id} className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-dashed border-rose-500/30 bg-rose-950/10">
+                                        <span className="text-xs font-mono text-muted-foreground w-5 text-center">{MAIN_SERVICES.length + idx + 1}</span>
+                                        <input
+                                            type="text"
+                                            placeholder="اسم الخدمة..."
+                                            value={cs.label}
+                                            onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
+                                            className="input-field text-sm py-1.5 flex-1 min-w-[150px]"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={() => setCustomSvcField(cs.id, 'status', 'جيد')}
+                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${cs.status === 'جيد' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-muted border-border hover:border-emerald-500/50'}`}>
+                                                جيد ✓
+                                            </button>
+                                            <button type="button" onClick={() => setCustomSvcField(cs.id, 'status', 'يحتاج تغيير')}
+                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${cs.status === 'يحتاج تغيير' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-muted border-border hover:border-rose-500/50'}`}>
+                                                يحتاج تغيير
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                placeholder="السعر"
+                                                value={cs.price}
+                                                onChange={e => setCustomSvcField(cs.id, 'price', e.target.value)}
+                                                className="input-field text-xs py-1.5 w-24 text-left"
+                                                dir="ltr"
+                                            />
+                                            <span className="text-xs text-muted-foreground">د.ع</span>
+                                        </div>
+                                        <button type="button" onClick={() => removeCustomService(cs.id)}
+                                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors">
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
