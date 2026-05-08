@@ -169,6 +169,10 @@ export default function ReceptionPage() {
     const [services, setServices] = useState<Record<string, ServiceEntry>>(initServices());
     const [customServices, setCustomServices] = useState<{ id: string; label: string; status: string; price: string }[]>([]);
 
+    // ---------- دفتر الخدمة ----------
+    const [bookletType, setBookletType] = useState<"جديد" | "قديم" | "لا يوجد" | "">("");
+    const [bookletChanges, setBookletChanges] = useState("");
+
     // ---------- STEP 3: Pricing & Notes ----------
     const [notes, setNotes] = useState("");
     const [totalPrice, setTotalPrice] = useState("");
@@ -320,6 +324,7 @@ export default function ReceptionPage() {
                 freeServices,
                 services,
                 customServices,
+                booklet: { type: bookletType, changes: bookletChanges },
                 pricing: { totalPrice, amountReceived, amountOwedByClient, amountOwedToClient },
             };
 
@@ -351,6 +356,8 @@ export default function ReceptionPage() {
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
+        setBookletType("");
+        setBookletChanges("");
         setSelectedBranchId("");
         setTotalPrice(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null);
@@ -464,6 +471,48 @@ export default function ReceptionPage() {
                                 <label className="text-sm font-medium text-muted-foreground">عداد الكيلومتر</label>
                                 <input type="number" dir="ltr" placeholder="0" className="input-field text-right" value={odometer} onChange={e => setOdometer(e.target.value)} />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* دفتر الخدمة — full width row */}
+                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-rose-900/20">
+                        <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 border-b border-rose-500/20 pb-3">
+                            <FileText className="text-rose-400" size={20} /> دفتر الخدمة
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-4">
+                            {(['جديد', 'قديم', 'لا يوجد'] as const).map(opt => (
+                                <label key={opt} className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 cursor-pointer transition-all select-none ${
+                                    bookletType === opt
+                                        ? opt === 'لا يوجد' ? 'border-rose-500 bg-rose-500/10 text-rose-300'
+                                        : opt === 'جديد'   ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                                        : 'border-amber-500 bg-amber-500/10 text-amber-300'
+                                        : 'border-border hover:border-rose-500/40 text-muted-foreground'
+                                }`}>
+                                    <input
+                                        type="radio"
+                                        name="bookletType"
+                                        value={opt}
+                                        checked={bookletType === opt}
+                                        onChange={() => setBookletType(opt)}
+                                        className="w-4 h-4 accent-rose-600"
+                                    />
+                                    <span className="font-bold text-sm">دفتر {opt}</span>
+                                </label>
+                            ))}
+                            {bookletType !== 'لا يوجد' && bookletType !== '' && (
+                                <div className="flex items-center gap-3 flex-1 min-w-[220px]">
+                                    <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">عدد التبديلات داخل الدفتر:</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="0"
+                                        value={bookletChanges}
+                                        onChange={e => setBookletChanges(e.target.value)}
+                                        className="input-field w-24 text-center"
+                                        dir="ltr"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
