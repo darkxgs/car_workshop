@@ -12,12 +12,19 @@ type ClientWithVehicles = {
     email?: string | null;
     vehicles: { make: string; model: string; plate_number: string }[];
     created_at: string;
+    latestStatus?: string;
+    branchIds?: string[];
+    branchNames?: string[];
 };
 
 export default function CustomersPage() {
     const [clients, setClients] = useState<ClientWithVehicles[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [branchFilter, setBranchFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
+    const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<ClientWithVehicles | null>(null);
@@ -29,7 +36,13 @@ export default function CustomersPage() {
 
     useEffect(() => {
         fetchClients();
+        fetchBranches();
     }, []);
+
+    const fetchBranches = async () => {
+        const { data } = await supabase.from('branches').select('id, name');
+        if (data) setBranches(data);
+    };
 
     const fetchClients = async () => {
         setLoading(true);
@@ -37,12 +50,52 @@ export default function CustomersPage() {
             .from('clients')
             .select(`
                 id, name, phone, created_at,
-                vehicles (make, model, plate_number)
+                vehicles (
+                    make, model, plate_number,
+                    inspection_reports (status, branch_id, created_at, branches(name))
+                )
             `)
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            setClients(data as any);
+            const mapped = data.map((c: any) => {
+                let allReports: any[] = [];
+                let branchIdSet = new Set<string>();
+                let branchNameSet = new Set<string>();
+
+                c.vehicles?.forEach((v: any) => {
+                    v.inspection_reports?.forEach((r: any) => {
+                        allReports.push(r);
+                        if (r.branch_id) branchIdSet.add(r.branch_id);
+                        if (r.branches?.name) branchNameSet.add(r.branches.name);
+                    });
+                });
+
+                allReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                
+                let latestStatus = 'لا توجد طلبات';
+                if (allReports.length > 0) {
+                    const st = allReports[0].status;
+                    if (st === 'completed' || st === 'تم الانتهاء' || st === 'ملغي' || st === 'cancelled') {
+                        latestStatus = 'مكتمل';
+                    } else if (st === 'pending' || st === 'قيد الانتظار' || st === 'قيد العمل' || st === 'in_progress') {
+                        latestStatus = 'قيد العمل';
+                    }
+                }
+
+                return {
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone,
+                    email: c.email,
+                    created_at: c.created_at,
+                    vehicles: c.vehicles,
+                    latestStatus,
+                    branchIds: Array.from(branchIdSet),
+                    branchNames: Array.from(branchNameSet)
+                };
+            });
+            setClients(mapped);
         }
         setLoading(false);
     };
@@ -101,11 +154,15 @@ export default function CustomersPage() {
         }
     };
 
-    const filteredClients = clients.filter(c => 
-        c.name.includes(searchTerm) || 
-        c.phone.includes(searchTerm) || 
-        (c.vehicles?.some(v => v.plate_number.includes(searchTerm) || v.make.includes(searchTerm)))
-    );
+    const filteredClients = clients.filter(c => {
+        const matchSearch = c.name.includes(searchTerm) || 
+                            c.phone.includes(searchTerm) || 
+                            (c.vehicles?.some(v => v.plate_number.includes(searchTerm) || v.make.includes(searchTerm)));
+        const matchBranch = branchFilter ? c.branchIds?.includes(branchFilter) : true;
+        const matchStatus = statusFilter ? c.latestStatus === statusFilter : true;
+        
+        return matchSearch && matchBranch && matchStatus;
+    });
 
     return (
         <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
@@ -122,20 +179,40 @@ export default function CustomersPage() {
                             قاعدة بيانات العملاء وسجل مركباتهم المرتبطة
                         </p>
                     </div>
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-80">
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        <select 
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                            className="bg-card border border-border rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                        >
+                            <option value="">كل الفروع</option>
+                            {branches.map(b => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                        <select 
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="bg-card border border-border rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                        >
+                            <option value="">كل الحالات</option>
+                            <option value="مكتمل">مكتمل</option>
+                            <option value="قيد العمل">قيد العمل</option>
+                            <option value="لا توجد طلبات">لا توجد طلبات</option>
+                        </select>
+                        <div className="relative flex-1 md:w-64">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                             <input 
                                 type="text" 
                                 placeholder="ابحث بالاسم، الرقم، أو اللوحة..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-card border border-border rounded-xl py-2.5 pr-10 pl-4 text-foreground placeholder-slate-500 focus:outline-none focus:border-rose-500/50"
+                                className="w-full bg-card border border-border rounded-xl py-2.5 pr-10 pl-4 text-foreground placeholder-slate-500 text-sm focus:outline-none focus:border-rose-500/50"
                             />
                         </div>
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
-                            className="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+                            className="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
                         >
                             <Plus size={18} /> <span className="hidden sm:inline">إضافة عميل</span>
                         </button>
@@ -151,7 +228,7 @@ export default function CustomersPage() {
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">العميل</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">معلومات التواصل</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">المركبات المسجلة</th>
-                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">تاريخ التسجيل</th>
+                                    <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap">حالة العميل / الفرع</th>
                                     <th className="p-4 text-muted-foreground font-bold text-sm whitespace-nowrap text-left">العمليات</th>
                                 </tr>
                             </thead>
@@ -210,8 +287,23 @@ export default function CustomersPage() {
                                                 <span className="text-muted-foreground text-xs px-2 py-1 bg-card rounded">لا توجد مركبات</span>
                                             )}
                                         </td>
-                                        <td className="p-4 align-top text-muted-foreground text-sm">
-                                            {new Date(client.created_at).toLocaleDateString('ar-SA')}
+                                        <td className="p-4 align-top">
+                                            <div className="flex flex-col gap-2">
+                                                <span className={`inline-flex w-fit px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                                    client.latestStatus === "مكتمل" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                                    client.latestStatus === "قيد العمل" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                                    "bg-muted text-muted-foreground border-border"
+                                                }`}>
+                                                    {client.latestStatus}
+                                                </span>
+                                                {client.branchNames && client.branchNames.length > 0 ? (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {client.branchNames.join("، ")}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">لا يوجد فرع</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4 align-top">
                                             <div className="flex items-center justify-end gap-2">
