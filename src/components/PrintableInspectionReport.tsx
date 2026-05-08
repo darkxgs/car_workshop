@@ -146,16 +146,19 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
 
     return (
         <div className="relative print-page-wrapper">
+            <style type="text/css">{`
+                @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+            `}</style>
             <style type="text/css" media="print">{`
                 @page { size: A4 portrait; margin: 0 !important; }
                 body  { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-                * { font-family: 'Segoe UI', Arial, sans-serif; }
+                * { font-family: 'Amiri', 'Times New Roman', serif !important; }
                 .print-page-wrapper { width: 210mm; min-height: 297mm; overflow: hidden; margin: 0 auto; }
                 .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.86); line-height: 1.2; }
             `}</style>
 
             <div ref={ref} dir="rtl" className="print-page-content"
-                style={{ maxWidth: '800px', margin: '0 auto', padding: '6mm 8mm', boxSizing: 'border-box', fontSize: '11px', color: '#1a1a2e', backgroundColor: '#fff' }}>
+                style={{ maxWidth: '800px', margin: '0 auto', padding: '6mm 8mm', boxSizing: 'border-box', fontSize: '11px', color: '#1a1a2e', backgroundColor: '#fff', fontFamily: "'Amiri', serif" }}>
 
                 {/* ══ HEADER ══ */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
