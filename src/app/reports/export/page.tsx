@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Download, RefreshCw, FileSpreadsheet, Search, Calendar, X } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -40,7 +40,6 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
 };
 
 export default function ExportPage() {
-    const supabase = createClient();
     const [rows, setRows]       = useState<ReportRow[]>([]);
     const [filtered, setFiltered] = useState<ReportRow[]>([]);
     const [loading, setLoading] = useState(true);
