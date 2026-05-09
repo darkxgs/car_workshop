@@ -9,18 +9,25 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     const isPaperV2 = report?.selected_services?.[0]?.is_paper_v2_format === true;
     const data      = isPaperV2 ? report.selected_services[0] : null;
 
-    if (!isPaperV2) {
-        return (
-            <div ref={ref} dir="rtl" style={{ padding: '20px', fontFamily: 'Arial' }}>
-                <h2>عذراً، هذا الطلب تم حفظه بالتنسيق القديم ولا يدعم النموذج المطبوع الجديد.</h2>
-            </div>
-        );
-    }
+    // Fallback mapping for older reports without the new v2 format
+    const oldServices = !isPaperV2 && Array.isArray(report?.selected_services) 
+        ? report.selected_services 
+        : [];
 
     const s       = data?.services     || {};
     const fs      = data?.freeServices || {};
-    const p       = data?.pricing      || {};
-    const customs = data?.customServices || [];
+    const p       = data?.pricing      || { 
+        totalPrice: report?.total_price || 0, 
+        amountReceived: 0, 
+        amountOwedByClient: 0, 
+        amountOwedToClient: 0 
+    };
+    const customs = data?.customServices || oldServices.map((srv: any) => ({
+        id: Math.random().toString(),
+        label: typeof srv === 'string' ? srv : (srv.service || srv.label || 'خدمة سابقة'),
+        status: srv.status || 'مكتمل',
+        price: srv.price || 0
+    }));
     const booklet = data?.booklet      || {};
 
     const v      = Array.isArray(report?.vehicles) ? (report.vehicles[0] || {}) : (report?.vehicles || {});
