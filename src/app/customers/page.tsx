@@ -266,49 +266,43 @@ export default function CustomersPage() {
             };
         });
 
-        const totalRevenue = mapped.reduce((sum, r) => sum + (Number(r.total_price) || 0), 0);
+        const totalAmount = mapped.reduce((sum, r) => sum + (Number(r.total_price) || 0), 0);
 
-        const wsData = [
-            ["تقرير الفواتير والصيانة الشامل - ورشة السيارات"],
-            [],
-            ["تاريخ الإصدار:", new Date().toLocaleDateString('ar-IQ')],
-            ["الفترة المحددة:", (dateFrom || dateTo) ? `من ${dateFrom || 'البداية'} إلى ${dateTo || 'الآن'}` : "جميع الأوقات"],
-            ["عدد الفواتير:", mapped.length],
-            ["إجمالي الإيرادات (د.ع):", totalRevenue],
-            [],
-            // Headers
-            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "المركبة", "الموديل", "رقم اللوحة", "تاريخ الفاتورة",
-             "حالة الفاتورة", "المبلغ الإجمالي (د.ع)", "الصيانة (تحتاج تغيير)", "تفاصيل الزيت",
-             "الخدمات الإضافية", "دفتر الزيت"],
+        const wsData: any[][] = [
+            ["تقرير فواتير الصيانة الشامل - Auto Workshop ERP"], // Row 1: Title
+            [
+                `تاريخ التصدير: ${new Date().toLocaleDateString("ar-IQ")}`,
+                `الفرع: ${branchFilter ? branches.find(b => b.id === branchFilter)?.name : "الكل"}`,
+                `من: ${dateFrom || "البداية"}  إلى: ${dateTo || "اليوم"}`
+            ], // Row 2: Metadata
+            [], // Row 3: Empty space
+            // Row 4: Headers
+            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ",
+             "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
+             "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
+            // Data Rows
             ...mapped.map(r => [
                 r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate,
-                r.created_at, r.status, r.total_price,
-                r.service_type, 
-                (r.oil_type ? `${r.oil_type} (${r.oil_viscosity}) - ${r.oil_liters} لتر` : "—"),
-                r.extra_services || "—", 
-                r.booklet || "—"
+                r.created_at, r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
+                r.extra_services, r.booklet, r.total_price, r.status
             ]),
-            [],
-            ["", "", "", "", "", "", "", "", "الإجمالي الكلي:", totalRevenue]
+            [], // Empty Row
+            // Totals Row
+            ["", "", "", "", "", "", "", "", "", "", "", "", "", "إجمالي الإيرادات المفلترة:", totalAmount, ""]
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch: 5},  // seq
-            {wch: 16}, // branch
-            {wch: 25}, // client name
-            {wch: 18}, // phone
-            {wch: 15}, // make
-            {wch: 15}, // model
-            {wch: 15}, // plate
-            {wch: 15}, // date
-            {wch: 15}, // status
-            {wch: 22}, // price
-            {wch: 35}, // service needs
-            {wch: 30}, // oil details
-            {wch: 35}, // extra services
-            {wch: 20}, // booklet
+            {wch:6}, {wch:18}, {wch:25}, {wch:18}, {wch:16}, {wch:16}, {wch:16}, {wch:14},
+            {wch:35}, {wch:20}, {wch:15}, {wch:12}, {wch:35}, {wch:15}, {wch:18}, {wch:14},
         ];
+
+        ws["!merges"] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } } // Merge title across all columns
+        ];
+
+        ws['!autofilter'] = { ref: `A4:P${mapped.length + 4}` };
+
         if (!ws["!opts"]) ws["!opts"] = {};
         (ws as any)["!opts"].RTL = true;
 
