@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert, Trash2, FolderOpen } from "lucide-react";
+import { Search, Plus, User, Phone, Mail, Car, Edit2, ShieldAlert, Trash2, FolderOpen, FileSpreadsheet, Download } from "lucide-react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 type ClientWithVehicles = {
     id: string;
@@ -22,7 +23,6 @@ export default function CustomersPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [branchFilter, setBranchFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
     const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
     
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -159,10 +159,110 @@ export default function CustomersPage() {
                             c.phone.includes(searchTerm) || 
                             (c.vehicles?.some(v => v.plate_number.includes(searchTerm) || v.make.includes(searchTerm)));
         const matchBranch = branchFilter ? c.branchIds?.includes(branchFilter) : true;
-        const matchStatus = statusFilter ? c.latestStatus === statusFilter : true;
         
-        return matchSearch && matchBranch && matchStatus;
+        return matchSearch && matchBranch;
     });
+
+    const exportExcel = async () => {
+        const { data, error } = await supabase
+            .from("inspection_reports")
+            .select(`id, report_number, created_at, total_price, status, selected_services,
+                     vehicles(make, model, clients(name, phone)), branches(name)`)
+            .order("created_at", { ascending: false });
+
+        if (!data || error) return;
+
+        let filteredReports = data;
+        if (branchFilter) {
+            const selectedBranch = branches.find(b => b.id === branchFilter)?.name;
+            if (selectedBranch) {
+                filteredReports = filteredReports.filter((r: any) => r.branches?.name === selectedBranch);
+            }
+        }
+
+        const STATUS_MAP: Record<string, string> = {
+            "pending": "قيد الانتظار",
+            "قيد الانتظار": "قيد الانتظار",
+            "in_progress": "قيد العمل",
+            "قيد العمل": "قيد العمل",
+            "completed": "تم الانتهاء",
+            "تم الانتهاء": "تم الانتهاء",
+            "cancelled": "ملغي",
+            "ملغي": "ملغي"
+        };
+
+        const SERVICE_LABELS: Record<string, string> = {
+            engineOil: "زيت المحرك", oilFilter: "فلتر زيت المحرك", airFilter: "فلتر الهواء",
+            acFilter: "فلتر التبريد", brakeFluid: "زيت المكابح", coolant: "ماء الراديتر",
+            battery: "البطارية", engineBelts: "قايش المحرك", brakePads: "دسكات السيارة",
+            sparkPlugs: "شمعات الاحتراق", transOil: "زيت ناقل الحركة", differentialOil: "زيت الدبل / البكك",
+            gearboxHydraulic: "هايدروليك الكير", wipers: "الماسحات", additives: "المضافات والمحسنات",
+            maintenanceUnits: "حدات الصيانة"
+        };
+
+        const mapped = filteredReports.map((r: any, idx: number) => {
+            const vehicle = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
+            const client  = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+            const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+            
+            const services   = payload?.services  || {};
+            const customs    = payload?.customServices || [];
+            const bookletObj = payload?.booklet   || {};
+
+            const oilSvc  = services.engineOil || {};
+            const oilType = oilSvc.details?.brand     || "";
+            const oilVisc = oilSvc.details?.viscosity || "";
+            const oilLiters = oilSvc.details?.liters  || "";
+
+            const needChange = Object.entries(services as Record<string, any>)
+                .filter(([, v]) => v?.status === "يحتاج تغيير")
+                .map(([k]) => SERVICE_LABELS[k] || k);
+
+            const customLabels = customs.filter((c: any) => c.label).map((c: any) => c.label);
+            const bookletStr   = bookletObj.type
+                ? `${bookletObj.type}${bookletObj.changes ? ` (${bookletObj.changes})` : ""}`
+                : "";
+
+            return {
+                seq: idx + 1,
+                branch_name: r.branches?.name || "—",
+                client_name:  client?.name  || "—",
+                client_phone: client?.phone || "—",
+                car_make:  vehicle?.make  || "—",
+                car_model: vehicle?.model || "—",
+                created_at: new Date(r.created_at).toLocaleDateString("ar-IQ"),
+                service_type: needChange.join("، ") || "فحص",
+                oil_type: oilType, oil_viscosity: oilVisc, oil_liters: oilLiters,
+                extra_services: customLabels.join("، "),
+                booklet: bookletStr,
+                total_price: r.total_price || 0,
+                status: STATUS_MAP[r.status] || r.status || "",
+            };
+        });
+
+        const wsData = [
+            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "التاريخ",
+             "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
+             "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
+            ...mapped.map(r => [
+                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model,
+                r.created_at, r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
+                r.extra_services, r.booklet, r.total_price, r.status
+            ])
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws["!cols"] = [
+            {wch:5},{wch:16},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14},
+            {wch:28},{wch:18},{wch:14},{wch:10},{wch:28},{wch:14},{wch:12},{wch:12},
+        ];
+        if (!ws["!opts"]) ws["!opts"] = {};
+        (ws as any)["!opts"].RTL = true;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "طلبات الصيانة");
+        XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
+    };
 
     return (
         <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
@@ -190,16 +290,7 @@ export default function CustomersPage() {
                                 <option key={b.id} value={b.id}>{b.name}</option>
                             ))}
                         </select>
-                        <select 
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="bg-card border border-border rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
-                        >
-                            <option value="">كل الحالات</option>
-                            <option value="مكتمل">مكتمل</option>
-                            <option value="قيد العمل">قيد العمل</option>
-                            <option value="لا توجد طلبات">لا توجد طلبات</option>
-                        </select>
+
                         <div className="relative flex-1 md:w-64">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                             <input 
@@ -210,6 +301,12 @@ export default function CustomersPage() {
                                 className="w-full bg-card border border-border rounded-xl py-2.5 pr-10 pl-4 text-foreground placeholder-slate-500 text-sm focus:outline-none focus:border-rose-500/50"
                             />
                         </div>
+                        <button 
+                            onClick={exportExcel}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+                        >
+                            <Download size={18} /> <span className="hidden sm:inline">تصدير إكسل</span>
+                        </button>
                         <button 
                             onClick={() => setIsAddModalOpen(true)}
                             className="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"

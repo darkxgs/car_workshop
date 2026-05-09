@@ -78,8 +78,7 @@ export function Sidebar() {
         {
             title: "التقارير والتصدير",
             items: [
-                { href: "/reports",        label: "الفواتير والتقارير (PDF)", icon: <FileText size={20} />,        roles: ["Owner", "Admin", "Supervisor"] },
-                { href: "/reports/export", label: "تصدير البيانات (Excel)",   icon: <FileSpreadsheet size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
+                { href: "/reports", label: "الفواتير والتقارير (PDF)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
             ]
         },
         /* -- مخفية مؤقتاً لتبسيط النظام بناءً على طلب العميل --

@@ -76,8 +76,9 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         label: "ماء الراديتر",
         detailFields: [
             { key: "type", label: "نوع الماء" },
-            { key: "qty",  label: "العدد" },
             { key: "size", label: "الحجم (4L / 1L)" },
+            { key: "qty",  label: "العدد" },
+            { key: "unitPrice", label: "سعر العبوة" },
         ],
     },
     {
@@ -310,6 +311,11 @@ function ReceptionWizard() {
                 newPrice = (l * up) > 0 ? (l * up).toString() : '';
             }
             if (key === 'transOil' && (field === 'qty' || field === 'unitPrice')) {
+                const q = parseFloat(field === 'qty' ? value : newDet.qty) || 0;
+                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
+                newPrice = (q * up) > 0 ? (q * up).toString() : '';
+            }
+            if (key === 'coolant' && (field === 'qty' || field === 'unitPrice')) {
                 const q = parseFloat(field === 'qty' ? value : newDet.qty) || 0;
                 const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
                 newPrice = (q * up) > 0 ? (q * up).toString() : '';
@@ -672,16 +678,32 @@ function ReceptionWizard() {
                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
                                             {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                    {svc.detailFields.map(df => (
-                                                        <input
-                                                            key={df.key}
-                                                            type="text"
-                                                            placeholder={df.label}
-                                                            className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
-                                                            value={entry.details[df.key] || ""}
-                                                            onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
-                                                        />
-                                                    ))}
+                                                    {svc.detailFields.map(df => {
+                                                        if (svc.key === 'coolant' && df.key === 'size') {
+                                                            return (
+                                                                <select 
+                                                                    key={df.key} 
+                                                                    className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                                                    value={entry.details[df.key] || ""}
+                                                                    onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
+                                                                >
+                                                                    <option value="">اختر الحجم</option>
+                                                                    <option value="دبة 1 لتر">دبة 1 لتر</option>
+                                                                    <option value="دبة 4 لتر">دبة 4 لتر</option>
+                                                                </select>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <input
+                                                                key={df.key}
+                                                                type={df.key === 'unitPrice' || df.key === 'qty' ? "number" : "text"}
+                                                                placeholder={df.label}
+                                                                className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                                                value={entry.details[df.key] || ""}
+                                                                onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
+                                                            />
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
