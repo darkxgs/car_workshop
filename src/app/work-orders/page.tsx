@@ -9,7 +9,7 @@ type WorkOrderList = {
     id: string;
     report_number: number;
     status: string;
-    vehicles: { make: string; model: string; plate_number: string };
+    vehicles: { make: string; model: string; plate_number: string; clients?: { name: string } | null };
     created_at: string;
     estimated_duration: number;
     is_delayed: boolean;
@@ -26,7 +26,7 @@ export default function WorkOrdersListPage() {
     const fetchOrders = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number)`)
+            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number, clients (name))`)
             .order('created_at', { ascending: false });
 
         if (data) setOrders(data as any);
@@ -78,7 +78,10 @@ export default function WorkOrdersListPage() {
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
-                                            <p className="text-xs text-muted-foreground font-mono" dir="ltr">{order.vehicles?.plate_number}</p>
+                                            <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                                                {order.vehicles?.plate_number} 
+                                                {order.vehicles?.clients && (Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name) ? ` • ${Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name}` : ''}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -95,9 +98,14 @@ export default function WorkOrdersListPage() {
                                         )}
                                     </div>
                                 </div>
-                                <Link href={`/work-orders/${order.id}`} className="w-full flex items-center justify-center gap-2 py-2.5 bg-muted group-hover:bg-blue-600 group-hover:text-white text-muted-foreground transition-colors font-bold rounded-xl text-sm border border-transparent group-hover:border-blue-500 shadow-sm">
-                                    تفاصيل الصيانة <ArrowLeft size={16} />
-                                </Link>
+                                <div className="flex gap-2">
+                                    <Link href={`/work-orders/${order.id}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-muted group-hover:bg-blue-600 group-hover:text-white text-muted-foreground transition-colors font-bold rounded-xl text-sm border border-transparent group-hover:border-blue-500 shadow-sm">
+                                        تفاصيل الصيانة <ArrowLeft size={16} />
+                                    </Link>
+                                    <Link href={`/reception?edit=${order.id}`} className="px-4 py-2.5 bg-muted group-hover:bg-rose-600/10 group-hover:text-rose-500 text-muted-foreground transition-colors font-bold rounded-xl text-sm border border-transparent group-hover:border-rose-500/30">
+                                        تعديل
+                                    </Link>
+                                </div>
                             </div>
                         ))}
                     </div>

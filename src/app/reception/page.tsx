@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -139,9 +140,13 @@ const initServices = (): Record<string, ServiceEntry> => {
     return obj;
 };
 
-export default function ReceptionPage() {
+function ReceptionWizard() {
     const { t } = useLanguage();
     const { user } = useAuth();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const editId = searchParams.get('edit');
+    const [editReportId, setEditReportId] = useState<string | null>(null);
 
     // Wizard step
     const [step, setStep] = useState<Step>(1);
@@ -176,6 +181,7 @@ export default function ReceptionPage() {
     // ---------- STEP 3: Pricing & Notes ----------
     const [notes, setNotes] = useState("");
     const [totalPrice, setTotalPrice] = useState("");
+    const [discount, setDiscount] = useState("");
     const [amountReceived, setAmountReceived] = useState("");
     const [amountOwedByClient, setAmountOwedByClient] = useState("");
     const [amountOwedToClient, setAmountOwedToClient] = useState("");
@@ -192,6 +198,55 @@ export default function ReceptionPage() {
             if (data) setBranches(data);
         });
     }, []);
+
+    // Load existing report for editing
+    useEffect(() => {
+        if (!editId) return;
+        const loadReport = async () => {
+            const { data } = await supabase.from('inspection_reports')
+                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id,
+                         vehicles(id, make, model, engine_size, plate_number, clients(id, name, phone))`)
+                .eq('id', editId).single();
+            
+            if (data) {
+                setEditReportId(data.id);
+                const vehicle = Array.isArray(data.vehicles) ? data.vehicles[0] : data.vehicles;
+                const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+                
+                if (client) {
+                    setName(client.name); setPhone(client.phone); setSelectedClientId(client.id);
+                }
+                if (vehicle) {
+                    setMake(vehicle.make || ""); setModel(vehicle.model || "");
+                    setEngineSize(vehicle.engine_size || ""); setPlateNumber(vehicle.plate_number || "");
+                }
+                setOdometer(data.odometer_reading?.toString() || "");
+                setNotes(data.notes || "");
+                if (data.branch_id) setSelectedBranchId(data.branch_id);
+                
+                const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
+                if (payload) {
+                    if (payload.freeServices) setFreeServices(payload.freeServices);
+                    if (payload.services) setServices({ ...initServices(), ...payload.services });
+                    if (payload.customServices) setCustomServices(payload.customServices);
+                    if (payload.booklet) {
+                        setBookletType(payload.booklet.type || "");
+                        setBookletChanges(payload.booklet.changes || "");
+                    }
+                    if (payload.pricing) {
+                        setTotalPrice(payload.pricing.totalPrice || data.total_price?.toString() || "");
+                        setDiscount(payload.pricing.discount || "");
+                        setAmountReceived(payload.pricing.amountReceived || "");
+                        setAmountOwedByClient(payload.pricing.amountOwedByClient || "");
+                        setAmountOwedToClient(payload.pricing.amountOwedToClient || "");
+                    } else {
+                        setTotalPrice(data.total_price?.toString() || "");
+                    }
+                }
+            }
+        };
+        loadReport();
+    }, [editId]);
 
     // Custom services helpers
     const addCustomService = () => {
@@ -307,13 +362,15 @@ export default function ReceptionPage() {
             }
 
             let vehicleId: string | null = null;
-            const { data: ev } = await supabase.from('vehicles').select('id').eq('plate_number', plateNumber).maybeSingle();
-            if (ev) {
-                vehicleId = ev.id;
+            if (plateNumber && plateNumber.trim() !== "") {
+                const { data: ev } = await supabase.from('vehicles').select('id').eq('plate_number', plateNumber).maybeSingle();
+                if (ev) vehicleId = ev.id;
+            }
+            if (vehicleId) {
                 await supabase.from('vehicles').update({ client_id: clientId, make, model, engine_size: engineSize }).eq('id', vehicleId);
             } else {
                 const { data: nv, error: ve } = await supabase.from('vehicles')
-                    .insert({ client_id: clientId, make, model, engine_size: engineSize, plate_number: plateNumber })
+                    .insert({ client_id: clientId, make, model, engine_size: engineSize, plate_number: plateNumber || null })
                     .select('id').single();
                 if (ve) throw ve;
                 vehicleId = nv!.id;
@@ -325,10 +382,32 @@ export default function ReceptionPage() {
                 services,
                 customServices,
                 booklet: { type: bookletType, changes: bookletChanges },
-                pricing: { totalPrice, amountReceived, amountOwedByClient, amountOwedToClient },
+                pricing: { totalPrice, discount, amountReceived, amountOwedByClient, amountOwedToClient },
             };
 
             const finalBranchId = selectedBranchId || branchId;
+
+            if (editReportId) {
+                const { error: re } = await supabase.from('inspection_reports')
+                    .update({
+                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
+                        odometer_reading: parseInt(odometer || "0") || 0,
+                        total_price: parseFloat(totalPrice || "0"),
+                        notes,
+                        selected_services: [paperPayload],
+                    })
+                    .eq('id', editReportId);
+                
+                if (re) throw re;
+
+                const { data: rd } = await supabase.from('inspection_reports').select('report_number').eq('id', editReportId).single();
+                setCreatedWorkOrderId(editReportId);
+                if (rd) setReportNumber(rd.report_number);
+                setStep(3);
+                setLoading(false);
+                return;
+            }
+
             const { data: rd, error: re } = await supabase.from('inspection_reports')
                 .insert({
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
@@ -359,9 +438,10 @@ export default function ReceptionPage() {
         setBookletType("");
         setBookletChanges("");
         setSelectedBranchId("");
-        setTotalPrice(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
-        setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null);
+        setTotalPrice(""); setDiscount(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
+        setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);
+        router.replace('/reception'); // clear edit param
     };
 
     // ===================== JSX =====================
@@ -636,16 +716,7 @@ export default function ReceptionPage() {
                                             onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
                                             className="input-field text-sm py-1.5 flex-1 min-w-[150px]"
                                         />
-                                        <div className="flex gap-2">
-                                            <button type="button" onClick={() => setCustomSvcField(cs.id, 'status', 'جيد')}
-                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${cs.status === 'جيد' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-muted border-border hover:border-emerald-500/50'}`}>
-                                                جيد ✓
-                                            </button>
-                                            <button type="button" onClick={() => setCustomSvcField(cs.id, 'status', 'يحتاج تغيير')}
-                                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${cs.status === 'يحتاج تغيير' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-muted border-border hover:border-rose-500/50'}`}>
-                                                يحتاج تغيير
-                                            </button>
-                                        </div>
+
                                         <div className="flex items-center gap-1">
                                             <input
                                                 type="number"
@@ -712,6 +783,10 @@ export default function ReceptionPage() {
                                     <input type="number" className="input-field bg-background text-lg font-bold" placeholder="0" value={totalPrice} onChange={e => setTotalPrice(e.target.value)} />
                                 </div>
                                 <div>
+                                    <label className="text-xs text-rose-400 font-bold block mb-1">الخصم (د.ع)</label>
+                                    <input type="number" className="input-field bg-rose-950/30 text-rose-300 font-bold border-rose-500/30" placeholder="0" value={discount} onChange={e => setDiscount(e.target.value)} />
+                                </div>
+                                <div>
                                     <label className="text-xs text-muted-foreground block mb-1">الواصل (د.ع)</label>
                                     <input type="number" className="input-field bg-background" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} />
                                 </div>
@@ -770,5 +845,13 @@ export default function ReceptionPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function ReceptionPage() {
+    return (
+        <Suspense fallback={<div className="p-20 text-center"><Loader2 className="animate-spin text-rose-500 w-10 h-10 mx-auto" /></div>}>
+            <ReceptionWizard />
+        </Suspense>
     );
 }
