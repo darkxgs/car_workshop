@@ -288,9 +288,10 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 </div>
 
                 {/* ══ TOTALS ══ */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: p.discount ? 'repeat(5,1fr)' : 'repeat(4,1fr)', gap: '6px', marginBottom: '12px' }}>
                     {[
                         { label: 'المجموع الكلي', val: p.totalPrice,          color: '#1a1a2e' },
+                        ...(p.discount ? [{ label: 'الخصم', val: p.discount, color: '#d97706' }] : []),
                         { label: 'المبلغ الواصل', val: p.amountReceived,       color: '#15803d' },
                         { label: 'مدين لنا',       val: p.amountOwedByClient,  color: '#dc2626' },
                         { label: 'دائن علينا',     val: p.amountOwedToClient,  color: '#2563eb' },

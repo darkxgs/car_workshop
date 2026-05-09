@@ -10,6 +10,7 @@ interface ReportRow {
     seq: number;
     report_number: number | null;
     created_at: string;
+    branch_name: string;
     client_name: string;
     client_phone: string;
     car_make: string;
@@ -42,18 +43,23 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
 export default function ExportPage() {
     const [rows, setRows]       = useState<ReportRow[]>([]);
     const [filtered, setFiltered] = useState<ReportRow[]>([]);
+    const [branches, setBranches] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch]   = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo]   = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [branchFilter, setBranchFilter] = useState("");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        const { data: bData } = await supabase.from('branches').select('id, name');
+        if (bData) setBranches(bData);
+
         const { data, error } = await supabase
             .from("inspection_reports")
             .select(`id, report_number, created_at, total_price, status, selected_services,
-                     vehicles(make, model, clients(name, phone))`)
+                     vehicles(make, model, clients(name, phone)), branches(name)`)
             .order("created_at", { ascending: false });
 
         if (error) { console.error(error); setLoading(false); return; }
@@ -85,6 +91,7 @@ export default function ExportPage() {
                 id: r.id, seq: idx + 1,
                 report_number: r.report_number,
                 created_at: r.created_at,
+                branch_name: r.branches?.name || "—",
                 client_name:  client?.name  || "—",
                 client_phone: client?.phone || "—",
                 car_make:  vehicle?.make  || "—",
@@ -119,20 +126,21 @@ export default function ExportPage() {
         if (dateFrom) result = result.filter(r => new Date(r.created_at) >= new Date(dateFrom));
         if (dateTo)   result = result.filter(r => new Date(r.created_at) <= new Date(dateTo + "T23:59:59"));
         if (statusFilter) result = result.filter(r => r.status === statusFilter);
+        if (branchFilter) result = result.filter(r => r.branch_name === branchFilter);
         // re-number
         setFiltered(result.map((r, i) => ({ ...r, seq: i + 1 })));
-    }, [search, dateFrom, dateTo, statusFilter, rows]);
+    }, [search, dateFrom, dateTo, statusFilter, branchFilter, rows]);
 
-    const clearFilters = () => { setSearch(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); };
-    const hasFilters   = search || dateFrom || dateTo || statusFilter;
+    const clearFilters = () => { setSearch(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); setBranchFilter(""); };
+    const hasFilters   = search || dateFrom || dateTo || statusFilter || branchFilter;
 
     const exportExcel = () => {
         const wsData = [
-            ["#", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "التاريخ",
+            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "التاريخ",
              "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
              "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
             ...filtered.map(r => [
-                r.seq, r.client_name, r.client_phone, r.car_make, r.car_model,
+                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model,
                 new Date(r.created_at).toLocaleDateString("ar-IQ"),
                 r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
                 r.extra_services, r.booklet, r.total_price,
@@ -142,7 +150,7 @@ export default function ExportPage() {
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch:5},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14},
+            {wch:5},{wch:16},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14},
             {wch:28},{wch:18},{wch:14},{wch:10},{wch:28},{wch:14},{wch:12},{wch:12},
         ];
         // RTL sheet
@@ -207,6 +215,13 @@ export default function ExportPage() {
                             <option key={k} value={k}>{v.label}</option>
                         ))}
                     </select>
+                    <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+                        className="input-field w-40 text-sm">
+                        <option value="">كل الفروع</option>
+                        {branches.map(b => (
+                            <option key={b.id} value={b.name}>{b.name}</option>
+                        ))}
+                    </select>
                     {hasFilters && (
                         <button onClick={clearFilters}
                             className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-xl hover:border-rose-500/40 transition-all">
@@ -242,7 +257,7 @@ export default function ExportPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-rose-950/40 border-b border-rose-900/40">
-                                    {["#", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "التاريخ",
+                                    {["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "التاريخ",
                                       "نوع الخدمة", "نوع الزيت", "اللزوجة", "لترات",
                                       "الخدمات الإضافية", "دفتر الزيت", "السعر", "الحالة"]
                                         .map(h => (
@@ -256,6 +271,7 @@ export default function ExportPage() {
                                     return (
                                         <tr key={r.id} className={`border-b border-border/40 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/5" : ""}`}>
                                             <td className="px-3 py-2.5 font-mono text-muted-foreground text-xs">{r.seq}</td>
+                                            <td className="px-3 py-2.5 text-muted-foreground text-xs whitespace-nowrap">{r.branch_name}</td>
                                             <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.client_name}</td>
                                             <td className="px-3 py-2.5 font-mono text-muted-foreground text-xs" dir="ltr">{r.client_phone}</td>
                                             <td className="px-3 py-2.5 text-foreground">{r.car_make}</td>
