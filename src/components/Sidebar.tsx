@@ -71,8 +71,7 @@ export function Sidebar() {
         {
             title: "العملاء والمركبات (CRM)",
             items: [
-                { href: "/customers", label: "سجل العملاء", icon: <Users size={20} /> },
-                { href: "/vehicles", label: "ملف المركبات", icon: <Car size={20} /> },
+                { href: "/customers", label: "سجل العملاء والمركبات", icon: <Users size={20} /> },
             ]
         },
         {

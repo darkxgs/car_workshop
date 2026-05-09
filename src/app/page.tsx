@@ -333,9 +333,9 @@ export default function Home() {
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 flex-1 content-start">
                             {/* Line 1 */}
-                            <Link href="/vehicles" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-blue-500/40 rounded-xl transition-all group">
-                                <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl mb-3 group-hover:scale-110 transition-transform"><Car size={24} /></div>
-                                <span className="text-sm font-medium text-foreground">المركبات</span>
+                            <Link href="/reports" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-blue-500/40 rounded-xl transition-all group">
+                                <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl mb-3 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                                <span className="text-sm font-medium text-foreground">التقارير والفواتير</span>
                             </Link>
                             <Link href="/status" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-emerald-500/40 rounded-xl transition-all group">
                                 <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl mb-3 group-hover:scale-110 transition-transform"><Wrench size={24} /></div>
