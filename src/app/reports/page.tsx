@@ -99,12 +99,28 @@ export default function ReportsPage() {
 
                 if (debouncedSearch) {
                     const num = parseInt(debouncedSearch);
-                    // If user typed a short number, assume they are searching the exact Report ID (belesah)
                     if (!isNaN(num) && debouncedSearch.trim().length < 8) {
                         query = query.eq('report_number', num);
                     } else {
-                        // Otherwise search by plate number intelligently
-                        query = query.ilike('vehicles.plate_number', `%${debouncedSearch}%`);
+                        const q = `%${debouncedSearch}%`;
+                        const { data: cData } = await supabase.from('clients').select('id').or(`name.ilike.${q},phone.ilike.${q}`);
+                        const cIds = cData?.map((c: any) => c.id) || [];
+                        
+                        let vQuery = supabase.from('vehicles').select('id');
+                        if (cIds.length > 0) {
+                            vQuery = vQuery.or(`make.ilike.${q},model.ilike.${q},plate_number.ilike.${q},client_id.in.(${cIds.join(',')})`);
+                        } else {
+                            vQuery = vQuery.or(`make.ilike.${q},model.ilike.${q},plate_number.ilike.${q}`);
+                        }
+                        
+                        const { data: vData } = await vQuery;
+                        const vIds = vData?.map((v: any) => v.id) || [];
+                        
+                        if (vIds.length > 0) {
+                            query = query.in('vehicle_id', vIds);
+                        } else {
+                            query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+                        }
                     }
                 }
 
