@@ -182,7 +182,7 @@ export default function Home() {
                     <button className="relative p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground">
                         <Bell size={20} />
                     </button>
-                    <Link href="/settings" className="p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground hidden sm:flex items-center justify-center">
+                    <Link href="/settings" className="p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground flex items-center justify-center">
                         <Settings size={20} />
                     </Link>
                     <div className="h-8 w-[1px] bg-muted mx-2 hidden sm:block"></div>
