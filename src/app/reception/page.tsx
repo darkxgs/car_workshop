@@ -128,11 +128,6 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         label: "المضافات والمحسنات",
         detailFields: [{ key: "notes", label: "اسم المنتج" }],
     },
-    {
-        key: "maintenanceUnits",
-        label: "حدات الصيانة",
-        detailFields: [{ key: "notes", label: "وصف الحدة" }],
-    },
 ];
 
 const initServices = (): Record<string, ServiceEntry> => {
@@ -712,51 +707,53 @@ function ReceptionWizard() {
                             </div>
                         </div>
 
-                        {/* Custom Extra Services */}
-                        <div>
-                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-                                <h3 className="text-lg font-bold text-foreground">خدمات إضافية</h3>
+                        {/* Maintenance Events (أحداث الصيانة - previously Custom Services) */}
+                        <div className="rounded-xl border border-border bg-background/40">
+                            <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-mono text-muted-foreground w-5 text-center">{MAIN_SERVICES.length + 1}</span>
+                                    <span className="font-bold text-sm min-w-[140px]">أحداث الصيانة (خدمات إضافية)</span>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={addCustomService}
-                                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
                                 >
-                                    <span className="text-lg leading-none">+</span> إضافة خدمة
+                                    <span className="text-base leading-none">+</span> إضافة حدث صيانة
                                 </button>
                             </div>
-                            {customServices.length === 0 && (
-                                <p className="text-muted-foreground text-sm text-center py-4">اضغط + لإضافة خدمة إضافية غير مدرجة في القائمة</p>
-                            )}
-                            <div className="space-y-3">
-                                {customServices.map((cs, idx) => (
-                                    <div key={cs.id} className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-dashed border-rose-500/30 bg-rose-950/10">
-                                        <span className="text-xs font-mono text-muted-foreground w-5 text-center">{MAIN_SERVICES.length + idx + 1}</span>
-                                        <input
-                                            type="text"
-                                            placeholder="اسم الخدمة..."
-                                            value={cs.label}
-                                            onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
-                                            className="input-field text-sm py-1.5 flex-1 min-w-[150px]"
-                                        />
 
-                                        <div className="flex items-center gap-1">
+                            {customServices.length > 0 && (
+                                <div className="px-4 pb-3 pr-[3.25rem] border-t border-border/50 pt-3 space-y-3">
+                                    {customServices.map((cs, idx) => (
+                                        <div key={cs.id} className="flex flex-wrap items-center gap-3">
                                             <input
-                                                type="number"
-                                                placeholder="السعر"
-                                                value={cs.price}
-                                                onChange={e => setCustomSvcField(cs.id, 'price', e.target.value)}
-                                                className="input-field text-xs py-1.5 w-24 text-left"
-                                                dir="ltr"
+                                                type="text"
+                                                placeholder="وصف حدث الصيانة..."
+                                                value={cs.label}
+                                                onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
+                                                className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
                                             />
-                                            <span className="text-xs text-muted-foreground">د.ع</span>
+
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    placeholder="السعر"
+                                                    value={cs.price}
+                                                    onChange={e => setCustomSvcField(cs.id, 'price', e.target.value)}
+                                                    className="input-field text-xs py-1.5 w-24 text-left"
+                                                    dir="ltr"
+                                                />
+                                                <span className="text-xs text-muted-foreground">د.ع</span>
+                                            </div>
+                                            <button type="button" onClick={() => removeCustomService(cs.id)}
+                                                className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors">
+                                                ✕
+                                            </button>
                                         </div>
-                                        <button type="button" onClick={() => removeCustomService(cs.id)}
-                                            className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors">
-                                            ✕
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
