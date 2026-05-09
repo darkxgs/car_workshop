@@ -278,8 +278,8 @@ export default function ReceptionPage() {
     };
 
     const handleNextStep1 = () => {
-        if (!name || !phone || !make || !model || !plateNumber) {
-            setError("يرجى تعبئة الحقول المطلوبة (اسم، هاتف، نوع السيارة، الموديل، اللوحة)");
+        if (!name || !phone || !make) {
+            setError("يرجى تعبئة الحقول المطلوبة (اسم، هاتف، نوع السيارة)");
             return;
         }
         setError(null); setStep(2);
@@ -453,11 +453,11 @@ export default function ReceptionPage() {
                                 <input type="text" placeholder="تويوتا" className="input-field" value={make} onChange={e => setMake(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">الموديل <span className="text-rose-500">*</span></label>
+                                <label className="text-sm font-medium text-muted-foreground">الموديل</label>
                                 <input type="text" placeholder="كامري 2022" className="input-field" value={model} onChange={e => setModel(e.target.value)} />
                             </div>
                             <div className="space-y-2 col-span-2">
-                                <label className="text-sm font-medium text-muted-foreground">رقم اللوحة <span className="text-rose-500">*</span></label>
+                                <label className="text-sm font-medium text-muted-foreground">رقم اللوحة</label>
                                 <div className="relative">
                                     <Hash className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" size={18} />
                                     <input type="text" placeholder="بغداد ١٢٣٤" className="input-field" style={{ paddingRight: '2.5rem' }} value={plateNumber} onChange={e => setPlateNumber(e.target.value)} />
