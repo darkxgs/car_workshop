@@ -4,7 +4,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
-    Users, Search, Download, Plus, MapPin, Phone, 
+    Users, User, Search, Download, Plus, MapPin, Phone, 
     Mail, Car, FileText, ChevronLeft, ShieldAlert,
     Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench
 } from "lucide-react";
