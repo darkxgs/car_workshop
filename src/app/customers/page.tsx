@@ -67,7 +67,7 @@ export default function CustomersPage() {
             .select(`
                 id, name, phone, email, created_at,
                 vehicles (
-                    id, make, model, plate_number, vin, year, color,
+                    id, make, model, plate_number, engine_size,
                     inspection_reports (id, report_number, status, branch_id, created_at, total_price, branches(name))
                 )
             `)
@@ -566,7 +566,7 @@ export default function CustomersPage() {
                                                     <Car size={24}/>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-base">{v.make} {v.model} <span className="text-xs text-muted-foreground">({v.year || "—"})</span></h4>
+                                                    <h4 className="font-bold text-base">{v.make} {v.model} <span className="text-xs text-muted-foreground">({v.engine_size || "—"})</span></h4>
                                                     <p className="text-sm font-mono text-muted-foreground mt-1">اللوحة: <span className="bg-muted px-1.5 py-0.5 rounded text-foreground">{v.plate_number || "—"}</span></p>
                                                 </div>
                                                 {/* <Link href={`/vehicles/${v.id}`} className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
