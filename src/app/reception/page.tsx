@@ -847,10 +847,10 @@ function ReceptionWizard() {
                     <h2 className="text-3xl font-display font-bold text-foreground mb-2">تم إنشاء أمر العمل!</h2>
                     <p className="text-muted-foreground mb-8">رقم الطلب: <span className="text-foreground font-mono bg-muted px-3 py-1 rounded-lg">#{reportNumber}</span></p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <a href={`/print/${createdWorkOrderId}`} target="_blank" rel="noopener noreferrer"
+                        <button onClick={() => window.open(`/print/${createdWorkOrderId}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
                             className="px-8 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted transition-colors flex items-center justify-center gap-2">
                             <Printer size={20} /> طباعة أمر العمل (PDF)
-                        </a>
+                        </button>
                         <a href={`/work-orders/${createdWorkOrderId}`}
                             className="px-8 py-3 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-500 transition-all flex items-center justify-center gap-2">
                             متابعة المركبة أونلاين <ArrowLeft size={20} />

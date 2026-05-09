@@ -203,14 +203,12 @@ export default function WorkOrderDetailPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    <a 
-                        href={`/print/${id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button 
+                        onClick={() => window.open(`/print/${id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
                         className="px-5 py-2.5 rounded-xl bg-background border border-border text-foreground hover:bg-muted font-bold transition-colors flex items-center gap-2 shadow-sm"
                     >
                         <Printer size={18} /> طباعة للفني
-                    </a>
+                    </button>
                     {order.status === 'تم الاستلام' && (
                         <button onClick={handleStart} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20">
                             <Play size={18} /> بدء التشغيل (Start Check)
