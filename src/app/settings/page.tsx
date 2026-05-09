@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { Settings, Users, Building2, MapPin, Save, MessageCircle, Plus, Loader2, X, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
-import { createEmployeeAccount } from "@/app/actions/admin";
+import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount } from "@/app/actions/admin";
 import { UserRole } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -19,6 +19,8 @@ export default function SettingsPage() {
 
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -91,6 +93,49 @@ export default function SettingsPage() {
         }
         
         setIsSubmitting(false);
+    };
+
+    const handleEditUserClick = (emp: any) => {
+        setEditingEmployeeId(emp.auth_id);
+        setFormData({
+            name: emp.name,
+            email: "غير متاح للتعديل", // Email shouldn't be edited easily
+            phone: emp.phone || "",
+            password: "", // empty so it won't update unless typed
+            role: emp.role as UserRole
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingEmployeeId) return;
+        setIsSubmitting(true);
+        setFormError(null);
+
+        const res = await updateEmployeeAccount(editingEmployeeId, formData);
+        
+        if (res.success) {
+            setIsEditModalOpen(false);
+            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+            setEditingEmployeeId(null);
+            await fetchAllData();
+        } else {
+            setFormError(res.error || "فشل في تحديث الحساب.");
+        }
+        
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteUser = async (authId: string, name: string) => {
+        if (confirm(`هل أنت متأكد من حذف المستخدم ${name}؟ سيتم منعه من الدخول للنظام نهائياً.`)) {
+            const res = await deleteEmployeeAccount(authId);
+            if (res.success) {
+                await fetchAllData();
+            } else {
+                alert(res.error || "حدث خطأ أثناء الحذف.");
+            }
+        }
     };
 
     const handleCreateBranch = async (e: React.FormEvent) => {
@@ -226,6 +271,7 @@ export default function SettingsPage() {
                                     <th className="py-3 px-4 font-medium text-center">الصلاحية (الولوج)</th>
                                     <th className="py-3 px-4 font-medium">رقم الهاتف</th>
                                     <th className="py-3 px-4 font-medium">تاريخ الإنضمام</th>
+                                    <th className="py-3 px-4 font-medium text-left">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -246,6 +292,12 @@ export default function SettingsPage() {
                                         </td>
                                         <td className="py-4 px-4 text-muted-foreground font-mono" dir="ltr">{emp.phone || 'لا يوجد'}</td>
                                         <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString()}</td>
+                                        <td className="py-4 px-4 text-left">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleEditUserClick(emp)} className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-blue-500/20">تعديل</button>
+                                                <button onClick={() => handleDeleteUser(emp.auth_id, emp.name)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                                 {employees.length === 0 && (
@@ -351,6 +403,71 @@ export default function SettingsPage() {
                             <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
                             <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.2)] disabled:opacity-50">
                                 {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} صناعة وتخزين الحساب
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* EDIT EMPLOYEE MODAL */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
+                    <form onSubmit={handleUpdateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
+                        <div className="p-6 border-b border-border bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between shrink-0">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <Settings className="text-cyan-500" /> تعديل بيانات المستخدم
+                            </h2>
+                            <button type="button" onClick={() => {
+                                setIsEditModalOpen(false);
+                                setEditingEmployeeId(null);
+                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+                            }} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg border border-border">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4 overflow-y-auto w-full custom-scrollbar">
+                            {formError && (
+                                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 p-3 rounded-xl text-sm flex gap-2">
+                                    <AlertCircle size={18} className="shrink-0" />
+                                    <span>{formError}</span>
+                                </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                                <label htmlFor="edit-emp-name" className="text-sm font-medium text-muted-foreground">الاسم الكامل</label>
+                                <input id="edit-emp-name" name="name" required type="text" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="edit-emp-password" className="text-sm font-medium text-muted-foreground">كلمة المرور الجديدة (اختياري)</label>
+                                <input id="edit-emp-password" name="password" minLength={6} type="password" autoComplete="new-password" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left tracking-widest" dir="ltr" placeholder="أدخل كلمة مرور جديدة للتغيير" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mt-2">
+                                <div className="space-y-2">
+                                    <label htmlFor="edit-emp-role" className="text-sm font-medium text-muted-foreground">الصلاحية</label>
+                                    <select id="edit-emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
+                                        <option value="Receptionist">موظف استقبال</option>
+                                        <option value="Supervisor">مشرف فني (ورشة)</option>
+                                        <option value="Admin">مدير عام (أقصى صلاحية)</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="edit-emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال</label>
+                                    <input id="edit-emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-border bg-card flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={() => {
+                                setIsEditModalOpen(false);
+                                setEditingEmployeeId(null);
+                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+                            }} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
+                            <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.2)] disabled:opacity-50">
+                                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} تحديث البيانات
                             </button>
                         </div>
                     </form>
