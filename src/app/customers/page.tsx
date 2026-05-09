@@ -266,43 +266,22 @@ export default function CustomersPage() {
             };
         });
 
-        const totalAmount = mapped.reduce((sum, r) => sum + (Number(r.total_price) || 0), 0);
-
-        const wsData: any[][] = [
-            ["تقرير فواتير الصيانة الشامل - Auto Workshop ERP"], // Row 1: Title
-            [
-                `تاريخ التصدير: ${new Date().toLocaleDateString("ar-IQ")}`,
-                `الفرع: ${branchFilter ? branches.find(b => b.id === branchFilter)?.name : "الكل"}`,
-                `من: ${dateFrom || "البداية"}  إلى: ${dateTo || "اليوم"}`
-            ], // Row 2: Metadata
-            [], // Row 3: Empty space
-            // Row 4: Headers
+        const wsData = [
             ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ",
              "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
              "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
-            // Data Rows
             ...mapped.map(r => [
                 r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate,
                 r.created_at, r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
                 r.extra_services, r.booklet, r.total_price, r.status
-            ]),
-            [], // Empty Row
-            // Totals Row
-            ["", "", "", "", "", "", "", "", "", "", "", "", "", "إجمالي الإيرادات المفلترة:", totalAmount, ""]
+            ])
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch:6}, {wch:18}, {wch:25}, {wch:18}, {wch:16}, {wch:16}, {wch:16}, {wch:14},
-            {wch:35}, {wch:20}, {wch:15}, {wch:12}, {wch:35}, {wch:15}, {wch:18}, {wch:14},
+            {wch:5},{wch:16},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},
+            {wch:28},{wch:18},{wch:14},{wch:10},{wch:28},{wch:14},{wch:12},{wch:12},
         ];
-
-        ws["!merges"] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } } // Merge title across all columns
-        ];
-
-        ws['!autofilter'] = { ref: `A4:P${mapped.length + 4}` };
-
         if (!ws["!opts"]) ws["!opts"] = {};
         (ws as any)["!opts"].RTL = true;
 
