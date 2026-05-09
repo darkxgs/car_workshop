@@ -33,6 +33,12 @@ type JoinedReport = {
     status: string;
     total_price: number;
     created_at: string;
+    completed_at?: string;
+    estimated_duration?: number;
+    elapsed_time?: number;
+    start_time?: string;
+    selected_services?: any;
+    notes?: string;
     vehicles: {
         make: string;
         model: string;
@@ -42,6 +48,7 @@ type JoinedReport = {
             phone: string;
         };
     };
+    receptionist?: { name: string };
 };
 
 export default function ReportsPage() {
@@ -89,12 +96,19 @@ export default function ReportsPage() {
                         status,
                         total_price,
                         created_at,
+                        completed_at,
+                        estimated_duration,
+                        elapsed_time,
+                        start_time,
+                        selected_services,
+                        notes,
                         vehicles!inner(
                             make,
                             model,
                             plate_number,
                             clients(name, phone)
-                        )
+                        ),
+                        receptionist:receptionist_id(name)
                     `, { count: 'exact' });
 
                 if (debouncedSearch) {
