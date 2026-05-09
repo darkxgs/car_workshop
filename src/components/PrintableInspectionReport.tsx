@@ -148,7 +148,6 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'gearboxHydraulic', label: 'هايدروليك الكير',      fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
         { key: 'wipers',           label: 'الماسحات',              fields: [{ key: 'type', label: 'النوع' }] },
         { key: 'additives',        label: 'المضافات والمحسنات',   fields: [{ key: 'notes', label: 'المنتج' }] },
-        { key: 'maintenanceUnits', label: 'حدات الصيانة',         fields: [{ key: 'notes', label: 'الوصف' }] },
     ];
 
     return (
@@ -277,7 +276,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                     <td style={{ padding: '5px 6px', textAlign: 'center', fontWeight: 700, fontSize: '12px', color: '#92400e' }}>{SERVICES.length + i + 1}</td>
                                     <td style={{ padding: '5px 8px', fontWeight: 700, fontSize: '12px', color: '#92400e' }}>{c.label}</td>
                                     <td style={{ padding: '5px 8px' }}><StatusBadge status={c.status} /></td>
-                                    <td style={{ padding: '5px 8px', fontSize: '11px', color: '#6b7280' }}>خدمة إضافية</td>
+                                    <td style={{ padding: '5px 8px', fontSize: '11px', color: '#6b7280' }}>حدث صيانة</td>
                                     <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700 }}>
                                         <Val v={c.price} w={55} />
                                     </td>
