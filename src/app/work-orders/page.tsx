@@ -27,7 +27,10 @@ export default function WorkOrdersListPage() {
         const { data } = await supabase
             .from('inspection_reports')
             .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number, clients (name))`)
-            .not('status', 'in', '("تم الانتهاء","completed","ملغي","cancelled")')
+            .neq('status', 'تم الانتهاء')
+            .neq('status', 'completed')
+            .neq('status', 'ملغي')
+            .neq('status', 'cancelled')
             .order('created_at', { ascending: false });
 
         if (data) setOrders(data as any);
