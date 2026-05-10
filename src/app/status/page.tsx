@@ -46,6 +46,7 @@ export default function KanbanStatusPage() {
                 id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed,
                 vehicles (make, model, plate_number, clients (name, phone))
             `)
+            .not('status', 'in', '("تم الانتهاء","completed","ملغي","cancelled")')
             .order('created_at', { ascending: false });
 
         if (!error && data) {

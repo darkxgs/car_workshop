@@ -607,7 +607,10 @@ export default function CustomersPage() {
                                                     <p className="text-lg font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 shadow-sm" dir="ltr">
                                                         {r.total_price ? r.total_price.toLocaleString() : 0} <span className="text-xs">IQD</span>
                                                     </p>
-                                                    <button onClick={() => window.open(`/print/${r.id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border">
+                                                    <Link href={`/reception?editId=${r.id}`} className="p-2 bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
+                                                        <Edit2 size={18}/>
+                                                    </Link>
+                                                    <button onClick={() => window.open(`/print/${r.id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
                                                         <FileText size={18}/>
                                                     </button>
                                                 </div>
