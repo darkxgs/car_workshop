@@ -28,9 +28,7 @@ export default function WorkOrdersListPage() {
             .from('inspection_reports')
             .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number, clients (name))`)
             .neq('status', 'تم الانتهاء')
-            .neq('status', 'completed')
-            .neq('status', 'ملغي')
-            .neq('status', 'cancelled')
+            .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
         if (data) setOrders(data as any);

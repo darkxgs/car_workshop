@@ -47,9 +47,7 @@ export default function KanbanStatusPage() {
                 vehicles (make, model, plate_number, clients (name, phone))
             `)
             .neq('status', 'تم الانتهاء')
-            .neq('status', 'completed')
-            .neq('status', 'ملغي')
-            .neq('status', 'cancelled')
+            .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
         if (!error && data) {
