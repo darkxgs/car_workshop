@@ -542,7 +542,7 @@ function ReceptionWizard() {
                                     className="input-field"
                                 >
                                     <option value="">-- اختر موظف الاستقبال --</option>
-                                    {employees.filter(e => e.role === 'Receptionist' || e.role === 'Admin' || e.role === 'Owner').map(e => (
+                                    {employees.map(e => (
                                         <option key={e.id} value={e.id}>{e.name}</option>
                                     ))}
                                 </select>
@@ -555,7 +555,7 @@ function ReceptionWizard() {
                                     className="input-field"
                                 >
                                     <option value="">-- اختر الفني --</option>
-                                    {employees.filter(e => e.role === 'Technician' || e.role === 'Admin' || e.role === 'Owner').map(e => (
+                                    {employees.map(e => (
                                         <option key={e.id} value={e.id}>{e.name}</option>
                                     ))}
                                 </select>
