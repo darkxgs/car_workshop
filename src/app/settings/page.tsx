@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { Settings, Users, Building2, MapPin, Save, MessageCircle, Plus, Loader2, X, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
-import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount } from "@/app/actions/admin";
+import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount, getAuthEmails } from "@/app/actions/admin";
 import { UserRole } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -43,12 +43,25 @@ export default function SettingsPage() {
 
     const fetchAllData = async () => {
         try {
-            // Fetch Employees
             const { data: empData, error: empErr } = await supabase
                 .from('employees')
                 .select('*')
                 .order('created_at', { ascending: false });
-            if (!empErr && empData) setEmployees(empData);
+                
+            if (!empErr && empData) {
+                // Fetch emails from auth
+                const emailsRes = await getAuthEmails();
+                let employeesWithEmails = empData;
+                
+                if (emailsRes.success && emailsRes.data) {
+                    const emailMap = new Map(emailsRes.data.map((u: any) => [u.id, u.email]));
+                    employeesWithEmails = empData.map(emp => ({
+                        ...emp,
+                        email: emailMap.get(emp.auth_id) || "غير متاح"
+                    }));
+                }
+                setEmployees(employeesWithEmails);
+            }
             
             // Fetch Branches
             const { data: bData, error: bErr } = await supabase
@@ -128,7 +141,7 @@ export default function SettingsPage() {
         setEditingEmployeeId(emp.auth_id);
         setFormData({
             name: emp.name,
-            email: "غير متاح للتعديل", // Email shouldn't be edited easily
+            email: emp.email || "غير متاح للتعديل", // Display real email if available
             phone: emp.phone || "",
             password: "", // empty so it won't update unless typed
             role: emp.role as UserRole,
@@ -356,6 +369,11 @@ export default function SettingsPage() {
                                                 {emp.role === 'Owner' && employeeRole !== 'Owner' && (
                                                     <span className="text-xs text-muted-foreground italic px-1">محمي</span>
                                                 )}
+                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                                    <span className="truncate max-w-[120px]" dir="ltr">{emp.email || "—"}</span>
+                                                    <span>•</span>
+                                                    <span dir="ltr">{emp.phone || "لا يوجد هاتف"}</span>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -507,6 +525,11 @@ export default function SettingsPage() {
                             <div className="space-y-2">
                                 <label htmlFor="edit-emp-name" className="text-sm font-medium text-muted-foreground">الاسم الكامل</label>
                                 <input id="edit-emp-name" name="name" required type="text" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="edit-emp-email" className="text-sm font-medium text-muted-foreground">البريد الإلكتروني (غير متاح للتعديل)</label>
+                                <input id="edit-emp-email" name="email" readOnly type="email" className="w-full bg-muted border border-border rounded-xl p-3 text-muted-foreground focus:outline-none cursor-not-allowed text-left" dir="ltr" value={formData.email} />
                             </div>
 
                             <div className="space-y-2">
