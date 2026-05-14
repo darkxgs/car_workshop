@@ -342,9 +342,14 @@ export default function SettingsPage() {
                             <tbody>
                                 {employees.map(emp => (
                                     <tr key={emp.id} className="border-b border-border hover:bg-muted/20 transition-colors">
-                                        <td className="py-4 px-4 font-bold text-foreground flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-cyan-950/30 text-cyan-500 flex items-center justify-center border border-cyan-900/50 font-mono text-xs shadow-sm">{emp.name.charAt(0)}</div>
-                                            {emp.name}
+                                        <td className="py-4 px-4 font-bold text-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-cyan-950/30 text-cyan-500 flex items-center justify-center border border-cyan-900/50 font-mono text-xs shadow-sm">{emp.name.charAt(0)}</div>
+                                                <div className="flex flex-col">
+                                                    <span>{emp.name}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-mono font-normal mt-0.5" dir="ltr">{emp.email || "—"}</span>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="py-4 px-4 text-center">
                                             <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold border inline-block min-w-[80px] ${
@@ -369,11 +374,6 @@ export default function SettingsPage() {
                                                 {emp.role === 'Owner' && employeeRole !== 'Owner' && (
                                                     <span className="text-xs text-muted-foreground italic px-1">محمي</span>
                                                 )}
-                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                                                    <span className="truncate max-w-[120px]" dir="ltr">{emp.email || "—"}</span>
-                                                    <span>•</span>
-                                                    <span dir="ltr">{emp.phone || "لا يوجد هاتف"}</span>
-                                                </div>
                                             </div>
                                         </td>
                                     </tr>
