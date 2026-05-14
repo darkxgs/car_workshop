@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { FolderOpen, FileText, UploadCloud, Search, Download, Trash2, File, FileArchive, FileImage, ShieldCheck, Loader2 } from "lucide-react";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 
 type Doc = {
     id: string | number;
@@ -69,7 +70,7 @@ export default function DocumentsPage() {
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedFile) {
-            alert("يرجى اختيار ملف أولاً");
+            showError("خطأ", "يرجى اختيار ملف أولاً");
             return;
         }
 
@@ -111,10 +112,10 @@ export default function DocumentsPage() {
             setNewDocName('');
             setNewDocCategory('legal');
             setSelectedFile(null);
-            alert("تم الرفع والأرشفة بنجاح!");
+            showSuccess("تم", "تم الرفع والأرشفة بنجاح!");
             
         } catch (error: any) {
-            alert(error.message || "حدث خطأ غير متوقع!");
+            showError("خطأ", error.message || "حدث خطأ غير متوقع!");
         } finally {
             setUploading(false);
         }
@@ -122,7 +123,7 @@ export default function DocumentsPage() {
 
     const handleDownload = async (doc: Doc) => {
         if (!doc.file_path) {
-            alert("هذا المستند لا يحتوي على ملف مرفق.");
+            showError("خطأ", "هذا المستند لا يحتوي على ملف مرفق.");
             return;
         }
         
@@ -134,12 +135,18 @@ export default function DocumentsPage() {
                 window.open(data.signedUrl, '_blank');
             }
         } catch (error) {
-            alert("خطأ في تحميل المستند، قد يكون محذوفاً من السيرفر.");
+            showError("خطأ", "خطأ في تحميل المستند، قد يكون محذوفاً من السيرفر.");
         }
     };
 
     const deleteDoc = async (doc: Doc) => {
-        if (!confirm(`هل أنت متأكد من حذف ${doc.name} بشكل نهائي؟`)) return;
+        const isConfirmed = await showConfirm(
+            "حذف المستند",
+            `هل أنت متأكد من حذف ${doc.name} بشكل نهائي؟`,
+            "نعم، احذف المستند",
+            true
+        );
+        if (!isConfirmed) return;
 
         // Delete from Storage
         if (doc.file_path) {

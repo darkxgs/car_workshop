@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { Wrench, CheckCircle2, AlertTriangle, XCircle, FileText, Loader2, Save, ChevronDown, ChevronRight, CheckSquare, PackagePlus, Trash2, Search, X, AlertCircle } from "lucide-react";
+import { showError, showSuccess, showConfirm } from "@/lib/alerts";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 
@@ -201,6 +202,10 @@ export default function ServicesPage() {
 
     const handleSubmit = async () => {
         if (!selectedReportId) return;
+
+        const confirmed = await showConfirm("تأكيد اعتماد التقرير", "هل أنت متأكد من رغبتك في إتمام هذا التقرير وتسجيل الأسعار؟ لا يمكن التراجع عن هذا الإجراء.");
+        if (!confirmed) return;
+
         setSaving(true);
         setSuccessMessage("");
         
@@ -251,7 +256,7 @@ export default function ServicesPage() {
                 }
             }
 
-            setSuccessMessage("تم اعتماد التقرير وخصم القطع من المخزن بنجاح!");
+            showSuccess("تم الاعتماد", "تم اعتماد التقرير وخصم القطع من المخزن بنجاح!");
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
             // Remove from list
@@ -266,11 +271,9 @@ export default function ServicesPage() {
             setUsedParts([]);
             setExpandedCategories(['engine']);
             
-            setTimeout(() => setSuccessMessage(""), 5000);
-            
         } catch (err) {
             console.error(err);
-            alert("حدث خطأ أثناء الحفظ");
+            showError("خطأ", "حدث خطأ أثناء الحفظ");
         } finally {
             setSaving(false);
         }

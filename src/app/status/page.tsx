@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { Activity, Clock, CheckCircle2, AlertCircle, Car, User, ArrowLeft, Wrench, X, Save, Timer } from "lucide-react";
 import Link from "next/link";
+import { showError, showSuccess } from "@/lib/alerts";
 
 type WorkOrder = {
     id: string;
@@ -123,7 +124,7 @@ export default function KanbanStatusPage() {
         const { error } = await supabase.from('inspection_reports').update(updateData).eq('id', orderId);
         
         if (error) {
-            alert("حدث خطأ أثناء تغيير الحالة.");
+            showError("فشل النقل", "حدث خطأ أثناء تغيير الحالة.");
             setOrders(previousOrders); // Revert UI
             fetchOrders();
         }
@@ -148,8 +149,9 @@ export default function KanbanStatusPage() {
         }).eq('id', selectedOrderId);
 
         if (error) {
-            alert("فشل إسناد المهمة");
+            showError("فشل", "حدث خطأ أثناء إسناد المهمة");
         } else {
+            showSuccess("تم الإسناد", "تم بدء العمل على المركبة بنجاح");
             setIsAssignModalOpen(false);
             fetchOrders();
         }
