@@ -401,7 +401,6 @@ function ReceptionWizard() {
             }
 
             const receptionistName = employees.find(e => e.id === selectedReceptionistId)?.name || '';
-            const technicianName   = employees.find(e => e.id === selectedTechnicianId)?.name || '';
 
             const paperPayload = {
                 is_paper_v2_format: true,
@@ -411,7 +410,6 @@ function ReceptionWizard() {
                 booklet: { type: bookletType, changes: bookletChanges },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient, amountOwedToClient },
                 receptionistName,
-                technicianName,
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -442,7 +440,7 @@ function ReceptionWizard() {
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     status, total_price: parseFloat(totalPrice || "0"),
-                    notes, start_time: startTime, estimated_duration: 60,
+                    notes, start_time: startTime,
                     selected_services: [paperPayload],
                 })
                 .select('id, report_number').single();
@@ -558,19 +556,6 @@ function ReceptionWizard() {
                                 >
                                     <option value="">-- اختر موظف الاستقبال --</option>
                                     {employees.filter(e => e.role === 'Receptionist' || e.role === 'Admin' || e.role === 'Owner').map(e => (
-                                        <option key={e.id} value={e.id}>{e.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">الفني المسؤول</label>
-                                <select
-                                    value={selectedTechnicianId}
-                                    onChange={e => setSelectedTechnicianId(e.target.value)}
-                                    className="input-field"
-                                >
-                                    <option value="">-- اختر الفني --</option>
-                                    {employees.filter(e => e.role === 'Supervisor' || e.role === 'Admin' || e.role === 'Owner').map(e => (
                                         <option key={e.id} value={e.id}>{e.name}</option>
                                     ))}
                                 </select>
