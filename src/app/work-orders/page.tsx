@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthProvider";
 import { Wrench, ShieldAlert, ArrowLeft, Clock, Car, Activity } from "lucide-react";
 import Link from "next/link";
 
@@ -16,21 +17,27 @@ type WorkOrderList = {
 };
 
 export default function WorkOrdersListPage() {
+    const { employeeRole, employeeBranchId } = useAuth();
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [employeeBranchId, employeeRole]);
 
     const fetchOrders = async () => {
-        const { data } = await supabase
+        let query = supabase
             .from('inspection_reports')
             .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number, clients (name))`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
+        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            query = query.eq('branch_id', employeeBranchId);
+        }
+
+        const { data } = await query;
         if (data) setOrders(data as any);
         setLoading(false);
     };

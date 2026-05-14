@@ -12,6 +12,8 @@ interface AuthContextType {
     session: Session | null;
     employeeRole: UserRole | null;
     employeeName: string | null;
+    employeeBranchId: string | null;
+    employeeId: string | null;
     loading: boolean;
     signOut: () => Promise<void>;
 }
@@ -21,6 +23,8 @@ const AuthContext = createContext<AuthContextType>({
     session: null,
     employeeRole: null,
     employeeName: null,
+    employeeBranchId: null,
+    employeeId: null,
     loading: true,
     signOut: async () => {},
 });
@@ -30,6 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [employeeRole, setEmployeeRole] = useState<UserRole | null>(null);
     const [employeeName, setEmployeeName] = useState<string | null>(null);
+    const [employeeBranchId, setEmployeeBranchId] = useState<string | null>(null);
+    const [employeeId, setEmployeeId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [timedOut, setTimedOut] = useState(false);
     const [debugMsg, setDebugMsg] = useState("بدأ التحقق...");
@@ -50,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const { data, error } = await supabase
                 .from("employees")
-                .select("role, name")
+                .select("id, role, name, branch_id")
                 .eq("auth_id", userId)
                 .limit(1)
                 .abortSignal(controller.signal);
@@ -73,6 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Set name manually inside fetch since we have the data
             setEmployeeName(data[0].name);
+            setEmployeeBranchId(data[0].branch_id);
+            setEmployeeId(data[0].id);
 
             return data[0].role as UserRole;
         } catch (e: any) {
@@ -135,6 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!newSession?.user) {
                     setEmployeeRole(null);
                     setEmployeeName(null);
+                    setEmployeeBranchId(null);
+                    setEmployeeId(null);
                     setLoading(false);
                     redirect(null);
                 }
@@ -263,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, loading, signOut }}>
+        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, employeeBranchId, employeeId, loading, signOut }}>
             {children}
         </AuthContext.Provider>
     );

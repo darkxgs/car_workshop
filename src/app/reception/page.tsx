@@ -138,7 +138,7 @@ const initServices = (): Record<string, ServiceEntry> => {
 
 function ReceptionWizard() {
     const { t } = useLanguage();
-    const { user } = useAuth();
+    const { user, employeeRole, employeeBranchId } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
     const editId = searchParams.get('edit');
@@ -195,13 +195,28 @@ function ReceptionWizard() {
 
     // Fetch branches + employees on mount
     useEffect(() => {
-        supabase.from('branches').select('id, name').then(({ data }) => {
-            if (data) setBranches(data);
+        let branchQuery = supabase.from('branches').select('id, name');
+        let empQuery = supabase.from('employees').select('id, name, role, branch_id').order('name');
+
+        // Only restrict if NOT Owner/Admin and has a specific branch
+        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            branchQuery = branchQuery.eq('id', employeeBranchId);
+            empQuery = empQuery.eq('branch_id', employeeBranchId);
+        }
+
+        branchQuery.then(({ data, error }) => {
+            if (!error && data) {
+                setBranches(data);
+                if (data.length === 1 || employeeBranchId) {
+                    setSelectedBranchId(employeeBranchId || data[0].id);
+                }
+            }
         });
-        supabase.from('employees').select('id, name, role').order('name').then(({ data }) => {
+
+        empQuery.then(({ data }) => {
             if (data) setEmployees(data);
         });
-    }, []);
+    }, [employeeRole, employeeBranchId]);
 
     // Load existing report for editing
     useEffect(() => {
@@ -519,7 +534,7 @@ function ReceptionWizard() {
                                 <label className="text-sm font-medium text-muted-foreground">اسم العميل <span className="text-rose-500">*</span></label>
                                 <input type="text" placeholder="مثال: أحمد محمد" className="input-field" value={name} onChange={e => setName(e.target.value)} />
                             </div>
-                            {branches.length > 0 && (
+                            {branches.length > 0 && (employeeRole === 'Owner' || employeeRole === 'Admin' || !employeeBranchId) && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">الفرع <span className="text-rose-500">*</span></label>
                                     <select
