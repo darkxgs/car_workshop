@@ -35,7 +35,7 @@ type WorkOrder = {
 
 export default function Home() {
     const { t } = useLanguage();
-    const { employeeName, employeeRole } = useAuth();
+    const { employeeName, employeeRole, employeeBranchId } = useAuth();
 
     const [stats, setStats] = useState({
         today: 0,
@@ -59,14 +59,14 @@ export default function Home() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, []);
+    }, [employeeBranchId, employeeRole]);
 
     const fetchDashboardData = async () => {
         try {
             const todayStr = new Date().toISOString().split('T')[0];
 
             // Fetch reports (acts as work orders)
-            const { data: allReports } = await supabase
+            let query = supabase
                 .from('inspection_reports')
                 .select(`
                     id, report_number, status, total_price, created_at,
@@ -74,6 +74,12 @@ export default function Home() {
                     vehicles (make, model, plate_number, clients(name, phone))
                 `)
                 .order('created_at', { ascending: false });
+
+            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                query = query.eq('branch_id', employeeBranchId);
+            }
+
+            const { data: allReports } = await query;
 
             // Inventory fetch removed
 

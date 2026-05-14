@@ -27,7 +27,7 @@ type ClientWithVehicles = {
 
 export default function CustomersPage() {
     const { t } = useLanguage();
-    const { employeeRole } = useAuth();
+    const { employeeRole, employeeBranchId } = useAuth();
     const isOwnerOrAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
     
     const [clients, setClients] = useState<ClientWithVehicles[]>([]);
@@ -56,7 +56,7 @@ export default function CustomersPage() {
     useEffect(() => {
         fetchBranches();
         fetchClients();
-    }, []);
+    }, [employeeBranchId, employeeRole]);
 
     const fetchBranches = async () => {
         const { data } = await supabase.from('branches').select('id, name');
@@ -115,7 +115,12 @@ export default function CustomersPage() {
                     allReports
                 };
             });
-            setClients(mapped);
+
+            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                setClients(mapped.filter((c: any) => c.branchIds.includes(employeeBranchId)));
+            } else {
+                setClients(mapped);
+            }
         }
         setLoading(false);
     };

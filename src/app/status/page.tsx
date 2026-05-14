@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthProvider";
 import { Activity, Clock, CheckCircle2, AlertCircle, Car, User, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +25,7 @@ const COLUMNS = [
 ];
 
 export default function KanbanStatusPage() {
+    const { employeeRole, employeeBranchId } = useAuth();
     const [orders, setOrders] = useState<WorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -36,11 +38,11 @@ export default function KanbanStatusPage() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, []);
+    }, [employeeRole, employeeBranchId]);
 
     const fetchOrders = async () => {
         setLoading(true);
-        const { data, error } = await supabase
+        let query = supabase
             .from('inspection_reports')
             .select(`
                 id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed,
@@ -49,6 +51,12 @@ export default function KanbanStatusPage() {
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
+
+        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            query = query.eq('branch_id', employeeBranchId);
+        }
+
+        const { data, error } = await query;
 
         if (!error && data) {
             setOrders(data as any);
