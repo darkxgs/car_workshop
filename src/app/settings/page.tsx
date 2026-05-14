@@ -73,17 +73,35 @@ export default function SettingsPage() {
     }, [employeeRole]);
 
     const handleDeleteBranch = async (id: string, name: string) => {
-        if (confirm(`هل أنت متأكد من حذف الفرع "${name}"؟\nتنبيه: لا يمكن حذف فرع مرتبط بفواتير أو موظفين.`)) {
+        const firstConfirm = confirm(`هل أنت متأكد من حذف الفرع "${name}"؟\n\nسيتم سؤالك في الخطوة التالية عن طريقة التعامل مع البيانات المرتبطة.`);
+        if (!firstConfirm) return;
+
+        const cascadeConfirm = confirm(`⚠️ هل تريد حذف كل البيانات المرتبطة بالفرع "${name}" (الفواتير، التقارير، والمخزون)؟\n\nاضغط موافق: لحذف كل شيء مرتبط بهذا الفرع نهائياً.\nاضغط إلغاء: لفك الارتباط فقط (تبقى البيانات لكن بدون فرع).`);
+
+        try {
+            if (cascadeConfirm) {
+                // Delete inspection_reports linked to this branch
+                // (Note: used_parts and report_services should be handled by DB cascade or will block this)
+                await supabase.from('inspection_reports').delete().eq('branch_id', id);
+                // Delete inventory linked to this branch
+                await supabase.from('inventory').delete().eq('branch_id', id);
+            } else {
+                // Unlink reports and inventory from branch (set to null)
+                await supabase.from('inspection_reports').update({ branch_id: null }).eq('branch_id', id);
+                await supabase.from('inventory').update({ branch_id: null }).eq('branch_id', id);
+            }
+            // Unlink employees from this branch (Never delete employees automatically)
+            await supabase.from('employees').update({ branch_id: null }).eq('branch_id', id);
+
+            // Now delete the branch
             const { error } = await supabase.from('branches').delete().eq('id', id);
             if (error) {
-                if (error.code === '23503' || error.message?.includes('foreign') || (error as any).status === 409) {
-                    alert(`❌ لا يمكن حذف فرع "${name}" لأنه مرتبط بفواتير أو بيانات أخرى في النظام.\n\nإذا أردت حذفه، قم أولاً بنقل جميع الفواتير المرتبطة به إلى فرع آخر.`);
-                } else {
-                    alert(`حدث خطأ أثناء الحذف: ${error.message}`);
-                }
+                alert(`حدث خطأ أثناء حذف الفرع: ${error.message}\nتأكد من حذف أي بيانات مرتبطة يدوياً إذا استمرت المشكلة.`);
             } else {
-                fetchAllData();
+                await fetchAllData();
             }
+        } catch (err: any) {
+            alert(`خطأ غير متوقع: ${err.message}`);
         }
     };
 
@@ -315,19 +333,27 @@ export default function SettingsPage() {
                                         </td>
                                         <td className="py-4 px-4 text-center">
                                             <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold border inline-block min-w-[80px] ${
-                                                emp.role === 'Admin' || emp.role === 'Owner' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                                emp.role === 'Owner' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                                emp.role === 'Admin' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                                                 emp.role === 'Supervisor' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
                                                 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                             }`}>
-                                                {emp.role === 'Admin' ? 'مدير عام' : emp.role === 'Supervisor' ? 'مشرف فني' : 'استقبال'}
+                                                {emp.role === 'Owner' ? 'مالك النظام' : emp.role === 'Admin' ? 'مدير عام' : emp.role === 'Supervisor' ? 'مشرف فني' : 'استقبال'}
                                             </span>
                                         </td>
                                         <td className="py-4 px-4 text-muted-foreground font-mono" dir="ltr">{emp.phone || 'لا يوجد'}</td>
                                         <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString()}</td>
                                         <td className="py-4 px-4 text-left">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleEditUserClick(emp)} className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-blue-500/20">تعديل</button>
-                                                <button onClick={() => handleDeleteUser(emp.auth_id, emp.name)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
+                                                {(employeeRole === 'Owner' || emp.role !== 'Owner') && (
+                                                    <button onClick={() => handleEditUserClick(emp)} className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-blue-500/20">تعديل</button>
+                                                )}
+                                                {(employeeRole === 'Owner' || emp.role !== 'Owner') && (
+                                                    <button onClick={() => handleDeleteUser(emp.auth_id, emp.name)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
+                                                )}
+                                                {emp.role === 'Owner' && employeeRole !== 'Owner' && (
+                                                    <span className="text-xs text-muted-foreground italic px-1">محمي</span>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -422,7 +448,7 @@ export default function SettingsPage() {
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
                                         <option value="Admin">مدير عام (أقصى صلاحية)</option>
-                                        <option value="Owner">مالك النظام (صلاحية كاملة)</option>
+                                        {employeeRole === 'Owner' && <option value="Owner">مالك النظام (صلاحية كاملة)</option>}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -484,7 +510,7 @@ export default function SettingsPage() {
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
                                         <option value="Admin">مدير عام (أقصى صلاحية)</option>
-                                        <option value="Owner">مالك النظام (صلاحية كاملة)</option>
+                                        {employeeRole === 'Owner' && <option value="Owner">مالك النظام (صلاحية كاملة)</option>}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
