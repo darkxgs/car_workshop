@@ -490,7 +490,7 @@ export default function SettingsPage() {
                             <button type="button" onClick={() => {
                                 setIsEditModalOpen(false);
                                 setEditingEmployeeId(null);
-                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
                             }} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg border border-border">
                                 <X size={20} />
                             </button>
