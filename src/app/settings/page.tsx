@@ -73,9 +73,17 @@ export default function SettingsPage() {
     }, [employeeRole]);
 
     const handleDeleteBranch = async (id: string, name: string) => {
-        if (confirm(`هل أنت متأكد من حذف الفرع ${name}؟ سيتم فقدان ارتباطاته.`)) {
-            await supabase.from('branches').delete().eq('id', id);
-            fetchAllData();
+        if (confirm(`هل أنت متأكد من حذف الفرع "${name}"؟\nتنبيه: لا يمكن حذف فرع مرتبط بفواتير أو موظفين.`)) {
+            const { error } = await supabase.from('branches').delete().eq('id', id);
+            if (error) {
+                if (error.code === '23503' || error.message?.includes('foreign') || (error as any).status === 409) {
+                    alert(`❌ لا يمكن حذف فرع "${name}" لأنه مرتبط بفواتير أو بيانات أخرى في النظام.\n\nإذا أردت حذفه، قم أولاً بنقل جميع الفواتير المرتبطة به إلى فرع آخر.`);
+                } else {
+                    alert(`حدث خطأ أثناء الحذف: ${error.message}`);
+                }
+            } else {
+                fetchAllData();
+            }
         }
     };
 
@@ -414,6 +422,7 @@ export default function SettingsPage() {
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
                                         <option value="Admin">مدير عام (أقصى صلاحية)</option>
+                                        <option value="Owner">مالك النظام (صلاحية كاملة)</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -475,6 +484,7 @@ export default function SettingsPage() {
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
                                         <option value="Admin">مدير عام (أقصى صلاحية)</option>
+                                        <option value="Owner">مالك النظام (صلاحية كاملة)</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
