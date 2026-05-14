@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Activity, Clock, CheckCircle2, AlertCircle, Car, User, ArrowLeft } from "lucide-react";
+import { Activity, Clock, CheckCircle2, AlertCircle, Car, User, ArrowLeft, Wrench, X, Save, Timer } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrder = {
@@ -15,6 +15,8 @@ type WorkOrder = {
     start_time: string | null;
     is_delayed: boolean;
     vehicles: { make: string; model: string; plate_number: string, clients: { name: string; phone: string } };
+    bay_number: string | null;
+    technician_id: string | null;
 };
 
 const COLUMNS = [
@@ -28,6 +30,16 @@ export default function KanbanStatusPage() {
     const { employeeRole, employeeBranchId } = useAuth();
     const [orders, setOrders] = useState<WorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    
+    // Assignment Modal State
+    const [technicians, setTechnicians] = useState<any[]>([]);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [assignData, setAssignData] = useState({
+        technician_id: "",
+        bay_number: "",
+        estimated_duration: "60"
+    });
 
     useEffect(() => {
         fetchOrders();
@@ -40,12 +52,25 @@ export default function KanbanStatusPage() {
         return () => { supabase.removeChannel(channel); };
     }, [employeeRole, employeeBranchId]);
 
+    useEffect(() => {
+        // Fetch technicians
+        const fetchTechs = async () => {
+            let empQuery = supabase.from('employees').select('*').in('role', ['Supervisor', 'Admin', 'Owner']);
+            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                empQuery = empQuery.eq('branch_id', employeeBranchId);
+            }
+            const { data } = await empQuery;
+            if (data) setTechnicians(data);
+        };
+        fetchTechs();
+    }, [employeeRole, employeeBranchId]);
+
     const fetchOrders = async () => {
         setLoading(true);
         let query = supabase
             .from('inspection_reports')
             .select(`
-                id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed,
+                id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed, bay_number, technician_id,
                 vehicles (make, model, plate_number, clients (name, phone))
             `)
             .neq('status', 'تم الانتهاء')
@@ -100,6 +125,32 @@ export default function KanbanStatusPage() {
         if (error) {
             alert("حدث خطأ أثناء تغيير الحالة.");
             setOrders(previousOrders); // Revert UI
+            fetchOrders();
+        }
+    };
+
+    const handleOpenAssignModal = (orderId: string) => {
+        setSelectedOrderId(orderId);
+        setAssignData({ technician_id: "", bay_number: "", estimated_duration: "60" });
+        setIsAssignModalOpen(true);
+    };
+
+    const handleSaveAssignment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedOrderId) return;
+        
+        const { error } = await supabase.from('inspection_reports').update({
+            technician_id: assignData.technician_id || null,
+            bay_number: assignData.bay_number,
+            estimated_duration: parseInt(assignData.estimated_duration) || 60,
+            status: 'قيد العمل',
+            start_time: new Date().toISOString()
+        }).eq('id', selectedOrderId);
+
+        if (error) {
+            alert("فشل إسناد المهمة");
+        } else {
+            setIsAssignModalOpen(false);
             fetchOrders();
         }
     };
@@ -176,10 +227,19 @@ export default function KanbanStatusPage() {
                                                     <span className="truncate">{order.vehicles?.clients?.name || 'غير محدد'}</span>
                                                 </p>
 
-                                                <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
-                                                    <div className="text-[10px] text-muted-foreground font-mono bg-black/30 px-2 py-1 rounded">
-                                                        {order.vehicles?.plate_number}
-                                                    </div>
+                                                <div className="flex items-center justify-between mt-auto pt-3 border-t border-border gap-2">
+                                                    {(column.id === 'تم الاستلام' && (employeeRole === 'Supervisor' || employeeRole === 'Admin' || employeeRole === 'Owner')) ? (
+                                                        <button 
+                                                            onClick={() => handleOpenAssignModal(order.id)}
+                                                            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+                                                        >
+                                                            <Wrench size={14} /> إسناد للورشة
+                                                        </button>
+                                                    ) : (
+                                                        <div className="text-[10px] text-muted-foreground font-mono bg-black/30 px-2 py-1 rounded">
+                                                            {order.bay_number ? `خانة: ${order.bay_number}` : (order.vehicles?.plate_number || '---')}
+                                                        </div>
+                                                    )}
                                                     <Link 
                                                         href={`/work-orders/${order.id}`}
                                                         className="p-1.5 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-400 rounded-lg transition-colors"
@@ -200,6 +260,49 @@ export default function KanbanStatusPage() {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Assignment Modal */}
+                {isAssignModalOpen && (
+                    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
+                        <form onSubmit={handleSaveAssignment} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-sm shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200">
+                            <div className="p-5 border-b border-border bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                    <Wrench className="text-cyan-500" /> إسناد المركبة لورشة العمل
+                                </h2>
+                                <button type="button" onClick={() => setIsAssignModalOpen(false)} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground">الخانة (Bay) <span className="text-rose-500">*</span></label>
+                                    <input required type="text" placeholder="مثال: الخانة 1 أو A" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={assignData.bay_number} onChange={e => setAssignData({...assignData, bay_number: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground">الفني المسؤول (اختياري)</label>
+                                    <select className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={assignData.technician_id} onChange={e => setAssignData({...assignData, technician_id: e.target.value})}>
+                                        <option value="">-- غير محدد --</option>
+                                        {technicians.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-1"><Timer size={14} /> الوقت المقدر لإنجاز العمل (دقائق)</label>
+                                    <input required type="number" min="1" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono" value={assignData.estimated_duration} onChange={e => setAssignData({...assignData, estimated_duration: e.target.value})} />
+                                </div>
+                            </div>
+                            
+                            <div className="p-5 border-t border-border bg-muted/30 flex gap-3">
+                                <button type="button" onClick={() => setIsAssignModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء</button>
+                                <button type="submit" className="flex-[2] px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                                    <Save size={18} /> حفظ وبدء العمل
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 )}
             </div>
