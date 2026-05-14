@@ -32,7 +32,8 @@ export default function SettingsPage() {
         email: "",
         phone: "",
         password: "",
-        role: "Receptionist" as UserRole
+        role: "Receptionist" as UserRole,
+        branch_id: ""
     });
 
     const [branchData, setBranchData] = useState({
@@ -114,7 +115,7 @@ export default function SettingsPage() {
         
         if (res.success) {
             setIsAddModalOpen(false);
-            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
             await fetchAllData();
         } else {
             setFormError(res.error || "فشل في إنشاء الحساب. لعل البريد الإلكتروني مستخدم مسبقاً.");
@@ -130,7 +131,8 @@ export default function SettingsPage() {
             email: "غير متاح للتعديل", // Email shouldn't be edited easily
             phone: emp.phone || "",
             password: "", // empty so it won't update unless typed
-            role: emp.role as UserRole
+            role: emp.role as UserRole,
+            branch_id: emp.branch_id || ""
         });
         setIsEditModalOpen(true);
     };
@@ -145,7 +147,7 @@ export default function SettingsPage() {
         
         if (res.success) {
             setIsEditModalOpen(false);
-            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
             setEditingEmployeeId(null);
             await fetchAllData();
         } else {
@@ -452,6 +454,15 @@ export default function SettingsPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
+                                    <label htmlFor="emp-branch" className="text-sm font-medium text-muted-foreground">الفرع التابع له</label>
+                                    <select id="emp-branch" name="branch_id" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={formData.branch_id} onChange={e => setFormData({...formData, branch_id: e.target.value})}>
+                                        <option value="">-- كل الفروع (للمدراء) --</option>
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
                                     <label htmlFor="emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال للتنبيهات</label>
                                     <input id="emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                                 </div>
@@ -514,6 +525,15 @@ export default function SettingsPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
+                                    <label htmlFor="edit-emp-branch" className="text-sm font-medium text-muted-foreground">الفرع التابع له</label>
+                                    <select id="edit-emp-branch" name="branch_id" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500" value={formData.branch_id} onChange={e => setFormData({...formData, branch_id: e.target.value})}>
+                                        <option value="">-- كل الفروع (للمدراء) --</option>
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
                                     <label htmlFor="edit-emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال</label>
                                     <input id="edit-emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                                 </div>
@@ -524,7 +544,7 @@ export default function SettingsPage() {
                             <button type="button" onClick={() => {
                                 setIsEditModalOpen(false);
                                 setEditingEmployeeId(null);
-                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist" });
+                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
                             }} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
                             <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.2)] disabled:opacity-50">
                                 {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} تحديث البيانات
