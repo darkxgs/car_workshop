@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { useAuth } from "@/lib/AuthProvider";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
@@ -26,6 +27,8 @@ type ClientWithVehicles = {
 
 export default function CustomersPage() {
     const { t } = useLanguage();
+    const { employeeRole } = useAuth();
+    const isOwnerOrAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
     
     const [clients, setClients] = useState<ClientWithVehicles[]>([]);
     const [loading, setLoading] = useState(true);
@@ -158,6 +161,22 @@ export default function CustomersPage() {
             });
         } else {
             alert("حدث خطأ أثناء تحديث البيانات.");
+        }
+    };
+
+    const handleDeleteReport = async (reportId: string, reportNumber: number) => {
+        if (!confirm(`هل أنت متأكد من حذف الفاتورة #${reportNumber}؟\nهذا الإجراء لا يمكن التراجع عنه.`)) return;
+        const { error } = await supabase.from('inspection_reports').delete().eq('id', reportId);
+        if (!error) {
+            fetchClients();
+            if (selectedProfile) {
+                setSelectedProfile({
+                    ...selectedProfile,
+                    allReports: selectedProfile.allReports.filter((r: any) => r.id !== reportId)
+                });
+            }
+        } else {
+            alert(`خطأ أثناء الحذف: ${error.message}`);
         }
     };
 
@@ -613,6 +632,11 @@ export default function CustomersPage() {
                                                     <button onClick={() => window.open(`/print/${r.id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
                                                         <FileText size={18}/>
                                                     </button>
+                                                    {isOwnerOrAdmin && (
+                                                        <button onClick={() => handleDeleteReport(r.id, r.report_number)} className="p-2 bg-muted hover:bg-rose-600 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="حذف الفاتورة (مالك النظام فقط)">
+                                                            <Trash2 size={18}/>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
