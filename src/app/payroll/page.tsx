@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { DollarSign, Clock, Calendar, CheckCircle, Search, AlertCircle, Save, Edit2, X, TrendingUp } from "lucide-react";
+import { showError, showSuccess } from "@/lib/alerts";
 
 type PayrollRecord = {
     emp_id: string;
@@ -34,44 +35,49 @@ export default function PayrollPage() {
 
     const fetchPayroll = async () => {
         setLoading(true);
-        // Fetch employees
-        const { data: employeesData } = await supabase.from('employees').select('id, name, role');
-        // Fetch existing records for this month
-        const { data: payrollData } = await supabase.from('payroll_records' as any).select('*').eq('salary_month', month);
-        
-        if (employeesData) {
-            const merged: PayrollRecord[] = employeesData.map((emp) => {
-                const base = emp.role === 'Admin' ? 2000000 : emp.role === 'Supervisor' ? 1200000 : 750000;
-                const existing = (payrollData as any[])?.find((p: any) => p.emp_id === emp.id);
+        try {
+            // Fetch employees
+            const { data: employeesData } = await supabase.from('employees').select('id, name, role');
+            // Fetch existing records for this month
+            const { data: payrollData } = await supabase.from('payroll_records' as any).select('*').eq('salary_month', month);
+            
+            if (employeesData) {
+                const merged: PayrollRecord[] = employeesData.map((emp) => {
+                    const base = emp.role === 'Admin' ? 2000000 : emp.role === 'Supervisor' ? 1200000 : 750000;
+                    const existing = (payrollData as any[])?.find((p: any) => p.emp_id === emp.id);
 
-                return {
-                    emp_id: emp.id,
-                    name: emp.name,
-                    role: emp.role,
-                    base_salary: existing ? parseFloat(existing.base_salary) : base,
-                    absences: existing ? existing.absences_days : 0,
-                    bonus: existing ? parseFloat(existing.bonus_amount) : 0,
-                    total: 0, 
-                    status: existing ? (existing.status as 'pending'|'paid') : 'pending',
-                    record_id: existing ? existing.id : null
-                };
-            });
+                    return {
+                        emp_id: emp.id,
+                        name: emp.name,
+                        role: emp.role,
+                        base_salary: existing ? parseFloat(existing.base_salary) : base,
+                        absences: existing ? existing.absences_days : 0,
+                        bonus: existing ? parseFloat(existing.bonus_amount) : 0,
+                        total: 0, 
+                        status: existing ? (existing.status as 'pending'|'paid') : 'pending',
+                        record_id: existing ? existing.id : null
+                    };
+                });
 
-            // Calculate totals
-            merged.forEach(rec => {
-                const dailyRate = rec.base_salary / 30;
-                rec.total = rec.base_salary - (rec.absences * dailyRate) + rec.bonus;
-                if(rec.total < 0) rec.total = 0;
-            });
+                // Calculate totals
+                merged.forEach(rec => {
+                    const dailyRate = rec.base_salary / 30;
+                    rec.total = rec.base_salary - (rec.absences * dailyRate) + rec.bonus;
+                    if(rec.total < 0) rec.total = 0;
+                });
 
-            setRecords(merged);
+                setRecords(merged);
+            }
+        } catch (error) {
+            showError("خطأ", "حدث خطأ أثناء تحميل بيانات الرواتب.");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const openEditModal = (rec: PayrollRecord) => {
         if (rec.status === 'paid') {
-            alert("لا يمكن تعديل الراتب بعد صرفه!");
+            showError("تنبيه", "لا يمكن تعديل الراتب بعد صرفه!");
             return;
         }
         setEditingRecord(rec);
@@ -98,10 +104,11 @@ export default function PayrollPage() {
 
         if (!error && (data as any)) {
             setIsModalOpen(false);
+            showSuccess("تم", "تم حفظ التعديلات بنجاح.");
             fetchPayroll(); // Refresh math visually
         } else {
             console.error("Failed to update payroll logic:", error);
-            alert("فشل في حفظ التعديلات.");
+            showError("خطأ", "فشل في حفظ التعديلات.");
         }
     };
 

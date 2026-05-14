@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, Package, AlertTriangle, CheckCircle2, TrendingDown, TrendingUp, Edit2, Box, Trash2 } from "lucide-react";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 
 type InventoryItem = {
     id: string;
@@ -92,20 +93,37 @@ export default function InventoryPage() {
             purchase_price: parseFloat(formPurchasePrice), sell_price: parseFloat(formSellPrice)
         };
 
+        let error;
         if (editingItem) {
-            await supabase.from('inventory').update(payload).eq('id', editingItem.id);
+            ({ error } = await supabase.from('inventory').update(payload).eq('id', editingItem.id));
         } else {
-            await supabase.from('inventory').insert([payload]);
+            ({ error } = await supabase.from('inventory').insert([payload]));
         }
         
-        setIsModalOpen(false);
-        fetchInventory();
+        if (!error) {
+            showSuccess("تم الحفظ", "تم تحديث بيانات المخزون بنجاح");
+            setIsModalOpen(false);
+            fetchInventory();
+        } else {
+            showError("خطأ", "حدث خطأ أثناء حفظ البيانات");
+        }
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("هل أنت متأكد من حذف هذا الصنف؟")) {
-            await supabase.from('inventory').delete().eq('id', id);
-            fetchInventory();
+        const isConfirmed = await showConfirm(
+            "حذف عنصر",
+            "هل أنت متأكد من حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
+            "نعم، احذف",
+            true
+        );
+        if (isConfirmed) {
+            const { error } = await supabase.from('inventory').delete().eq('id', id);
+            if (!error) {
+                showSuccess("تم الحذف", "تم حذف العنصر بنجاح");
+                fetchInventory();
+            } else {
+                showError("خطأ", "حدث خطأ أثناء الحذف");
+            }
         }
     };
 

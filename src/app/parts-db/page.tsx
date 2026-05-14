@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import { Search, ShoppingCart, Plus, Minus, Trash2, Wallet, Receipt, CreditCard, ChevronLeft, Package } from "lucide-react";
 import Link from "next/link";
 
@@ -49,12 +50,12 @@ export default function PartsPOSPage() {
     };
 
     const addToCart = (item: InventoryItem) => {
-        if (item.quantity <= 0) return alert("الكمية المتاحة غير كافية!");
+        if (item.quantity <= 0) return showError("خطأ", "الكمية المتاحة غير كافية!");
         setCart(prev => {
             const existing = prev.find(i => i.id === item.id);
             if (existing) {
                 if (existing.cartQuantity >= item.quantity) {
-                    alert("لقد تجاوزت المخزون المتاح!");
+                    showError("خطأ", "لقد تجاوزت المخزون المتاح!");
                     return prev;
                 }
                 return prev.map(i => i.id === item.id ? { ...i, cartQuantity: i.cartQuantity + 1 } : i);
@@ -109,11 +110,11 @@ export default function PartsPOSPage() {
             });
 
             setCart([]);
-            setSuccessMsg("تم الدفع وخصم الكميات من المستودع بنجاح!");
+            showSuccess("تم", "تم الدفع وخصم الكميات من المستودع بنجاح!");
             fetchInventory(); // refresh
 
         } catch (error) {
-            alert("حدث خطأ أثناء إتمام العملية.");
+            showError("خطأ", "حدث خطأ أثناء إتمام العملية.");
         } finally {
             setProcessing(false);
         }

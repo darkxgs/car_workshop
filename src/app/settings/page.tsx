@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount, getAuthEmails } from "@/app/actions/admin";
 import { UserRole } from "@/lib/types";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 
 export default function SettingsPage() {
     const { t } = useLanguage();
@@ -87,40 +88,41 @@ export default function SettingsPage() {
     }, [employeeRole]);
 
     const handleDeleteBranch = async (id: string, name: string) => {
-        const firstConfirm = confirm(`هل أنت متأكد من حذف الفرع "${name}"؟\n\nسيتم سؤالك في الخطوة التالية عن طريقة التعامل مع البيانات المرتبطة.`);
-        if (!firstConfirm) return;
+        const isConfirmed = await showConfirm(
+            `حذف فرع "${name}"`,
+            `هل أنت متأكد من حذف هذا الفرع نهائياً؟\nسيتم حذف الفرع فقط في حال لم يكن مرتبطاً بأي موظفين أو فواتير.`,
+            'نعم، احذف الفرع',
+            true
+        );
+        if (!isConfirmed) return;
 
-        const cascadeConfirm = confirm(`⚠️ هل تريد حذف كل البيانات المرتبطة بالفرع "${name}" (الفواتير، التقارير، والمخزون)؟\n\nاضغط موافق: لحذف كل شيء مرتبط بهذا الفرع نهائياً.\nاضغط إلغاء: لفك الارتباط فقط (تبقى البيانات لكن بدون فرع).`);
-
+        setLoadingEnv(true);
         try {
-            if (cascadeConfirm) {
-                // Delete inspection_reports linked to this branch
-                // (Note: used_parts and report_services should be handled by DB cascade or will block this)
-                await supabase.from('inspection_reports').delete().eq('branch_id', id);
-                // Delete inventory linked to this branch
-                await supabase.from('inventory').delete().eq('branch_id', id);
-            } else {
-                // Unlink reports and inventory from branch (set to null)
-                await supabase.from('inspection_reports').update({ branch_id: null }).eq('branch_id', id);
-                await supabase.from('inventory').update({ branch_id: null }).eq('branch_id', id);
-            }
-            // Unlink employees from this branch (Never delete employees automatically)
-            await supabase.from('employees').update({ branch_id: null }).eq('branch_id', id);
-
-            // Now delete the branch
             const { error } = await supabase.from('branches').delete().eq('id', id);
+            
             if (error) {
-                alert(`حدث خطأ أثناء حذف الفرع: ${error.message}\nتأكد من حذف أي بيانات مرتبطة يدوياً إذا استمرت المشكلة.`);
+                if (error.code === '23503') { // Foreign key violation
+                    showError("لا يمكن حذف الفرع", "هذا الفرع مرتبط بموظفين أو فواتير حالية. يجب نقلهم لفرع آخر أولاً.");
+                } else {
+                    showError("خطأ", `حدث خطأ أثناء الحذف: ${error.message}`);
+                }
             } else {
-                await fetchAllData();
+                showSuccess("تم الحذف", "تم حذف الفرع بنجاح.");
+                fetchAllData();
             }
         } catch (err: any) {
-            alert(`خطأ غير متوقع: ${err.message}`);
+            showError("خطأ", `حدث خطأ: ${err.message}`);
+        } finally {
+            setLoadingEnv(false);
         }
     };
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.name || !formData.role) {
+            showError("بيانات ناقصة", "يرجى تعبئة الحقول المطلوبة (الاسم، الصلاحية)");
+            return;
+        }
         setIsSubmitting(true);
         setFormError(null);
 
@@ -159,6 +161,7 @@ export default function SettingsPage() {
         const res = await updateEmployeeAccount(editingEmployeeId, formData);
         
         if (res.success) {
+            showSuccess("تم التحديث", "تم تحديث بيانات المستخدم بنجاح");
             setIsEditModalOpen(false);
             setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
             setEditingEmployeeId(null);
@@ -171,18 +174,31 @@ export default function SettingsPage() {
     };
 
     const handleDeleteUser = async (authId: string, name: string) => {
-        if (confirm(`هل أنت متأكد من حذف المستخدم ${name}؟ سيتم منعه من الدخول للنظام نهائياً.`)) {
+        const isConfirmed = await showConfirm(
+            `حذف المستخدم`,
+            `هل أنت متأكد من حذف المستخدم ${name}؟ لا يمكن التراجع عن هذا الإجراء.`,
+            'نعم، احذف',
+            true
+        );
+        if (isConfirmed) {
+            setLoadingEnv(true);
             const res = await deleteEmployeeAccount(authId);
+            setLoadingEnv(false);
             if (res.success) {
-                await fetchAllData();
+                showSuccess("تم الحذف", "تم حذف المستخدم بنجاح.");
+                fetchAllData();
             } else {
-                alert(res.error || "حدث خطأ أثناء الحذف.");
+                showError("خطأ", res.error || "حدث خطأ أثناء الحذف.");
             }
         }
     };
 
     const handleCreateBranch = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!branchData.name) {
+            showError("بيانات ناقصة", "الرجاء تعبئة الحقول المطلوبة (اسم الفرع).");
+            return;
+        }
         setIsSubmitting(true);
         
         const { error } = await supabase.from('branches').insert([{ name: branchData.name, address: branchData.address }]);

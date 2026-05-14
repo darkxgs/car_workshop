@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Users, Search, Plus, Mail, Phone, Calendar as CalIcon, Shield, Trash2, Edit2, X } from "lucide-react";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 
 export default function EmployeesPage() {
     const [employees, setEmployees] = useState<any[]>([]);
@@ -64,9 +65,20 @@ export default function EmployeesPage() {
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (confirm(`هل أنت متأكد من حذف الموظف ${name}؟ لا يمكن التراجع عن هذا الإجراء.`)) {
-            await supabase.from('employees').delete().eq('id', id);
-            fetchEmployees();
+        const isConfirmed = await showConfirm(
+            "حذف موظف",
+            `هل أنت متأكد من حذف الموظف ${name}؟ لا يمكن التراجع عن هذا الإجراء.`,
+            "نعم، احذف",
+            true
+        );
+        if (isConfirmed) {
+            const { error } = await supabase.from('employees').delete().eq('id', id);
+            if (!error) {
+                showSuccess("تم الحذف", "تم حذف الموظف بنجاح");
+                fetchEmployees();
+            } else {
+                showError("خطأ", "حدث خطأ أثناء الحذف");
+            }
         }
     };
 

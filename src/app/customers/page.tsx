@@ -9,6 +9,7 @@ import {
     Mail, Car, FileText, ChevronLeft, ShieldAlert,
     Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench
 } from "lucide-react";
+import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import Link from "next/link";
 import * as XLSX from 'xlsx';
 
@@ -132,19 +133,27 @@ export default function CustomersPage() {
             setIsAddModalOpen(false);
             setName(""); setPhone(""); setEmail("");
             fetchClients();
+            showSuccess("تم الإضافة", "تم إضافة العميل بنجاح.");
         } else {
-            alert("حدث خطأ أثناء إضافة العميل.");
+            showError("خطأ", "حدث خطأ أثناء إضافة العميل.");
         }
     };
 
     const handleDeleteClient = async (id: string) => {
-        if (!confirm("هل أنت متأكد من حذف هذا العميل؟ سيتم حذف جميع البيانات المرتبطة به.")) return;
+        const isConfirmed = await showConfirm(
+            "حذف العميل",
+            "هل أنت متأكد من حذف هذا العميل؟ سيتم حذف جميع البيانات المرتبطة به.",
+            "نعم، احذف",
+            true
+        );
+        if (!isConfirmed) return;
         const { error } = await supabase.from('clients').delete().eq('id', id);
         if (!error) {
             setSelectedProfile(null);
             fetchClients();
+            showSuccess("تم الحذف", "تم حذف العميل بنجاح.");
         } else {
-            alert("حدث خطأ أثناء حذف العميل.");
+            showError("خطأ", "حدث خطأ أثناء حذف العميل.");
         }
     };
 
@@ -164,13 +173,20 @@ export default function CustomersPage() {
                 phone: editPhone,
                 email: editEmail
             });
+            showSuccess("تم التحديث", "تم تحديث بيانات العميل بنجاح.");
         } else {
-            alert("حدث خطأ أثناء تحديث البيانات.");
+            showError("خطأ", "حدث خطأ أثناء تحديث البيانات.");
         }
     };
 
     const handleDeleteReport = async (reportId: string, reportNumber: number) => {
-        if (!confirm(`هل أنت متأكد من حذف الفاتورة #${reportNumber}؟\nهذا الإجراء لا يمكن التراجع عنه.`)) return;
+        const isConfirmed = await showConfirm(
+            "حذف الفاتورة",
+            `هل أنت متأكد من حذف الفاتورة #${reportNumber}؟\nهذا الإجراء لا يمكن التراجع عنه.`,
+            "نعم، احذف",
+            true
+        );
+        if (!isConfirmed) return;
         const { error } = await supabase.from('inspection_reports').delete().eq('id', reportId);
         if (!error) {
             fetchClients();
@@ -180,8 +196,9 @@ export default function CustomersPage() {
                     allReports: selectedProfile.allReports.filter((r: any) => r.id !== reportId)
                 });
             }
+            showSuccess("تم الحذف", "تم حذف الفاتورة بنجاح.");
         } else {
-            alert(`خطأ أثناء الحذف: ${error.message}`);
+            showError("خطأ", `خطأ أثناء الحذف: ${error.message}`);
         }
     };
 

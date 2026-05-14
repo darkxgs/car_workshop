@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ShieldCheck, Search, ShieldAlert, BadgeCheck, FileText, CalendarDays, Edit2, X, Save } from "lucide-react";
+import { showError, showSuccess } from "@/lib/alerts";
 
 type WarrantyRecord = {
     id: string; // The inspection_report id
@@ -97,10 +98,11 @@ export default function WarrantyPage() {
             .eq('id', editingWarranty.id);
 
         if (!error) {
+            showSuccess('تم الحفظ', 'تم تحديث حالة الضمان بنجاح.');
             setIsEditOpen(false);
             fetchWarranties();
         } else {
-            alert('حدث خطأ أثناء حفظ حالة الضمان!');
+            showError('خطأ', 'حدث خطأ أثناء حفظ حالة الضمان!');
         }
     };
 

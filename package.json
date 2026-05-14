@@ -19,6 +19,8 @@
     "react-dom": "19.2.4",
     "react-to-print": "^3.3.0",
     "recharts": "^3.8.1",
+    "sweetalert2": "^11.26.24",
+    "sweetalert2-react-content": "^5.1.2",
     "tailwind-merge": "^3.5.0",
     "xlsx": "^0.18.5"
   },
