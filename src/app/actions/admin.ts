@@ -10,6 +10,7 @@ export async function createEmployeeAccount(formData: {
     phone: string;
     role: UserRole;
     password?: string;
+    branch_id?: string | null;
 }) {
     // Requires Service Role Key because normal anon keys cannot create users on behalf of someone else.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,7 +53,8 @@ export async function createEmployeeAccount(formData: {
                 auth_id: authUser.id,
                 name: formData.name,
                 role: formData.role,
-                phone: formData.phone
+                phone: formData.phone,
+                branch_id: formData.branch_id || null
             });
 
         if (dbError) {
@@ -78,6 +80,7 @@ export async function updateEmployeeAccount(
         phone: string;
         role: UserRole;
         password?: string;
+        branch_id?: string | null;
     }
 ) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -112,7 +115,8 @@ export async function updateEmployeeAccount(
             .update({
                 name: formData.name,
                 role: formData.role,
-                phone: formData.phone
+                phone: formData.phone,
+                branch_id: formData.branch_id || null
             })
             .eq('auth_id', authId);
 
