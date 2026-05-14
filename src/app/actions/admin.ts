@@ -160,3 +160,29 @@ export async function deleteEmployeeAccount(authId: string) {
         return { success: false, error: e.message || "An unexpected error occurred." };
     }
 }
+
+// Admin Server Action to fetch auth user emails
+export async function getAuthEmails() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return { success: false, data: [] };
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    try {
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        if (error) return { success: false, data: [] };
+        
+        return { 
+            success: true, 
+            data: users.map(u => ({ id: u.id, email: u.email })) 
+        };
+    } catch (e: any) {
+        return { success: false, data: [] };
+    }
+}
