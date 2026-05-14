@@ -528,9 +528,11 @@ export default function CustomersPage() {
                                             <Edit2 size={14}/> تعديل
                                         </button>
                                     ) : (
-                                        <button onClick={() => handleDeleteClient(selectedProfile.id)} className="text-sm font-bold text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-rose-500/10 px-3 py-1.5 rounded-lg">
-                                            <Trash2 size={14}/> حذف العميل نهائياً
-                                        </button>
+                                        isOwnerOrAdmin && (
+                                            <button onClick={() => handleDeleteClient(selectedProfile.id)} className="text-sm font-bold text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-rose-500/10 px-3 py-1.5 rounded-lg">
+                                                <Trash2 size={14}/> حذف العميل نهائياً
+                                            </button>
+                                        )
                                     )}
                                 </div>
 
