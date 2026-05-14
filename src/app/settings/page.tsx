@@ -22,6 +22,8 @@ export default function SettingsPage() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+    const [isEditBranchModalOpen, setIsEditBranchModalOpen] = useState(false);
+    const [editingBranch, setEditingBranch] = useState<any | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -154,6 +156,30 @@ export default function SettingsPage() {
         setIsSubmitting(false);
     };
 
+    const handleEditBranchClick = (branch: any) => {
+        setEditingBranch(branch);
+        setBranchData({ name: branch.name, address: branch.address || "" });
+        setIsEditBranchModalOpen(true);
+    };
+
+    const handleUpdateBranch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingBranch) return;
+        setIsSubmitting(true);
+        const { error } = await supabase.from('branches')
+            .update({ name: branchData.name, address: branchData.address })
+            .eq('id', editingBranch.id);
+        if (!error) {
+            setIsEditBranchModalOpen(false);
+            setEditingBranch(null);
+            setBranchData({ name: "", address: "" });
+            await fetchAllData();
+        } else {
+            alert("خطأ أثناء تحديث بيانات الفرع.");
+        }
+        setIsSubmitting(false);
+    };
+
     if (authLoading || loadingEnv) {
         return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-rose-500 w-10 h-10" /></div>;
     }
@@ -194,7 +220,7 @@ export default function SettingsPage() {
                     </h2>
                     
                     <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {branches.map((branch, idx) => (
+                        {branches.map((branch) => (
                             <div key={branch.id} className="p-4 bg-card/50 border border-border hover:border-rose-500/30 transition-colors rounded-xl flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
@@ -206,19 +232,17 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${idx === 0 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
-                                        {idx === 0 ? 'الرئيسي نشط' : 'فرعي'}
-                                    </span>
-                                    {idx !== 0 && (
-                                        <button onClick={() => handleDeleteBranch(branch.id, branch.name)} className="p-1.5 hover:bg-rose-500/10 hover:text-rose-500 text-muted-foreground rounded transition-colors" title="حذف الفرع">
-                                            <X size={14} />
-                                        </button>
-                                    )}
+                                    <button onClick={() => handleEditBranchClick(branch)} className="p-1.5 hover:bg-blue-500/10 hover:text-blue-400 text-muted-foreground rounded transition-colors" title="تعديل الفرع">
+                                        <Settings size={14} />
+                                    </button>
+                                    <button onClick={() => handleDeleteBranch(branch.id, branch.name)} className="p-1.5 hover:bg-rose-500/10 hover:text-rose-500 text-muted-foreground rounded transition-colors" title="حذف الفرع">
+                                        <X size={14} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
                         {branches.length === 0 && (
-                            <p className="text-center text-muted-foreground text-sm py-4">تأكد من تشغيل ملف SQL لإنشاء جدول الفروع.</p>
+                            <p className="text-center text-muted-foreground text-sm py-4">لا توجد فروع مضافة بعد.</p>
                         )}
                         <button onClick={() => setIsBranchModalOpen(true)} className="w-full py-3 rounded-xl border border-dashed border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm font-medium hover:border-rose-500/50">
                             + إضافة فرع جديد للنظام
@@ -471,6 +495,50 @@ export default function SettingsPage() {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Edit Branch Modal */}
+            {isEditBranchModalOpen && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-border flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <Settings className="text-blue-500" size={22} /> تعديل بيانات الفرع
+                            </h2>
+                            <button onClick={() => { setIsEditBranchModalOpen(false); setEditingBranch(null); setBranchData({ name: "", address: "" }); }} className="p-1.5 bg-muted rounded-lg border border-border hover:bg-rose-500/10 hover:text-rose-500 transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateBranch} className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">اسم الفرع *</label>
+                                <input
+                                    type="text" required
+                                    value={branchData.name}
+                                    onChange={e => setBranchData({...branchData, name: e.target.value})}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500"
+                                    placeholder="مثال: فرع القطاع"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">عنوان الفرع</label>
+                                <input
+                                    type="text"
+                                    value={branchData.address}
+                                    onChange={e => setBranchData({...branchData, address: e.target.value})}
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500"
+                                    placeholder="مثال: شارع الصناعة"
+                                />
+                            </div>
+                            <div className="pt-2 flex gap-3">
+                                <button type="submit" disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                                    {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} حفظ التعديل
+                                </button>
+                                <button type="button" onClick={() => { setIsEditBranchModalOpen(false); setEditingBranch(null); setBranchData({ name: "", address: "" }); }} className="flex-1 bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">إلغاء</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>
