@@ -192,8 +192,8 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '7px 14px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '11px', flexWrap: 'wrap', gap: '4px' }}>
                     <span>وقت الفتح: <strong>{openTime}</strong></span>
                     <span>وقت الانتهاء: <strong>{closeTime}</strong></span>
-                    <span>موظف الاستقبال: <strong>{report.receptionist?.name || '___________'}</strong></span>
-                    <span>اسم الفني: <strong>___________</strong></span>
+                    <span>موظف الاستقبال: <strong>{data?.receptionistName || report.receptionist?.name || '___________'}</strong></span>
+                    <span>اسم الفني: <strong>{data?.technicianName || '___________'}</strong></span>
                 </div>
 
                 {/* ══ BOOKLET ══ */}

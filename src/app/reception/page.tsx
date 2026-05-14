@@ -151,6 +151,11 @@ function ReceptionWizard() {
     const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
 
+    // ---------- Employees ----------
+    const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
+    const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
+    const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
+
     // ---------- STEP 1: Customer & Vehicle ----------
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
@@ -188,10 +193,13 @@ function ReceptionWizard() {
     const [createdWorkOrderId, setCreatedWorkOrderId] = useState<string | null>(null);
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
-    // Fetch branches on mount
+    // Fetch branches + employees on mount
     useEffect(() => {
         supabase.from('branches').select('id, name').then(({ data }) => {
             if (data) setBranches(data);
+        });
+        supabase.from('employees').select('id, name, role').order('name').then(({ data }) => {
+            if (data) setEmployees(data);
         });
     }, []);
 
@@ -377,6 +385,9 @@ function ReceptionWizard() {
                 vehicleId = nv!.id;
             }
 
+            const receptionistName = employees.find(e => e.id === selectedReceptionistId)?.name || '';
+            const technicianName   = employees.find(e => e.id === selectedTechnicianId)?.name || '';
+
             const paperPayload = {
                 is_paper_v2_format: true,
                 freeServices,
@@ -384,6 +395,8 @@ function ReceptionWizard() {
                 customServices,
                 booklet: { type: bookletType, changes: bookletChanges },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient, amountOwedToClient },
+                receptionistName,
+                technicianName,
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -439,6 +452,7 @@ function ReceptionWizard() {
         setBookletType("");
         setBookletChanges("");
         setSelectedBranchId("");
+        setSelectedReceptionistId(""); setSelectedTechnicianId("");
         setTotalPrice(""); setDiscount(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);
@@ -520,6 +534,32 @@ function ReceptionWizard() {
                                     </select>
                                 </div>
                             )}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">موظف الاستقبال</label>
+                                <select
+                                    value={selectedReceptionistId}
+                                    onChange={e => setSelectedReceptionistId(e.target.value)}
+                                    className="input-field"
+                                >
+                                    <option value="">-- اختر موظف الاستقبال --</option>
+                                    {employees.filter(e => e.role === 'Receptionist' || e.role === 'Admin' || e.role === 'Owner').map(e => (
+                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">الفني المسؤول</label>
+                                <select
+                                    value={selectedTechnicianId}
+                                    onChange={e => setSelectedTechnicianId(e.target.value)}
+                                    className="input-field"
+                                >
+                                    <option value="">-- اختر الفني --</option>
+                                    {employees.filter(e => e.role === 'Technician' || e.role === 'Admin' || e.role === 'Owner').map(e => (
+                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
