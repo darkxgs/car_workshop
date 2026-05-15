@@ -53,7 +53,7 @@ type JoinedReport = {
 
 export default function ReportsPage() {
     const { t } = useLanguage();
-    const { employeeRole } = useAuth();
+    const { employeeRole, employeeBranchId } = useAuth();
 
     const [reports, setReports] = useState<JoinedReport[]>([]);
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -136,6 +136,10 @@ export default function ReportsPage() {
                             query = query.eq('id', '00000000-0000-0000-0000-000000000000');
                         }
                     }
+                }
+
+                if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                    query = query.eq('branch_id', employeeBranchId);
                 }
 
                 const { data, error, count } = await query

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { DollarSign, Clock, Calendar, CheckCircle, Search, AlertCircle, Save, Edit2, X, TrendingUp } from "lucide-react";
 import { showError, showSuccess } from "@/lib/alerts";
+import { useAuth } from "@/lib/AuthProvider";
 
 type PayrollRecord = {
     emp_id: string;
@@ -18,6 +19,7 @@ type PayrollRecord = {
 };
 
 export default function PayrollPage() {
+    const { employeeBranchId, employeeRole } = useAuth();
     const [records, setRecords] = useState<PayrollRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [month] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
@@ -37,7 +39,12 @@ export default function PayrollPage() {
         setLoading(true);
         try {
             // Fetch employees
-            const { data: employeesData } = await supabase.from('employees').select('id, name, role');
+            let query = supabase.from('employees').select('id, name, role, branch_id');
+            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                query = query.eq('branch_id', employeeBranchId);
+            }
+            const { data: employeesData } = await query;
+            
             // Fetch existing records for this month
             const { data: payrollData } = await supabase.from('payroll_records' as any).select('*').eq('salary_month', month);
             

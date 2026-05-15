@@ -23,6 +23,14 @@ export default function WorkOrdersListPage() {
 
     useEffect(() => {
         fetchOrders();
+
+        const channel = supabase.channel('work_orders_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                fetchOrders();
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, [employeeBranchId, employeeRole]);
 
     const fetchOrders = async () => {

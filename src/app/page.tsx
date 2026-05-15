@@ -11,13 +11,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell
 } from "recharts";
 
 type WorkOrder = {
@@ -44,6 +47,7 @@ export default function Home() {
         revenue: 0
     });
     const [chartData, setChartData] = useState<any[]>([]);
+    const [pieData, setPieData] = useState<any[]>([]);
     const [liveOrders, setLiveOrders] = useState<WorkOrder[]>([]);
     const [alerts, setAlerts] = useState<any[]>([]);
 
@@ -103,27 +107,30 @@ export default function Home() {
                     .filter(r => r.status === 'تم الانتهاء' && isToday(r.created_at))
                     .reduce((sum, r) => sum + Number(r.total_price || 0), 0);
 
-                // 1. Chart Data
-                const dailyData: Record<string, { orders: number, revenue: number }> = {};
-                for (const r of allReports) {
-                    const dateStr = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    if (!dailyData[dateStr]) {
-                        dailyData[dateStr] = { orders: 0, revenue: 0 };
-                    }
-                    dailyData[dateStr].orders += 1;
-                    if (r.status === 'تم الانتهاء') {
-                        dailyData[dateStr].revenue += Number(r.total_price || 0);
-                    }
-                }
-                const chartArr = Object.keys(dailyData).map(date => ({
-                    name: date,
-                    orders: dailyData[date].orders,
-                    revenue: dailyData[date].revenue
-                })).slice(0, 7).reverse();
+                // 1. Chart Data (Fixing missing days)
+                const last7Days = Array.from({length: 7}).map((_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }).reverse();
 
-                setChartData(chartArr.length > 0 ? chartArr : [
-                    { name: 'لا توجد بيانات', orders: 0, revenue: 0 }
-                ]);
+                const chartArr = last7Days.map(dateStr => {
+                    const dayReports = allReports.filter(r => new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === dateStr);
+                    const orders = dayReports.length;
+                    const revenue = dayReports.filter(r => r.status === 'تم الانتهاء').reduce((sum, r) => sum + Number(r.total_price || 0), 0);
+                    return { name: dateStr, orders, revenue };
+                });
+
+                setChartData(chartArr);
+
+                // Pie Chart Data (Status Breakdown)
+                const statuses = ['تم الاستلام', 'قيد العمل', 'متأخر'];
+                const statusCounts = statuses.map(s => {
+                    const count = allReports.filter(r => r.status === s || (s === 'متأخر' && r.is_delayed)).length;
+                    return { name: s, value: count };
+                }).filter(s => s.value > 0);
+
+                setPieData(statusCounts.length > 0 ? statusCounts : [{ name: 'لا يوجد', value: 1 }]);
 
                 // 2. Alerts
                 const generatedAlerts = [];
@@ -296,11 +303,11 @@ export default function Home() {
                 {/* 4. Chart & Modules Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Performance Chart (66%) */}
-                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl">
+                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl hover:border-emerald-500/30 transition-all duration-300">
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                                 <Activity className="text-emerald-400" size={20} />
-                                أداء الورشة
+                                أداء الورشة والإيرادات
                             </h3>
                             <select className="bg-card border-border border border-border text-muted-foreground text-sm rounded-lg py-1.5 px-3 focus:outline-none focus:border-rose-500/50">
                                 <option>آخر 7 أيام نشطة</option>
@@ -309,49 +316,82 @@ export default function Home() {
 
                         {/* Custom Legend */}
                         <div className="flex items-center justify-center gap-8 mb-6 text-sm">
-                            <span className="flex items-center gap-2 text-muted-foreground"><div className="w-3 h-3 rounded-full bg-blue-500"></div> أوامر الصيانة</span>
-                            <span className="flex items-center gap-2 text-muted-foreground"><div className="w-3 h-3 rounded-full bg-emerald-500"></div> الإيرادات</span>
+                            <span className="flex items-center gap-2 text-muted-foreground"><div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div> أوامر الصيانة</span>
+                            <span className="flex items-center gap-2 text-muted-foreground"><div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div> الإيرادات</span>
                         </div>
 
                         <div className="h-[280px] w-full" dir="ltr">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
                                     <XAxis dataKey="name" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                                    <YAxis yAxisId="left" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                                    <YAxis yAxisId="right" orientation="right" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px', color: '#fff' }}
+                                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: '#333', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
                                         itemStyle={{ color: '#fff' }}
                                     />
-                                    <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#000', strokeWidth: 2 }} />
-                                    <Line type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#000', strokeWidth: 2 }} />
-                                </LineChart>
+                                    <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" activeDot={{ r: 6, strokeWidth: 2, stroke: '#10b981', fill: '#0f172a' }} />
+                                    <Area yAxisId="right" type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" activeDot={{ r: 6, strokeWidth: 2, stroke: '#3b82f6', fill: '#0f172a' }} />
+                                </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Main Modules Grid (33%) matching user's exact design */}
-                    <div className="glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl h-full flex flex-col">
-                        <div className="flex items-center gap-2 mb-6">
-                            <LayoutDashboard className="text-blue-400" size={20} />
-                            <h3 className="text-lg font-bold text-foreground">الوحدات الرئيسية</h3>
+                    {/* Status Pie Chart (33%) */}
+                    <div className="glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl h-full flex flex-col hover:border-blue-500/30 transition-all duration-300">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                <Car className="text-blue-400" size={20} />
+                                توزيع حالات المركبات
+                            </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 flex-1 content-start">
-                            {/* Line 1 */}
-                            <Link href="/reports" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-blue-500/40 rounded-xl transition-all group">
-                                <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl mb-3 group-hover:scale-110 transition-transform"><FileText size={24} /></div>
-                                <span className="text-sm font-medium text-foreground">التقارير والفواتير</span>
-                            </Link>
-                            <Link href="/status" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-emerald-500/40 rounded-xl transition-all group">
-                                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl mb-3 group-hover:scale-110 transition-transform"><Wrench size={24} /></div>
-                                <span className="text-sm font-medium text-foreground">شاشة المتابعة</span>
-                            </Link>
-                            {/* Line 2 */}
-                            <Link href="/customers" className="flex flex-col items-center justify-center p-4 bg-muted hover:bg-card border border-border hover:border-amber-500/40 rounded-xl transition-all group">
-                                <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl mb-3 group-hover:scale-110 transition-transform"><User size={24} /></div>
-                                <span className="text-sm font-medium text-foreground">العملاء (CRM)</span>
-                            </Link>
+                        <div className="flex-1 min-h-[220px]" dir="ltr">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={65}
+                                        outerRadius={90}
+                                        paddingAngle={6}
+                                        dataKey="value"
+                                        stroke="none"
+                                        cornerRadius={8}
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={['#3b82f6', '#f59e0b', '#f43f5e', '#10b981', '#8b5cf6'][index % 5]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: '#333', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)', border: 'none' }}
+                                        itemStyle={{ color: '#fff' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        
+                        {/* Custom Pie Legend */}
+                        <div className="flex flex-wrap justify-center gap-4 mt-2 text-sm" dir="rtl">
+                            {pieData.map((entry, index) => (
+                                <div key={entry.name} className="flex items-center gap-2 text-muted-foreground">
+                                    <div className="w-3 h-3 rounded-full shadow-md" style={{ backgroundColor: ['#3b82f6', '#f59e0b', '#f43f5e', '#10b981', '#8b5cf6'][index % 5] }}></div>
+                                    <span className="font-medium text-foreground">{entry.name}</span>
+                                    <span className="text-xs bg-muted px-1.5 rounded">{entry.value}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
