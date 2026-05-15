@@ -51,7 +51,7 @@ export default function WorkOrdersListPage() {
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
-        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+        if (employeeBranchId) {
             query = query.eq('branch_id', employeeBranchId);
         }
 

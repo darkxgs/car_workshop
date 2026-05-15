@@ -390,7 +390,11 @@ function ReceptionWizard() {
         setError(null); setStep(2);
     };
 
-    const handleNextStep2 = () => { setError(null); setStep(3); };
+    const handleNextStep2 = () => { 
+        setError(null); 
+        calcTotal();
+        setStep(3); 
+    };
 
     const handleSaveDraft = async () => saveWorkOrder('تم الاستلام', null);
     const handleStartWorkOrder = async () => saveWorkOrder('قيد العمل', new Date().toISOString());
@@ -745,24 +749,55 @@ function ReceptionWizard() {
                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
                                                     {svc.key === 'additives' ? (
                                                         <div className="flex flex-col gap-2 w-full max-w-sm">
-                                                            {(Object.keys(entry.details).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => (
-                                                                <div key={k} className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder={`اسم المنتج ${i + 1}`}
-                                                                        className="input-field text-xs py-1.5 flex-1"
-                                                                        value={entry.details[k] || ""}
-                                                                        onChange={e => setServiceDetail(svc.key, k, e.target.value)}
-                                                                    />
-                                                                    {i > 0 && (
-                                                                        <button type="button" onClick={() => {
-                                                                            const newDetails = {...entry.details};
-                                                                            delete newDetails[k];
-                                                                            setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails}}));
-                                                                        }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
-                                                                    )}
-                                                                </div>
-                                                            ))}
+                                                            {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
+                                                                const priceKey = k.replace('prod_', 'price_');
+                                                                return (
+                                                                    <div key={k} className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder={`اسم المنتج ${i + 1}`}
+                                                                            className="input-field text-xs py-1.5 flex-1"
+                                                                            value={entry.details[k] || ""}
+                                                                            onChange={e => setServiceDetail(svc.key, k, e.target.value)}
+                                                                        />
+                                                                        <div className="flex items-center gap-1 w-24">
+                                                                            <input 
+                                                                                type="number"
+                                                                                placeholder="السعر"
+                                                                                className="input-field text-xs py-1.5 w-full text-left"
+                                                                                dir="ltr"
+                                                                                value={entry.details[priceKey] || ""}
+                                                                                onChange={e => {
+                                                                                    setServiceDetail(svc.key, priceKey, e.target.value);
+                                                                                    setTimeout(() => {
+                                                                                        setServices(prev => {
+                                                                                            const svcData = prev[svc.key];
+                                                                                            const details = svcData.details;
+                                                                                            let sum = 0;
+                                                                                            Object.keys(details).forEach(dk => {
+                                                                                                if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
+                                                                                            });
+                                                                                            return { ...prev, [svc.key]: { ...svcData, price: sum > 0 ? String(sum) : "" } };
+                                                                                        });
+                                                                                    }, 50);
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        {i > 0 && (
+                                                                            <button type="button" onClick={() => {
+                                                                                const newDetails = {...entry.details};
+                                                                                delete newDetails[k];
+                                                                                delete newDetails[priceKey];
+                                                                                let sum = 0;
+                                                                                Object.keys(newDetails).forEach(dk => {
+                                                                                    if (dk.startsWith('price_')) sum += Number(newDetails[dk] || 0);
+                                                                                });
+                                                                                setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : ""}}));
+                                                                            }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
                                                             <button 
                                                                 type="button" 
                                                                 onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')}
