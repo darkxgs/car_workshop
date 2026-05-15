@@ -28,13 +28,13 @@ const FREE_SERVICES = [
 ];
 
 // The 14 main services — updated to match official paper form
-const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; label: string }[] }[] = [
+const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; label: string; listId?: string }[] }[] = [
     {
         key: "engineOil",
         label: "زيت المحرك",
         detailFields: [
-            { key: "brand",     label: "نوع الزيت" },
-            { key: "viscosity", label: "درجة اللزوجة" },
+            { key: "brand",     label: "نوع الزيت", listId: "oilBrands" },
+            { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
             { key: "liters",    label: "عدد اللترات" },
             { key: "unitPrice", label: "سعر اللتر" },
         ],
@@ -43,7 +43,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "oilFilter",
         label: "فلتر زيت المحرك",
         detailFields: [
-            { key: "type",      label: "نوع الفلتر" },
+            { key: "type",      label: "نوع الفلتر", listId: "filterBrands" },
             { key: "filterNum", label: "رقم الفلتر" },
         ],
     },
@@ -51,7 +51,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "airFilter",
         label: "فلتر الهواء",
         detailFields: [
-            { key: "type",      label: "نوع الفلتر" },
+            { key: "type",      label: "نوع الفلتر", listId: "filterBrands" },
             { key: "filterNum", label: "رقم الفلتر" },
         ],
     },
@@ -745,6 +745,7 @@ function ReceptionWizard() {
                                                                 key={df.key}
                                                                 type={df.key === 'unitPrice' || df.key === 'qty' ? "number" : "text"}
                                                                 placeholder={df.label}
+                                                                list={df.listId}
                                                                 className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
                                                                 value={entry.details[df.key] || ""}
                                                                 onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
@@ -782,6 +783,7 @@ function ReceptionWizard() {
                                             <input
                                                 type="text"
                                                 placeholder="وصف حدث الصيانة..."
+                                                list="customServicesList"
                                                 value={cs.label}
                                                 onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
                                                 className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
@@ -915,6 +917,52 @@ function ReceptionWizard() {
                     </div>
                 </div>
             )}
+
+            {/* Datalists for Auto-complete */}
+            <datalist id="oilBrands">
+                <option value="ليكي مولي (Liqui Moly)" />
+                <option value="كاسترول (Castrol)" />
+                <option value="توتال (Total)" />
+                <option value="فوكس (Fuchs)" />
+                <option value="موتول (Motul)" />
+                <option value="شيل (Shell)" />
+                <option value="أمسويل (Amsoil)" />
+                <option value="موبيل 1 (Mobil 1)" />
+                <option value="إيسن (Aisin)" />
+                <option value="بترومين (Petromin)" />
+            </datalist>
+
+            <datalist id="viscosities">
+                <option value="0W-20" />
+                <option value="5W-20" />
+                <option value="5W-30" />
+                <option value="5W-40" />
+                <option value="10W-30" />
+                <option value="10W-40" />
+                <option value="15W-40" />
+                <option value="20W-50" />
+            </datalist>
+
+            <datalist id="filterBrands">
+                <option value="أصلي (Genuine)" />
+                <option value="بوش (Bosch)" />
+                <option value="تويوتا (Toyota)" />
+                <option value="هيونداي (Hyundai)" />
+                <option value="فورد (Motorcraft)" />
+                <option value="تجارى (Aftermarket)" />
+            </datalist>
+
+            <datalist id="customServicesList">
+                <option value="فحص شامل (كمبيوتر)" />
+                <option value="تنظيف البخاخات" />
+                <option value="تبديل بواجي (شمعات)" />
+                <option value="ميزانية وتويتر إطارات" />
+                <option value="غسيل راديتر" />
+                <option value="تبديل سفايف (بريكات)" />
+                <option value="شحن غاز تبريد" />
+                <option value="تبديل بطارية" />
+            </datalist>
+
         </div>
     );
 }
