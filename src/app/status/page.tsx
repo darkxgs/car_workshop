@@ -57,7 +57,7 @@ export default function KanbanStatusPage() {
         // Fetch technicians
         const fetchTechs = async () => {
             let empQuery = supabase.from('employees').select('*').in('role', ['Supervisor', 'Admin', 'Owner']);
-            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            if (employeeBranchId) {
                 empQuery = empQuery.eq('branch_id', employeeBranchId);
             }
             const { data } = await empQuery;
@@ -78,7 +78,7 @@ export default function KanbanStatusPage() {
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
-        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+        if (employeeBranchId) {
             query = query.eq('branch_id', employeeBranchId);
         }
 
