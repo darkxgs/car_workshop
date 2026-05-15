@@ -182,7 +182,7 @@ export default function WorkOrderDetailPage() {
             <AlertTriangle className="mx-auto text-rose-500 mb-4" size={48}/>
             <h2 className="text-xl font-bold text-foreground mb-2">أمر العمل غير موجود</h2>
             <p className="text-muted-foreground mb-6">هذا المعرف (ID) غير مسجل في قاعدة البيانات، تأكد أنك أنشأت أمر عمل حقيقي من قسم الصيانة.</p>
-            <Link href="/services" className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold">العودة للصيانة</Link>
+            <Link href="/work-orders" className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold">العودة للساحة</Link>
         </div>
     );
 
@@ -194,7 +194,7 @@ export default function WorkOrderDetailPage() {
             <div className="print:hidden flex flex-col md:flex-row justify-between gap-4 items-start md:items-center bg-card p-6 rounded-3xl border border-border shadow-sm">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <Link href="/services" className="text-muted-foreground hover:text-foreground transition-colors p-1 bg-muted rounded-md border border-border"><ArrowRight size={16}/></Link>
+                        <Link href="/work-orders" className="text-muted-foreground hover:text-foreground transition-colors p-1 bg-muted rounded-md border border-border"><ArrowRight size={16}/></Link>
                         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
                             تفاصيل أمر العمل <span className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-xl text-lg flex items-center font-mono font-black">#{order.report_number}</span>
                         </h1>
@@ -203,12 +203,20 @@ export default function WorkOrderDetailPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    <button 
-                        onClick={() => window.open(`/print/${id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
-                        className="px-5 py-2.5 rounded-xl bg-background border border-border text-foreground hover:bg-muted font-bold transition-colors flex items-center gap-2 shadow-sm"
-                    >
-                        <Printer size={18} /> طباعة للفني
-                    </button>
+                    <div className="flex bg-background border border-border rounded-xl shadow-sm overflow-hidden">
+                        <button 
+                            onClick={() => window.open(`/print/${id}?mode=short`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
+                            className="px-4 py-2.5 hover:bg-muted font-bold transition-colors flex items-center gap-2 border-l border-border text-xs md:text-sm"
+                        >
+                            <Printer size={16} /> طباعة للفني (مختصر)
+                        </button>
+                        <button 
+                            onClick={() => window.open(`/print/${id}?mode=full`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
+                            className="px-4 py-2.5 hover:bg-muted font-bold transition-colors flex items-center gap-2 text-xs md:text-sm text-rose-500"
+                        >
+                            <Printer size={16} /> طباعة كامل (للعميل)
+                        </button>
+                    </div>
                     {order.status === 'تم الاستلام' && (
                         <button onClick={handleStart} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20">
                             <Play size={18} /> بدء التشغيل (Start Check)

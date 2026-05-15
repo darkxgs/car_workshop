@@ -43,6 +43,7 @@ export default function Home() {
     const [stats, setStats] = useState({
         today: 0,
         inProgress: 0,
+        waiting: 0,
         completed: 0,
         revenue: 0
     });
@@ -102,6 +103,7 @@ export default function Home() {
 
                 const todayCount = allReports.filter(r => isToday(r.created_at)).length;
                 const inProgress = allReports.filter(r => r.status === 'قيد العمل').length;
+                const waiting = allReports.filter(r => r.status === 'تم الاستلام' || r.status === 'متأخر').length;
                 const completed = allReports.filter(r => r.status === 'تم الانتهاء' && isToday(r.created_at)).length;
                 const revenue = allReports
                     .filter(r => r.status === 'تم الانتهاء' && isToday(r.created_at))
@@ -162,6 +164,7 @@ export default function Home() {
                 setStats({
                     today: todayCount,
                     inProgress,
+                    waiting,
                     completed,
                     revenue
                 });
@@ -235,8 +238,8 @@ export default function Home() {
                 </div>
 
                 {/* 3. KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Orders */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Orders Today */}
                     <div className="glass-card p-6 flex flex-col justify-between rounded-2xl border-border hover:border-blue-500/50 transition-all duration-300 relative group overflow-hidden">
                         <div className="absolute -inset-2 bg-blue-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex justify-between items-start mb-4 relative z-10">
@@ -245,59 +248,60 @@ export default function Home() {
                                     <FileText size={24} />
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-sm font-medium mb-1">أوامر الصيانة اليوم</p>
+                                    <p className="text-muted-foreground text-sm font-medium mb-1">تم استقبالها اليوم</p>
                                     <h3 className="text-3xl font-bold text-foreground">{loading ? "..." : (stats.today || 0)}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 flex items-center gap-2 text-sm relative z-10">
-                            <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
-                                من أصل {stats.today + stats.inProgress}
-                            </span>
-                        </div>
                     </div>
 
-                    {/* Revenue */}
+                    {/* Completed */}
                     <div className="glass-card p-6 flex flex-col justify-between rounded-2xl border-border hover:border-emerald-500/50 transition-all duration-300 relative group overflow-hidden">
                         <div className="absolute -inset-2 bg-emerald-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-400 flex flex-col items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                                    <DollarSign size={24} />
+                                    <CheckCircle2 size={24} />
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-sm font-medium mb-1">إيرادات اليوم</p>
-                                    <h3 className="text-3xl font-bold text-foreground" dir="ltr">{loading ? "..." : formatCurrency(stats.revenue)}</h3>
+                                    <p className="text-muted-foreground text-sm font-medium mb-1">السيارات المكتملة</p>
+                                    <h3 className="text-3xl font-bold text-foreground">{loading ? "..." : (stats.completed || 0)}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 flex items-center gap-2 text-sm relative z-10">
-                            <span className="text-emerald-400 font-medium">
-                                تم الانتهاء من {stats.completed} مركبات
-                            </span>
-                        </div>
                     </div>
 
-                    {/* Pending Vehicles */}
+                    {/* In Progress */}
                     <div className="glass-card p-6 flex flex-col justify-between rounded-2xl border-border hover:border-amber-500/50 transition-all duration-300 relative group overflow-hidden">
                         <div className="absolute -inset-2 bg-amber-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-amber-500/15 text-amber-500 flex flex-col items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                                    <Car size={24} />
+                                    <Wrench size={24} />
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground text-sm font-medium mb-1">المركبات بالخدمة</p>
+                                    <p className="text-muted-foreground text-sm font-medium mb-1">سيارات قيد العمل</p>
                                     <h3 className="text-3xl font-bold text-foreground">{loading ? "..." : (stats.inProgress || 0)}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 text-sm relative z-10">
-                            <span className="text-amber-500 font-medium">قيد العمل أو الانتظار</span>
-                        </div>
                     </div>
 
-
+                    {/* Waiting */}
+                    <div className="glass-card p-6 flex flex-col justify-between rounded-2xl border-border hover:border-rose-500/50 transition-all duration-300 relative group overflow-hidden">
+                        <div className="absolute -inset-2 bg-rose-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex justify-between items-start mb-4 relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-rose-500/15 text-rose-500 flex flex-col items-center justify-center border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                                    <Clock size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground text-sm font-medium mb-1">السيارات قيد الانتظار</p>
+                                    <h3 className="text-3xl font-bold text-foreground">{loading ? "..." : (stats.waiting || 0)}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* 4. Chart & Modules Grid */}
@@ -396,61 +400,34 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* 5. Live Work Orders & Alerts */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* Live Work Orders (66%) */}
-                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
-                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                                <Activity className="text-blue-400" size={20} />
-                                أوامر العمل الحية (Live)
-                            </h3>
-                            <Link href="/status" className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">لوحة المتابعة</Link>
-                        </div>
-
-                        {loading ? (
-                            <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500" /></div>
-                        ) : liveOrders.length === 0 ? (
-                            <p className="text-muted-foreground font-bold p-8 text-center border-dashed border border-border rounded-2xl">لا يوجد مركبات قيد العمل.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {liveOrders.map(order => (
-                                    <WorkOrderCard key={order.id} order={order} />
-                                ))}
-                            </div>
-                        )}
+                {/* 5. Notifications Board (Full Width) */}
+                <div className="glass-card p-8 rounded-2xl border-border bg-card/80 backdrop-blur-xl flex flex-col max-h-[600px]">
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-border shrink-0">
+                        <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
+                            <Bell className="text-amber-400" size={24} />
+                            لوحة الإشعارات المباشرة (Live)
+                        </h3>
                     </div>
 
-                    {/* Alerts (33%) */}
-                    <div className="glass-card p-6 rounded-2xl border-border bg-card/80 backdrop-blur-xl flex flex-col h-full max-h-[500px]">
-                        <div className="flex items-center mb-6 pb-4 border-b border-border shrink-0">
-                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                                <Bell className="text-amber-400" size={20} />
-                                التنبيهات والنظام
-                            </h3>
-                        </div>
-
-                        <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 pb-4">
-                            {loading ? (
-                                <p className="text-muted-foreground">جاري التحميل...</p>
-                            ) : alerts.length === 0 ? (
-                                <p className="text-muted-foreground">لا توجد تنبيهات</p>
-                            ) : alerts.map((alert, idx) => (
-                                <div key={idx} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted transition-colors group">
-                                    <div className={`p-2.5 rounded-xl ${alert.bg} ${alert.color} border ${alert.border} shrink-0`}>
-                                        <alert.icon size={20} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-start">
-                                            <h4 className="text-foreground text-sm font-bold group-hover:text-foreground transition-colors">{alert.title}</h4>
-                                            <span className="text-muted-foreground text-[10px] whitespace-nowrap mr-2">{alert.time}</span>
-                                        </div>
-                                        <p className="text-muted-foreground text-xs mt-1 leading-snug">{alert.desc}</p>
-                                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto custom-scrollbar pr-2 pb-4">
+                        {loading ? (
+                            <p className="text-muted-foreground">جاري التحميل...</p>
+                        ) : alerts.length === 0 ? (
+                            <p className="text-muted-foreground">لا توجد إشعارات</p>
+                        ) : alerts.map((alert, idx) => (
+                            <div key={idx} className="flex items-start gap-5 p-5 rounded-2xl hover:bg-muted/50 transition-colors group border border-border">
+                                <div className={`p-3 rounded-xl ${alert.bg} ${alert.color} border ${alert.border} shrink-0`}>
+                                    <alert.icon size={24} />
                                 </div>
-                            ))}
-                        </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="text-foreground text-base font-bold group-hover:text-foreground transition-colors">{alert.title}</h4>
+                                        <span className="text-muted-foreground text-xs whitespace-nowrap bg-background px-2 py-1 rounded-md">{alert.time}</span>
+                                    </div>
+                                    <p className="text-muted-foreground text-sm leading-snug">{alert.desc}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 

@@ -10,7 +10,11 @@ type WorkOrderList = {
     id: string;
     report_number: number;
     status: string;
+    bay_number: string | null;
+    start_time: string | null;
+    elapsed_time: number | null;
     vehicles: { make: string; model: string; plate_number: string; clients?: { name: string } | null };
+    technician: { name: string } | null;
     created_at: string;
     estimated_duration: number;
     is_delayed: boolean;
@@ -20,6 +24,12 @@ export default function WorkOrdersListPage() {
     const { employeeRole, employeeBranchId } = useAuth();
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
+    const [now, setNow] = useState(Date.now());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 10000); // Check every 10s
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         fetchOrders();
@@ -36,7 +46,7 @@ export default function WorkOrdersListPage() {
     const fetchOrders = async () => {
         let query = supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, vehicles (make, model, plate_number, clients (name))`)
+            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), technician:technician_id(name)`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
@@ -65,6 +75,9 @@ export default function WorkOrdersListPage() {
                             إدارة العمليات، مراقبة الوقت، وتوجيه السيارات للفنيين
                         </p>
                     </div>
+                    <Link href="/reception" className="btn-primary flex items-center gap-2 whitespace-nowrap px-6 py-2">
+                        <span>+</span> أمر عمل جديد
+                    </Link>
                 </div>
 
                 {loading ? (
@@ -75,56 +88,85 @@ export default function WorkOrdersListPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {orders.map(order => (
-                            <div key={order.id} className="glass-card p-5 rounded-2xl border-border relative group overflow-hidden transition-all hover:border-blue-500/30 flex flex-col justify-between">
+                        {orders.map(order => {
+                            let currentLiveMins = order.elapsed_time || 0;
+                            if (order.status === 'قيد العمل' && order.start_time) {
+                                const startMs = new Date(order.start_time).getTime();
+                                currentLiveMins += Math.floor((now - startMs) / 60000);
+                            }
+                            
+                            const remainingMins = order.estimated_duration - currentLiveMins;
+                            const isTimerDanger = remainingMins <= 0;
+                            
+                            return (
+                            <div key={order.id} className="glass-card p-6 rounded-2xl border-border relative group overflow-hidden transition-all hover:border-blue-500/30 flex flex-col justify-between">
                                 <div>
                                     <div className="flex justify-between items-start mb-4">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded inline-flex items-center gap-1 ${
-                                            order.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-500' :
-                                            order.status === 'قيد العمل' ? 'bg-blue-500/10 text-blue-500' :
-                                            'bg-muted text-muted-foreground'
-                                        }`}>
-                                            {order.status}
-                                        </span>
-                                        <span className="font-mono text-muted-foreground font-bold text-sm">#{order.report_number}</span>
+                                        <div className="flex flex-col gap-2">
+                                            <span className={`text-xs font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1 w-max ${
+                                                order.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-500' :
+                                                order.status === 'قيد العمل' ? 'bg-blue-500/10 text-blue-500' :
+                                                'bg-amber-500/10 text-amber-500'
+                                            }`}>
+                                                {order.status}
+                                            </span>
+                                            {order.bay_number && (
+                                                <span className="text-sm font-bold bg-muted text-muted-foreground px-3 py-1 rounded-lg">
+                                                    الخانة: {order.bay_number}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="font-mono text-muted-foreground font-bold text-lg">#{order.report_number}</span>
                                     </div>
                                     
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                                            <Car size={20} />
+                                    <div className="flex items-center gap-4 mb-5">
+                                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+                                            <Car size={24} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
-                                            <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+                                            <h3 className="font-bold text-lg text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
+                                            <p className="text-sm text-muted-foreground font-mono mt-1" dir="ltr">
                                                 {order.vehicles?.plate_number} 
                                                 {order.vehicles?.clients && (Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name) ? ` • ${Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name}` : ''}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2 mb-6">
-                                        <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                            <span>المدة المقدرة:</span>
-                                            <span className="font-bold font-mono text-foreground">{order.estimated_duration}m</span>
+                                    {order.technician?.name && (
+                                        <div className="mb-4 text-sm font-bold text-muted-foreground flex items-center gap-2">
+                                            <Wrench size={16} /> الفني: <span className="text-foreground">{order.technician.name}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-3 mb-6">
+                                        <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-background/50 border border-border">
+                                            <span className="text-sm text-muted-foreground mb-1">الوقت المتبقي</span>
+                                            <div className={`text-4xl font-black font-mono tracking-wider ${isTimerDanger ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                {order.status === 'قيد العمل' ? (
+                                                    remainingMins > 0 ? `${remainingMins}m` : `-${Math.abs(remainingMins)}m`
+                                                ) : (
+                                                    `${order.estimated_duration}m`
+                                                )}
+                                            </div>
                                         </div>
                                         {/* Delay Warning */}
-                                        {(order.is_delayed || order.status === 'متأخر') && (
-                                            <div className="flex items-center gap-1 text-rose-500 text-[10px] bg-rose-500/10 px-2 py-1 rounded">
-                                                <ShieldAlert size={12} /> تجاوز الحد الزمني!
+                                        {(order.is_delayed || order.status === 'متأخر' || isTimerDanger) && order.status === 'قيد العمل' && (
+                                            <div className="flex justify-center items-center gap-1 text-rose-500 text-sm font-bold bg-rose-500/10 px-3 py-2 rounded-lg">
+                                                <ShieldAlert size={16} /> تجاوز الوقت المحدد!
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Link href={`/work-orders/${order.id}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-muted group-hover:bg-blue-600 group-hover:text-white text-muted-foreground transition-colors font-bold rounded-xl text-sm border border-transparent group-hover:border-blue-500 shadow-sm">
-                                        تفاصيل الصيانة <ArrowLeft size={16} />
+                                <div className="flex gap-3">
+                                    <Link href={`/work-orders/${order.id}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-muted hover:bg-blue-600 hover:text-white text-muted-foreground transition-colors font-bold rounded-xl text-base border border-transparent hover:border-blue-500 shadow-sm">
+                                        تفاصيل الصيانة <ArrowLeft size={18} />
                                     </Link>
-                                    <Link href={`/reception?edit=${order.id}`} className="px-4 py-2.5 bg-muted group-hover:bg-rose-600/10 group-hover:text-rose-500 text-muted-foreground transition-colors font-bold rounded-xl text-sm border border-transparent group-hover:border-rose-500/30">
+                                    <Link href={`/reception?edit=${order.id}`} className="px-5 py-3 bg-muted hover:bg-rose-600/10 hover:text-rose-500 text-muted-foreground transition-colors font-bold rounded-xl text-base border border-transparent hover:border-rose-500/30">
                                         تعديل
                                     </Link>
                                 </div>
                             </div>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>

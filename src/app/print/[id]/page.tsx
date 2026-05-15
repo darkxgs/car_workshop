@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 export default function PrintPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const id = params.id as string;
+    const mode = searchParams.get('mode') || 'full';
     const [report, setReport] = useState<any>(null);
     const [services, setServices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,7 +90,7 @@ export default function PrintPage() {
                 🖨️ طباعة مرة أخرى
             </button>
 
-            <PrintableInspectionReport report={report} />
+            <PrintableInspectionReport report={report} mode={mode} />
         </>
     );
 }

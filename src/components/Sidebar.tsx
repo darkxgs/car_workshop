@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
@@ -45,10 +46,19 @@ const ACCENT_BTN = "bg-rose-600 hover:bg-rose-500 text-white";
 
 export function Sidebar() {
     const pathname = usePathname();
-    const { signOut, employeeRole } = useAuth();
+    const { signOut, employeeRole, employeeBranchId, setEmployeeBranchId } = useAuth();
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+
+    useEffect(() => {
+        if (employeeRole === 'Owner' || employeeRole === 'Admin') {
+            supabase.from('branches').select('id, name').then(({data}) => {
+                if (data) setBranches(data);
+            });
+        }
+    }, [employeeRole]);
 
     // TODO: Update translations in dictionaries.ts, for now using hardcoded fallback or safe common keys
     // categorized navItems mimicking an ERP system like Odoo
@@ -209,7 +219,20 @@ export function Sidebar() {
                         {!isCollapsed && (
                             <div className="overflow-hidden">
                                 <h1 className="font-display font-bold text-foreground whitespace-nowrap text-sm leading-tight">هندسة السيارات</h1>
-                                <p className="text-[10px] text-rose-400 whitespace-nowrap">إدارة الورشة المتكامل</p>
+                                {(employeeRole === 'Owner' || employeeRole === 'Admin') && branches.length > 0 ? (
+                                    <select 
+                                        className="text-[10px] bg-transparent text-rose-400 font-bold outline-none cursor-pointer w-full mt-0.5"
+                                        value={employeeBranchId || ""}
+                                        onChange={(e) => setEmployeeBranchId(e.target.value)}
+                                    >
+                                        <option value="" className="bg-popover text-foreground">كل الفروع</option>
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id} className="bg-popover text-foreground">{b.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="text-[10px] text-rose-400 whitespace-nowrap">إدارة الورشة المتكامل</p>
+                                )}
                             </div>
                         )}
                     </div>

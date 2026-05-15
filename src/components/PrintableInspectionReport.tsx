@@ -2,9 +2,10 @@ import React, { forwardRef } from 'react';
 
 interface PrintableInspectionReportProps {
     report: any;
+    mode?: string;
 }
 
-export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableInspectionReportProps>(({ report }, ref) => {
+export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableInspectionReportProps>(({ report, mode = 'full' }, ref) => {
 
     const isPaperV2 = report?.selected_services?.[0]?.is_paper_v2_format === true;
     const data      = isPaperV2 ? report.selected_services[0] : null;
@@ -117,7 +118,15 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                     <StatusBadge status={svc.status} />
                 </td>
                 <td style={{ padding: '3px 5px', verticalAlign: 'middle', overflow: 'hidden' }}>
-                    {fields && fields.length > 0 && (
+                    {svcKey === 'additives' ? (
+                        <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '10px' }}>
+                            {Object.keys(svc.details || {}).filter(k => k.startsWith('prod_')).map((k) => (
+                                <span key={k} style={{ whiteSpace: 'nowrap', fontSize: '10px' }}>
+                                    <Val v={svc.details?.[k]} w={60} />
+                                </span>
+                            ))}
+                        </span>
+                    ) : (fields && fields.length > 0 && (
                         <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap', fontSize: '10px' }}>
                             {fields.map(f => (
                                 <span key={f.key} style={{ whiteSpace: 'nowrap', fontSize: '10px' }}>
@@ -125,7 +134,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                 </span>
                             ))}
                         </span>
-                    )}
+                    ))}
                 </td>
                 <td style={{ padding: '3px 5px', textAlign: 'center', fontWeight: 700, fontSize: '10px', width: '58px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     <Val v={svc.price} w={48} />
@@ -134,7 +143,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         );
     };
 
-    const SERVICES = [
+    let SERVICES = [
         { key: 'engineOil',        label: 'زيت المحرك',          fields: [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
         { key: 'oilFilter',        label: 'فلتر زيت المحرك',     fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
         { key: 'airFilter',        label: 'فلتر الهواء',          fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
@@ -146,9 +155,17 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'brakePads',        label: 'دسكات السيارة',         fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'sparkPlugs',       label: 'شمعات الاحتراق',       fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'gearboxHydraulic', label: 'هايدروليك الكير',      fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
-        { key: 'wipers',           label: 'الماسحات',              fields: [{ key: 'type', label: 'النوع' }] },
-        { key: 'additives',        label: 'المضافات والمحسنات',   fields: [{ key: 'notes', label: 'المنتج' }] },
+        { key: 'gearboxFilter',    label: 'فلتر الكير',          fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
+        { key: 'wipers',           label: 'الماسحات',              fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'additives',        label: 'المضافات والمحسنات',   fields: [] },
     ];
+
+    if (mode === 'short') {
+        SERVICES = SERVICES.filter(svc => {
+            const status = (s as any)[svc.key]?.status;
+            return status === 'يحتاج تغيير';
+        });
+    }
 
     return (
         <div className="relative print-page-wrapper">
@@ -160,7 +177,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 body  { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
                 * { font-family: 'Amiri', 'Times New Roman', serif !important; }
                 .print-page-wrapper { width: 210mm; min-height: 297mm; overflow: hidden; margin: 0 auto; }
-                .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.86); line-height: 1.2; }
+                .print-page-content { width: 100%; transform-origin: top center; transform: scale(0.80); line-height: 1.2; }
             `}</style>
 
             <div ref={ref} dir="rtl" className="print-page-content"

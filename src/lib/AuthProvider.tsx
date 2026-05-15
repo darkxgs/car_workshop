@@ -16,6 +16,7 @@ interface AuthContextType {
     employeeId: string | null;
     loading: boolean;
     signOut: () => Promise<void>;
+    setEmployeeBranchId: (id: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
     employeeId: null,
     loading: true,
     signOut: async () => {},
+    setEmployeeBranchId: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -273,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, employeeBranchId, employeeId, loading, signOut }}>
+        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, employeeBranchId, employeeId, loading, signOut, setEmployeeBranchId }}>
             {children}
         </AuthContext.Provider>
     );
