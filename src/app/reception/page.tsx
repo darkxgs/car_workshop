@@ -119,14 +119,26 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         ],
     },
     {
+        key: "gearboxFilter",
+        label: "فلتر الكير",
+        detailFields: [
+            { key: "type", label: "نوع الفلتر" },
+            { key: "filterNum", label: "رقم الفلتر" },
+            { key: "unitPrice", label: "السعر" },
+        ],
+    },
+    {
         key: "wipers",
         label: "الماسحات",
-        detailFields: [{ key: "type", label: "نوع الماسحات" }],
+        detailFields: [
+            { key: "type", label: "نوع الماسحات", listId: "wiperTypes" },
+            { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }
+        ],
     },
     {
         key: "additives",
         label: "المضافات والمحسنات",
-        detailFields: [{ key: "notes", label: "اسم المنتج" }],
+        detailFields: [], // Rendered custom below
     },
 ];
 
@@ -181,6 +193,7 @@ function ReceptionWizard() {
 
     // ---------- STEP 3: Pricing & Notes ----------
     const [notes, setNotes] = useState("");
+    const [bayNumber, setBayNumber] = useState("");
     const [totalPrice, setTotalPrice] = useState("");
     const [discount, setDiscount] = useState("");
     const [amountReceived, setAmountReceived] = useState("");
@@ -223,7 +236,7 @@ function ReceptionWizard() {
         if (!editId) return;
         const loadReport = async () => {
             const { data } = await supabase.from('inspection_reports')
-                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id,
+                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id, bay_number,
                          vehicles(id, make, model, engine_size, plate_number, clients(id, name, phone))`)
                 .eq('id', editId).single();
             
@@ -241,6 +254,7 @@ function ReceptionWizard() {
                 }
                 setOdometer(data.odometer_reading?.toString() || "");
                 setNotes(data.notes || "");
+                setBayNumber(data.bay_number || "");
                 if (data.branch_id) setSelectedBranchId(data.branch_id);
                 
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
@@ -432,7 +446,7 @@ function ReceptionWizard() {
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
                         total_price: parseFloat(totalPrice || "0"),
-                        notes,
+                        notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
                     })
                     .eq('id', editReportId);
@@ -452,7 +466,7 @@ function ReceptionWizard() {
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     status, total_price: parseFloat(totalPrice || "0"),
-                    notes, start_time: startTime,
+                    notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
                 })
                 .select('id, report_number').single();
@@ -470,7 +484,7 @@ function ReceptionWizard() {
 
     const resetWizard = () => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
-        setOdometer(""); setPlateNumber(""); setNotes("");
+        setOdometer(""); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -626,7 +640,11 @@ function ReceptionWizard() {
                                         name="bookletType"
                                         value={opt}
                                         checked={bookletType === opt}
-                                        onChange={() => setBookletType(opt)}
+                                        onChange={() => {
+                                            setBookletType(opt);
+                                            if (opt === 'جديد') setBookletChanges("1");
+                                            else if (opt === 'لا يوجد') setBookletChanges("");
+                                        }}
                                         className="w-4 h-4 accent-rose-600"
                                     />
                                     <span className="font-bold text-sm">دفتر {opt}</span>
@@ -723,9 +741,37 @@ function ReceptionWizard() {
                                             </div>
 
                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                            {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
+                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives') && (
                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                    {svc.detailFields.map(df => {
+                                                    {svc.key === 'additives' ? (
+                                                        <div className="flex flex-col gap-2 w-full max-w-sm">
+                                                            {(Object.keys(entry.details).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => (
+                                                                <div key={k} className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder={`اسم المنتج ${i + 1}`}
+                                                                        className="input-field text-xs py-1.5 flex-1"
+                                                                        value={entry.details[k] || ""}
+                                                                        onChange={e => setServiceDetail(svc.key, k, e.target.value)}
+                                                                    />
+                                                                    {i > 0 && (
+                                                                        <button type="button" onClick={() => {
+                                                                            const newDetails = {...entry.details};
+                                                                            delete newDetails[k];
+                                                                            setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails}}));
+                                                                        }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')}
+                                                                className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3"
+                                                            >
+                                                                + منتج آخر
+                                                            </button>
+                                                        </div>
+                                                    ) : svc.detailFields.map(df => {
                                                         if (svc.key === 'coolant' && df.key === 'size') {
                                                             return (
                                                                 <select 
@@ -767,13 +813,15 @@ function ReceptionWizard() {
                                     <span className="text-xs font-mono text-muted-foreground w-5 text-center">{MAIN_SERVICES.length + 1}</span>
                                     <span className="font-bold text-sm min-w-[140px]">أحداث الصيانة (خدمات إضافية)</span>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={addCustomService}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
-                                >
-                                    <span className="text-base leading-none">+</span> إضافة حدث صيانة
-                                </button>
+                                {customServices.length === 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={addCustomService}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
+                                    >
+                                        <span className="text-base leading-none">+</span> إضافة حدث صيانة
+                                    </button>
+                                )}
                             </div>
 
                             {customServices.length > 0 && (
@@ -806,6 +854,16 @@ function ReceptionWizard() {
                                             </button>
                                         </div>
                                     ))}
+                                    
+                                    <div className="pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={addCustomService}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
+                                        >
+                                            <span className="text-base leading-none">+</span> إضافة حدث صيانة آخر
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -841,10 +899,16 @@ function ReceptionWizard() {
                             </div>
                         </div>
 
-                        {/* Notes */}
-                        <div>
-                            <label className="text-sm font-bold text-rose-400 mb-2 block">ملاحظات إضافية:</label>
-                            <textarea className="input-field h-20 py-3 bg-background" placeholder="ملاحظات للفاتورة..." value={notes} onChange={e => setNotes(e.target.value)} />
+                        {/* Notes & Bay */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-bold text-rose-400 mb-2 block">رقم الخانة (الموقف):</label>
+                                <input type="text" className="input-field bg-background text-lg font-bold" placeholder="مثال: A1, 5, يمين الباب..." value={bayNumber} onChange={e => setBayNumber(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-rose-400 mb-2 block">ملاحظات إضافية:</label>
+                                <textarea className="input-field h-20 py-3 bg-background" placeholder="ملاحظات للفاتورة..." value={notes} onChange={e => setNotes(e.target.value)} />
+                            </div>
                         </div>
 
                         {/* Pricing */}
@@ -961,6 +1025,23 @@ function ReceptionWizard() {
                 <option value="تبديل سفايف (بريكات)" />
                 <option value="شحن غاز تبريد" />
                 <option value="تبديل بطارية" />
+            </datalist>
+
+            <datalist id="wiperTypes">
+                <option value="VH" />
+                <option value="VP" />
+                <option value="VS" />
+            </datalist>
+
+            <datalist id="wiperSizes">
+                <option value="14 Inch" />
+                <option value="16 Inch" />
+                <option value="18 Inch" />
+                <option value="20 Inch" />
+                <option value="22 Inch" />
+                <option value="24 Inch" />
+                <option value="26 Inch" />
+                <option value="28 Inch" />
             </datalist>
 
         </div>
