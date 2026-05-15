@@ -143,7 +143,7 @@ export default function KanbanStatusPage() {
         const { error } = await supabase.from('inspection_reports').update({
             technician_id: assignData.technician_id || null,
             bay_number: assignData.bay_number,
-            estimated_duration: parseInt(assignData.estimated_duration) || 60,
+            estimated_duration: Math.max(1, parseInt(assignData.estimated_duration) || 60),
             status: 'قيد العمل',
             start_time: new Date().toISOString()
         }).eq('id', selectedOrderId);

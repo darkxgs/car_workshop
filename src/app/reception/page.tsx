@@ -267,6 +267,16 @@ function ReceptionWizard() {
         loadReport();
     }, [editId]);
 
+    // Real-time calculation of total price
+    useEffect(() => {
+        const sumServices = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
+        const sumCustom = customServices.reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
+        const sum = sumServices + sumCustom;
+        if (sum > 0) {
+            setTotalPrice(sum.toString());
+        }
+    }, [services, customServices]);
+
     // Custom services helpers
     const addCustomService = () => {
         setCustomServices(prev => [...prev, { id: Date.now().toString(), label: "", status: "", price: "" }]);
@@ -350,10 +360,12 @@ function ReceptionWizard() {
         setServices(prev => ({ ...prev, [key]: { ...prev[key], price: value } }));
     };
 
-    // Auto-calculate total from service prices
+    // Auto-calculate total from service prices (kept for manual trigger if needed)
     const calcTotal = () => {
-        const sum = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
-        setTotalPrice(sum > 0 ? sum.toString() : totalPrice);
+        const sumServices = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
+        const sumCustom = customServices.reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
+        const sum = sumServices + sumCustom;
+        if (sum > 0) setTotalPrice(sum.toString());
     };
 
     const handleNextStep1 = () => {
@@ -364,7 +376,7 @@ function ReceptionWizard() {
         setError(null); setStep(2);
     };
 
-    const handleNextStep2 = () => { calcTotal(); setError(null); setStep(3); };
+    const handleNextStep2 = () => { setError(null); setStep(3); };
 
     const handleSaveDraft = async () => saveWorkOrder('تم الاستلام', null);
     const handleStartWorkOrder = async () => saveWorkOrder('قيد العمل', new Date().toISOString());

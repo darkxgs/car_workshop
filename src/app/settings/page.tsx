@@ -140,6 +140,10 @@ export default function SettingsPage() {
     };
 
     const handleEditUserClick = (emp: any) => {
+        if (emp.role === 'Owner' && employeeRole !== 'Owner') {
+            showError("غير مصرح", "لا يمكن لمدير النظام تعديل بيانات المالك الأساسي.");
+            return;
+        }
         setEditingEmployeeId(emp.auth_id);
         setFormData({
             name: emp.name,
@@ -173,7 +177,12 @@ export default function SettingsPage() {
         setIsSubmitting(false);
     };
 
-    const handleDeleteUser = async (authId: string, name: string) => {
+    const handleDeleteUser = async (authId: string, name: string, role: string) => {
+        if (role === 'Owner') {
+            showError("غير مصرح", "لا يمكن حذف المالك الأساسي للنظام.");
+            return;
+        }
+        
         const isConfirmed = await showConfirm(
             `حذف المستخدم`,
             `هل أنت متأكد من حذف المستخدم ${name}؟ لا يمكن التراجع عن هذا الإجراء.`,
@@ -385,7 +394,7 @@ export default function SettingsPage() {
                                                     <button onClick={() => handleEditUserClick(emp)} className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-blue-500/20">تعديل</button>
                                                 )}
                                                 {(employeeRole === 'Owner' || emp.role !== 'Owner') && (
-                                                    <button onClick={() => handleDeleteUser(emp.auth_id, emp.name)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
+                                                    <button onClick={() => handleDeleteUser(emp.auth_id, emp.name, emp.role)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
                                                 )}
                                                 {emp.role === 'Owner' && employeeRole !== 'Owner' && (
                                                     <span className="text-xs text-muted-foreground italic px-1">محمي</span>
