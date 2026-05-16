@@ -18,6 +18,8 @@ type WorkOrder = {
     selected_services: any[];
     receptionist: { name: string } | null;
     vehicles: { make: string; model: string; plate_number: string, clients?: { name: string; phone: string } };
+    bay_number: string | null;
+    technician_id: string | null;
 };
 
 type ReportServiceResult = {
