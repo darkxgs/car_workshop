@@ -93,6 +93,14 @@ export default function KanbanStatusPage() {
     const handleChangeStatus = async (orderId: string, newStatus: string) => {
         if (!orderId || !newStatus) return;
 
+        const currentOrder = orders.find(o => o.id === orderId);
+        
+        // If moving to "قيد العمل" from "تم الاستلام", open assignment modal
+        if (newStatus === 'قيد العمل' && currentOrder?.status === 'تم الاستلام') {
+            handleOpenAssignModal(orderId);
+            return;
+        }
+
         // Optimistic UI update
         const previousOrders = [...orders];
         setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -222,9 +230,13 @@ export default function KanbanStatusPage() {
                                                             <Wrench size={14} /> إسناد للورشة
                                                         </button>
                                                     ) : (
-                                                        <div className="text-[10px] text-muted-foreground font-mono bg-black/30 px-2 py-1 rounded">
+                                                        <button 
+                                                            onClick={() => handleOpenAssignModal(order.id)}
+                                                            className="text-[10px] text-muted-foreground hover:text-foreground font-mono bg-black/30 hover:bg-black/50 px-2 py-1 rounded transition-colors cursor-pointer"
+                                                            title="تعديل الإسناد"
+                                                        >
                                                             {order.bay_number ? `خانة: ${order.bay_number}` : (order.vehicles?.plate_number || '---')}
-                                                        </div>
+                                                        </button>
                                                     )}
                                                     <div className="flex items-center gap-2">
                                                         <select 

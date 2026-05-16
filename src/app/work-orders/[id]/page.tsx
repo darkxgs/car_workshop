@@ -119,7 +119,14 @@ export default function WorkOrderDetailPage() {
     }, [order]);
 
     const handleStart = async () => {
-        await supabase.from('inspection_reports').update({ status: 'قيد العمل', start_time: new Date().toISOString() }).eq('id', id);
+        const bayNum = prompt('أدخل رقم الخانة (Bay Number):', order?.bay_number || '');
+        if (bayNum === null) return; // Cancelled
+        
+        await supabase.from('inspection_reports').update({ 
+            status: 'قيد العمل', 
+            start_time: new Date().toISOString(),
+            bay_number: bayNum || null 
+        }).eq('id', id);
         fetchOrder();
     };
 
