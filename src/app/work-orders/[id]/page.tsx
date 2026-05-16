@@ -205,13 +205,13 @@ export default function WorkOrderDetailPage() {
                 <div className="flex flex-wrap gap-3">
                     <div className="flex bg-background border border-border rounded-xl shadow-sm overflow-hidden">
                         <button 
-                            onClick={() => window.open(`/print/${id}?mode=short`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
+                            onClick={() => router.push(`/print/${id}?mode=short`)}
                             className="px-4 py-2.5 hover:bg-muted font-bold transition-colors flex items-center gap-2 border-l border-border text-xs md:text-sm"
                         >
                             <Printer size={16} /> طباعة للفني (مختصر)
                         </button>
                         <button 
-                            onClick={() => window.open(`/print/${id}?mode=full`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
+                            onClick={() => router.push(`/print/${id}?mode=full`)}
                             className="px-4 py-2.5 hover:bg-muted font-bold transition-colors flex items-center gap-2 text-xs md:text-sm text-rose-500"
                         >
                             <Printer size={16} /> طباعة كامل (للعميل)

@@ -40,7 +40,7 @@ export default function PayrollPage() {
         try {
             // Fetch employees
             let query = supabase.from('employees').select('id, name, role, branch_id');
-            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            if (employeeBranchId) {
                 query = query.eq('branch_id', employeeBranchId);
             }
             const { data: employeesData } = await query;

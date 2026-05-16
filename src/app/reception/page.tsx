@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Save, Phone, Hash, AlertCircle, Loader2,
-    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare
+    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X
 } from "lucide-react";
 
 type Step = 1 | 2 | 3;
@@ -148,7 +148,7 @@ const initServices = (): Record<string, ServiceEntry> => {
     return obj;
 };
 
-function ReceptionWizard() {
+function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const { t } = useLanguage();
     const { user, employeeRole, employeeBranchId } = useAuth();
     const searchParams = useSearchParams();
@@ -211,8 +211,7 @@ function ReceptionWizard() {
         let branchQuery = supabase.from('branches').select('id, name');
         let empQuery = supabase.from('employees').select('id, name, role, branch_id').order('name');
 
-        // Only restrict if NOT Owner/Admin and has a specific branch
-        if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+        if (employeeBranchId) {
             branchQuery = branchQuery.eq('id', employeeBranchId);
             empQuery = empQuery.eq('branch_id', employeeBranchId);
         }
@@ -508,12 +507,17 @@ function ReceptionWizard() {
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
-                        <FileText className="text-rose-500" size={32} />
-                        أمر عمل جديد — هندسة السيارات
-                    </h1>
-                    <p className="text-muted-foreground">إنشاء بطاقة عمل مفصّلة مطابقة للنموذج الرسمي للورشة</p>
+                <div className="flex items-center gap-4">
+                    <button onClick={onClose} className="p-2 bg-muted hover:bg-rose-500 hover:text-white rounded-xl transition-colors border border-border" title="رجوع إلى قائمة أوامر العمل">
+                        <ArrowRight size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
+                            <FileText className="text-rose-500" size={32} />
+                            أمر عمل جديد — هندسة السيارات
+                        </h1>
+                        <p className="text-muted-foreground">إنشاء بطاقة عمل مفصّلة مطابقة للنموذج الرسمي للورشة</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 bg-background/40 p-2 rounded-xl border border-border">
                     {["1. البيانات", "2. الفحص", "3. المراجعة"].map((label, i) => (
@@ -1000,9 +1004,13 @@ function ReceptionWizard() {
                     <h2 className="text-3xl font-display font-bold text-foreground mb-2">تم إنشاء أمر العمل!</h2>
                     <p className="text-muted-foreground mb-8">رقم الطلب: <span className="text-foreground font-mono bg-muted px-3 py-1 rounded-lg">#{reportNumber}</span></p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <button onClick={() => window.open(`/print/${createdWorkOrderId}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')}
-                            className="px-8 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted transition-colors flex items-center justify-center gap-2">
-                            <Printer size={20} /> طباعة أمر العمل (PDF)
+                        <button onClick={() => router.push(`/print/${createdWorkOrderId}?mode=full`)}
+                            className="px-6 py-3 rounded-xl bg-blue-600/20 text-blue-500 font-bold hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2">
+                            <Printer size={20} /> طباعة للعميل (شامل)
+                        </button>
+                        <button onClick={() => router.push(`/print/${createdWorkOrderId}?mode=short`)}
+                            className="px-6 py-3 rounded-xl bg-amber-600/20 text-amber-500 font-bold hover:bg-amber-600/30 transition-colors flex items-center justify-center gap-2">
+                            <Printer size={20} /> طباعة للفني (مختصر)
                         </button>
                         <a href={`/work-orders/${createdWorkOrderId}`}
                             className="px-8 py-3 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-500 transition-all flex items-center justify-center gap-2">
@@ -1083,10 +1091,129 @@ function ReceptionWizard() {
     );
 }
 
+function ReceptionContainer() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const { employeeBranchId, employeeRole } = useAuth();
+    const editId = searchParams.get('edit');
+    const [isWizardOpen, setIsWizardOpen] = useState(!!editId);
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (editId) {
+            setIsWizardOpen(true);
+        }
+    }, [editId]);
+
+    useEffect(() => {
+        if (isWizardOpen) return;
+        const fetchOrders = async () => {
+            setLoading(true);
+            let query = supabase
+                .from('inspection_reports')
+                .select(`id, report_number, status, created_at, total_price, vehicles (make, model, plate_number, clients (name, phone))`)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (employeeBranchId) {
+                query = query.eq('branch_id', employeeBranchId);
+            }
+            
+            const { data } = await query;
+            if (data) setOrders(data);
+            setLoading(false);
+        };
+        fetchOrders();
+    }, [isWizardOpen, employeeBranchId, employeeRole]);
+
+    if (isWizardOpen) {
+        return <ReceptionWizard onClose={() => {
+            setIsWizardOpen(false);
+            if (editId) router.replace('/reception');
+        }} />;
+    }
+
+    return (
+        <div className="p-6 md:p-8 space-y-8 animate-fade-in" dir="rtl">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-6">
+                <div>
+                    <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
+                        <FileText className="text-rose-500" size={32} />
+                        أوامر العمل (الاستقبال)
+                    </h1>
+                    <p className="text-muted-foreground">إدارة أوامر العمل السابقة وإنشاء أوامر جديدة</p>
+                </div>
+                <button 
+                    onClick={() => setIsWizardOpen(true)}
+                    className="btn-primary flex items-center gap-2 whitespace-nowrap px-6 py-2.5 text-lg shadow-rose-500/20"
+                >
+                    <span>+</span> أمر عمل جديد
+                </button>
+            </div>
+
+            <div className="glass-card rounded-2xl border border-border overflow-hidden">
+                <div className="p-4 border-b border-border bg-muted/30">
+                    <h2 className="font-bold text-foreground flex items-center gap-2">
+                        <Wrench size={18} className="text-rose-500"/> أوامر العمل السابقة (أحدث 50)
+                    </h2>
+                </div>
+                {loading ? (
+                    <div className="p-12 text-center"><Loader2 className="animate-spin text-rose-500 mx-auto" size={32}/></div>
+                ) : orders.length === 0 ? (
+                    <div className="p-12 text-center text-muted-foreground">لا توجد أوامر عمل سابقة. انقر على 'أمر عمل جديد' للبدء.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-right text-sm">
+                            <thead className="bg-muted text-muted-foreground font-medium">
+                                <tr>
+                                    <th className="p-4">رقم الأمر</th>
+                                    <th className="p-4">التاريخ</th>
+                                    <th className="p-4">المركبة</th>
+                                    <th className="p-4">العميل</th>
+                                    <th className="p-4">الحالة</th>
+                                    <th className="p-4">الإجمالي (IQD)</th>
+                                    <th className="p-4 text-center">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {orders.map(o => (
+                                    <tr key={o.id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="p-4 font-mono font-bold text-foreground">#{o.report_number}</td>
+                                        <td className="p-4 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('ar-IQ')}</td>
+                                        <td className="p-4 text-foreground font-medium" dir="ltr">{o.vehicles?.make} {o.vehicles?.model} ({o.vehicles?.plate_number})</td>
+                                        <td className="p-4 text-foreground">
+                                            {o.vehicles?.clients ? (Array.isArray(o.vehicles.clients) ? o.vehicles.clients[0]?.name : o.vehicles.clients.name) : '---'}
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${o.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-500' : o.status === 'قيد العمل' ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                                                {o.status}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 font-bold text-emerald-500 font-mono" dir="ltr">{o.total_price?.toLocaleString() || 0}</td>
+                                        <td className="p-4 flex items-center justify-center gap-2">
+                                            <button onClick={() => { router.replace(`/reception?edit=${o.id}`); setIsWizardOpen(true); }} className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg transition-colors" title="تعديل">
+                                                <Edit2 size={16}/>
+                                            </button>
+                                            <button onClick={() => router.push(`/print/${o.id}?mode=full`)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors" title="طباعة">
+                                                <Printer size={16}/>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function ReceptionPage() {
     return (
         <Suspense fallback={<div className="p-20 text-center"><Loader2 className="animate-spin text-rose-500 w-10 h-10 mx-auto" /></div>}>
-            <ReceptionWizard />
+            <ReceptionContainer />
         </Suspense>
     );
 }

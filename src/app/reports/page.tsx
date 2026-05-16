@@ -138,7 +138,7 @@ export default function ReportsPage() {
                     }
                 }
 
-                if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+                if (employeeBranchId) {
                     query = query.eq('branch_id', employeeBranchId);
                 }
 
