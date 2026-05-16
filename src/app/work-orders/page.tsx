@@ -110,11 +110,6 @@ export default function WorkOrdersListPage() {
                                             }`}>
                                                 {order.status}
                                             </span>
-                                            {order.bay_number && (
-                                                <span className="text-sm font-bold bg-muted text-muted-foreground px-3 py-1 rounded-lg">
-                                                    الخانة: {order.bay_number}
-                                                </span>
-                                            )}
                                         </div>
                                         <span className="font-mono text-muted-foreground font-bold text-lg">#{order.report_number}</span>
                                     </div>
@@ -132,11 +127,14 @@ export default function WorkOrdersListPage() {
                                         </div>
                                     </div>
 
-                                    {order.technician?.name && (
-                                        <div className="mb-4 text-sm font-bold text-muted-foreground flex items-center gap-2">
-                                            <Wrench size={16} /> الفني: <span className="text-foreground">{order.technician.name}</span>
+                                    <div className="flex flex-col gap-1 mb-4 text-sm font-bold text-muted-foreground border-b border-border/50 pb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Wrench size={16} /> الفني: <span className="text-foreground">{order.technician?.name || 'غير محدد'}</span>
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-2">
+                                            <Activity size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
+                                        </div>
+                                    </div>
 
                                     <div className="space-y-3 mb-6">
                                         <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-background/50 border border-border">

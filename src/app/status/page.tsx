@@ -90,23 +90,8 @@ export default function KanbanStatusPage() {
         setLoading(false);
     };
 
-    const handleDragStart = (e: React.DragEvent, orderId: string) => {
-        e.dataTransfer.setData("orderId", orderId);
-        if (e.target instanceof HTMLElement) {
-             e.target.style.opacity = "0.5";
-        }
-    };
-
-    const handleDragEnd = (e: React.DragEvent) => {
-        if (e.target instanceof HTMLElement) {
-             e.target.style.opacity = "1";
-        }
-    };
-
-    const handleDrop = async (e: React.DragEvent, newStatus: string) => {
-        e.preventDefault();
-        const orderId = e.dataTransfer.getData("orderId");
-        if (!orderId) return;
+    const handleChangeStatus = async (orderId: string, newStatus: string) => {
+        if (!orderId || !newStatus) return;
 
         // Optimistic UI update
         const previousOrders = [...orders];
@@ -119,14 +104,18 @@ export default function KanbanStatusPage() {
         if (newStatus === 'تم الانتهاء') {
             updateData.completed_at = new Date().toISOString();
             updateData.end_time = new Date().toISOString();
+        } else if (newStatus === 'قيد العمل') {
+            updateData.start_time = new Date().toISOString();
         }
 
         const { error } = await supabase.from('inspection_reports').update(updateData).eq('id', orderId);
         
         if (error) {
-            showError("فشل النقل", "حدث خطأ أثناء تغيير الحالة.");
+            showError("فشل التحديث", "حدث خطأ أثناء تغيير الحالة.");
             setOrders(previousOrders); // Revert UI
             fetchOrders();
+        } else {
+            showSuccess("تم التحديث", `تم نقل المركبة إلى: ${newStatus}`);
         }
     };
 
@@ -169,7 +158,7 @@ export default function KanbanStatusPage() {
                             لوحة متابعة الورشة (Kanban)
                         </h1>
                         <p className="text-muted-foreground">
-                            قم بسحب وإفلات أوامر العمل لتغيير حالتها فورياً
+                            قم بتغيير حالة أوامر العمل بسهولة باستخدام القائمة المنسدلة
                         </p>
                     </div>
                 </div>
@@ -189,8 +178,6 @@ export default function KanbanStatusPage() {
                                 <div 
                                     key={column.id}
                                     className={`glass-card rounded-2xl border ${column.border} ${column.bg} p-4 min-h-[500px]`}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => handleDrop(e, column.id)}
                                 >
                                     <div className="flex items-center justify-between mb-4 border-b border-border pb-4">
                                         <h2 className={`font-bold flex items-center gap-2 ${column.color}`}>
@@ -206,10 +193,7 @@ export default function KanbanStatusPage() {
                                         {columnOrders.map(order => (
                                             <div 
                                                 key={order.id}
-                                                draggable
-                                                onDragStart={(e) => handleDragStart(e, order.id)}
-                                                onDragEnd={handleDragEnd}
-                                                className="bg-muted hover:bg-muted/80 border border-border hover:border-slate-700 p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all shadow-sm"
+                                                className="bg-muted border border-border p-4 rounded-xl transition-all shadow-sm flex flex-col h-full"
                                             >
                                                 <div className="flex justify-between items-start mb-3">
                                                     <span className="font-mono text-muted-foreground text-xs bg-muted/80 px-2 py-0.5 rounded border border-border">#{order.report_number}</span>
@@ -242,13 +226,26 @@ export default function KanbanStatusPage() {
                                                             {order.bay_number ? `خانة: ${order.bay_number}` : (order.vehicles?.plate_number || '---')}
                                                         </div>
                                                     )}
-                                                    <Link 
-                                                        href={`/work-orders/${order.id}`}
-                                                        className="p-1.5 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-400 rounded-lg transition-colors"
-                                                        title="التفاصيل"
-                                                    >
-                                                        <ArrowLeft size={16} />
-                                                    </Link>
+                                                    <div className="flex items-center gap-2">
+                                                        <select 
+                                                            value={order.status === 'متأخر' ? 'قيد العمل' : order.status}
+                                                            onChange={(e) => handleChangeStatus(order.id, e.target.value)}
+                                                            className="text-xs bg-card border border-border text-foreground rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500 flex-1 min-w-0"
+                                                        >
+                                                            <option value="تم الاستلام">الاستلام</option>
+                                                            <option value="قيد العمل">الورشة</option>
+                                                            <option value="بانتظار العميل">انتظار</option>
+                                                            <option value="تم الانتهاء">مكتمل</option>
+                                                        </select>
+
+                                                        <Link 
+                                                            href={`/work-orders/${order.id}`}
+                                                            className="p-1.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg transition-colors shrink-0"
+                                                            title="التفاصيل"
+                                                        >
+                                                            <ArrowLeft size={16} />
+                                                        </Link>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}

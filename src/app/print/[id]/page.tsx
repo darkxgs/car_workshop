@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function PrintPage() {
     const params = useParams();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const id = params.id as string;
     const mode = searchParams.get('mode') || 'full';
@@ -86,9 +89,20 @@ export default function PrintPage() {
                 @media print { .no-print-btn { display: none !important; } }
             `}</style>
 
-            <button className="no-print-btn" onClick={() => window.print()}>
-                🖨️ طباعة مرة أخرى
-            </button>
+            <div className="no-print-btn flex flex-col gap-3 fixed bottom-5 right-5 z-[999]">
+                <button 
+                    onClick={() => router.back()}
+                    className="bg-slate-800 text-white border-none py-3 px-6 rounded-xl text-base cursor-pointer font-bold shadow-lg flex items-center gap-2 justify-center"
+                >
+                    <ArrowRight size={20} /> رجوع
+                </button>
+                <button 
+                    onClick={() => window.print()}
+                    className="bg-rose-600 text-white border-none py-3 px-6 rounded-xl text-base cursor-pointer font-bold shadow-lg"
+                >
+                    🖨️ طباعة مرة أخرى
+                </button>
+            </div>
 
             <PrintableInspectionReport report={report} mode={mode} />
         </>

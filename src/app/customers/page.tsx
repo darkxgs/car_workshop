@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 
 type ClientWithVehicles = {
@@ -28,6 +29,7 @@ type ClientWithVehicles = {
 
 export default function CustomersPage() {
     const { t } = useLanguage();
+    const router = useRouter();
     const { employeeRole, employeeBranchId } = useAuth();
     const isOwnerOrAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
     
@@ -117,7 +119,7 @@ export default function CustomersPage() {
                 };
             });
 
-            if (employeeRole !== 'Owner' && employeeRole !== 'Admin' && employeeBranchId) {
+            if (employeeBranchId) {
                 setClients(mapped.filter((c: any) => c.branchIds.includes(employeeBranchId)));
             } else {
                 setClients(mapped);
@@ -653,7 +655,7 @@ export default function CustomersPage() {
                                                     <Link href={`/reception?edit=${r.id}`} className="p-2 bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
                                                         <Edit2 size={18}/>
                                                     </Link>
-                                                    <button onClick={() => window.open(`/print/${r.id}`, 'PrintReport', 'width=800,height=900,menubar=no,toolbar=no,location=no,status=no')} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
+                                                    <button onClick={() => router.push(`/print/${r.id}?mode=full`)} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
                                                         <FileText size={18}/>
                                                     </button>
                                                     {isOwnerOrAdmin && (
