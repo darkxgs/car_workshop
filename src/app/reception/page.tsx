@@ -7,8 +7,9 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Save, Phone, Hash, AlertCircle, Loader2,
-    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X
+    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X, Trash2
 } from "lucide-react";
+import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 
 type Step = 1 | 2 | 3;
 
@@ -1127,6 +1128,24 @@ function ReceptionContainer() {
         fetchOrders();
     }, [isWizardOpen, employeeBranchId, employeeRole]);
 
+    const handleDeleteOrder = async (orderId: string, orderNumber: string) => {
+        const confirm = await showConfirm(
+            "حذف أمر العمل",
+            `هل أنت متأكد من حذف أمر العمل رقم #${orderNumber} بشكل نهائي؟`,
+            "نعم، احذف",
+            "إلغاء"
+        );
+        if (confirm) {
+            const { error } = await supabase.from('inspection_reports').delete().eq('id', orderId);
+            if (error) {
+                showError("فشل الحذف", "حدث خطأ أثناء محاولة حذف أمر العمل.");
+            } else {
+                showSuccess("تم الحذف", "تم حذف أمر العمل بنجاح.");
+                setOrders(orders.filter(o => o.id !== orderId));
+            }
+        }
+    };
+
     if (isWizardOpen) {
         return <ReceptionWizard onClose={() => {
             setIsWizardOpen(false);
@@ -1198,6 +1217,11 @@ function ReceptionContainer() {
                                             <button onClick={() => router.push(`/print/${o.id}?mode=full`)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors" title="طباعة">
                                                 <Printer size={16}/>
                                             </button>
+                                            {(employeeRole === 'Owner' || employeeRole === 'Admin') && (
+                                                <button onClick={() => handleDeleteOrder(o.id, o.report_number)} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-colors" title="حذف">
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

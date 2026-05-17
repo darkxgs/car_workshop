@@ -27,7 +27,7 @@ export default function WorkOrdersListPage() {
     const [now, setNow] = useState(Date.now());
 
     useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 10000); // Check every 10s
+        const interval = setInterval(() => setNow(Date.now()), 1000); // Check every second
         return () => clearInterval(interval);
     }, []);
 
@@ -89,14 +89,20 @@ export default function WorkOrdersListPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {orders.map(order => {
-                            let currentLiveMins = order.elapsed_time || 0;
+                            let currentLiveSeconds = (order.elapsed_time || 0) * 60;
                             if (order.status === 'قيد العمل' && order.start_time) {
                                 const startMs = new Date(order.start_time).getTime();
-                                currentLiveMins += Math.floor((now - startMs) / 60000);
+                                currentLiveSeconds += Math.floor((now - startMs) / 1000);
                             }
                             
-                            const remainingMins = order.estimated_duration - currentLiveMins;
-                            const isTimerDanger = remainingMins <= 0;
+                            const totalEstimatedSeconds = order.estimated_duration * 60;
+                            const remainingSeconds = totalEstimatedSeconds - currentLiveSeconds;
+                            const isTimerDanger = remainingSeconds <= 0;
+                            
+                            const absRemaining = Math.abs(remainingSeconds);
+                            const mins = Math.floor(absRemaining / 60);
+                            const secs = absRemaining % 60;
+                            const timeString = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
                             
                             return (
                             <div key={order.id} className="glass-card p-6 rounded-2xl border-border relative group overflow-hidden transition-all hover:border-blue-500/30 flex flex-col justify-between">
@@ -141,9 +147,9 @@ export default function WorkOrdersListPage() {
                                             <span className="text-sm text-muted-foreground mb-1">الوقت المتبقي</span>
                                             <div className={`text-4xl font-black font-mono tracking-wider ${isTimerDanger ? 'text-rose-500' : 'text-emerald-500'}`}>
                                                 {order.status === 'قيد العمل' ? (
-                                                    remainingMins > 0 ? `${remainingMins}m` : `-${Math.abs(remainingMins)}m`
+                                                    remainingSeconds > 0 ? timeString : `-${timeString}`
                                                 ) : (
-                                                    `${order.estimated_duration}m`
+                                                    `${order.estimated_duration.toString().padStart(2, '0')}:00`
                                                 )}
                                             </div>
                                         </div>
