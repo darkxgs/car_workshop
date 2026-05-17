@@ -1133,7 +1133,7 @@ function ReceptionContainer() {
             "حذف أمر العمل",
             `هل أنت متأكد من حذف أمر العمل رقم #${orderNumber} بشكل نهائي؟`,
             "نعم، احذف",
-            "إلغاء"
+            true
         );
         if (confirm) {
             const { error } = await supabase.from('inspection_reports').delete().eq('id', orderId);
