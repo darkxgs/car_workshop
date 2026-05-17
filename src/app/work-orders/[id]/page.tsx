@@ -60,7 +60,7 @@ export default function WorkOrderDetailPage() {
 
     const [order, setOrder] = useState<WorkOrder | null>(null);
     const [loading, setLoading] = useState(true);
-    const [liveMins, setLiveMins] = useState(0);
+    const [liveSeconds, setLiveSeconds] = useState(0);
     const [isAddingSvc, setIsAddingSvc] = useState(false);
     const [inspectedServices, setInspectedServices] = useState<ReportServiceResult[]>([]);
     
@@ -93,12 +93,12 @@ export default function WorkOrderDetailPage() {
         if (data) {
             setOrder(data as any as WorkOrder);
             
-            let currentLiveMins = data.elapsed_time || 0;
+            let currentLiveSeconds = (data.elapsed_time || 0) * 60;
             if (data.status === 'قيد العمل' && data.start_time) {
                 const startMs = new Date(data.start_time).getTime();
-                currentLiveMins += Math.floor((Date.now() - startMs) / 60000);
+                currentLiveSeconds += Math.floor((Date.now() - startMs) / 1000);
             }
-            setLiveMins(currentLiveMins);
+            setLiveSeconds(currentLiveSeconds);
             
             // Fetch inspected services (The actual health check)
             const { data: svcs } = await supabase.from('report_services').select('*').eq('report_id', id);
@@ -114,8 +114,8 @@ export default function WorkOrderDetailPage() {
         const interval = setInterval(() => {
             const startMs = new Date(order.start_time!).getTime();
             const nowMs = Date.now();
-            setLiveMins((order.elapsed_time || 0) + Math.floor((nowMs - startMs) / 60000));
-        }, 10000); // Check every 10s to save CPU
+            setLiveSeconds((order.elapsed_time || 0) * 60 + Math.floor((nowMs - startMs) / 1000));
+        }, 1000); // Check every second
 
         return () => clearInterval(interval);
     }, [order]);
@@ -195,7 +195,12 @@ export default function WorkOrderDetailPage() {
         </div>
     );
 
-    const isOverdue = order.status !== 'تم الانتهاء' && liveMins > order.estimated_duration;
+    const totalEstimatedSeconds = order.estimated_duration * 60;
+    const isOverdue = order.status !== 'تم الانتهاء' && liveSeconds > totalEstimatedSeconds;
+    
+    const displayLiveMins = Math.floor(liveSeconds / 60);
+    const displayLiveSecs = liveSeconds % 60;
+    const liveTimeString = `${displayLiveMins.toString().padStart(2, '0')}:${displayLiveSecs.toString().padStart(2, '0')}`;
 
     return (
         <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto" dir="rtl">
@@ -252,7 +257,7 @@ export default function WorkOrderDetailPage() {
                     </div>
                     <p className="text-muted-foreground font-bold mb-2 uppercase text-xs tracking-wider">الزمن المستغرق (Live Timing)</p>
                     <p className={`text-6xl font-display font-black font-mono mb-2 ${order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500' : 'text-blue-500'}`}>
-                        {order.status === 'تم الانتهاء' ? order.elapsed_time : liveMins}<span className="text-xl text-muted-foreground ml-1">m</span>
+                        {order.status === 'تم الانتهاء' ? `${order.elapsed_time}:00` : liveTimeString}
                     </p>
                     <p className="text-muted-foreground text-sm font-medium flex items-center justify-center gap-2">
                         من أصل <span className="text-foreground font-bold bg-muted px-2 py-0.5 rounded border border-border">{order.estimated_duration}m</span> مقدرة
