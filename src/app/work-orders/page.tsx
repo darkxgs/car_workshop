@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Wrench, ShieldAlert, ArrowLeft, Clock, Car, Activity } from "lucide-react";
+import { Wrench, ShieldAlert, ArrowLeft, Clock, Car, Activity, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrderList = {
@@ -21,10 +21,29 @@ type WorkOrderList = {
 };
 
 export default function WorkOrdersListPage() {
-    const { employeeRole, employeeBranchId } = useAuth();
+    const { employeeRole, employeeBranchId, permissionWorkOrders, loading: authLoading } = useAuth();
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
     const [now, setNow] = useState(Date.now());
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionWorkOrders) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى ساحة الورشة والعمل الحي.</p>
+                </div>
+            </div>
+        );
+    }
 
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000); // Check every second

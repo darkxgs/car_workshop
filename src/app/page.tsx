@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import {
     Wrench, Car, Play, CheckCircle2, DollarSign, Activity, FileText,
     Search, Bell, Settings, Calendar, Plus, User, LayoutDashboard,
-    Package, ShoppingCart, TrendingUp, AlertTriangle, Clock, Wallet, Database, ArrowLeft
+    Package, ShoppingCart, TrendingUp, AlertTriangle, Clock, Wallet, Database, ArrowLeft, Loader2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -38,7 +38,7 @@ type WorkOrder = {
 
 export default function Home() {
     const { t } = useLanguage();
-    const { employeeName, employeeRole, employeeBranchId } = useAuth();
+    const { employeeName, employeeRole, employeeBranchId, permissionDashboard, loading: authLoading } = useAuth();
 
     const [stats, setStats] = useState({
         today: 0,
@@ -179,6 +179,25 @@ export default function Home() {
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('en-US').format(val);
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionDashboard) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى لوحة التحكم.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen pb-24 font-ibm bg-gradient-to-br from-[var(--color-background)] to-[var(--color-background)]" dir="rtl">

@@ -4,12 +4,12 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Building2, KeyRound, Mail, Loader2, AlertCircle } from "lucide-react";
+import { Building2, KeyRound, User, Loader2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState("admin@workshop.com");
-    const [password, setPassword] = useState("admin123");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -18,13 +18,16 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
 
+        const cleanUsername = username.trim().toLowerCase();
+        const formattedEmail = cleanUsername.includes("@") ? cleanUsername : `${cleanUsername}@workshop.local`;
+
         const { error } = await supabase.auth.signInWithPassword({
-            email,
+            email: formattedEmail,
             password,
         });
 
         if (error) {
-            setError(error.message);
+            setError("اسم المستخدم أو كلمة المرور غير صحيحة");
             setLoading(false);
         } else {
             router.push("/");
@@ -58,14 +61,14 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-2 relative">
-                            <label className="text-sm font-medium text-muted-foreground ml-1">البريد الإلكتروني</label>
+                            <label className="text-sm font-medium text-muted-foreground ml-1">اسم المستخدم</label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                                 <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@workshop.com"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder="مثال: abbas"
                                     className="input-field text-left"
                                     style={{ paddingLeft: '2.5rem' }}
                                     dir="ltr"

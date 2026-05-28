@@ -53,7 +53,7 @@ type JoinedReport = {
 
 export default function ReportsPage() {
     const { t } = useLanguage();
-    const { employeeRole, employeeBranchId } = useAuth();
+    const { employeeRole, employeeBranchId, permissionReports, loading: authLoading } = useAuth();
 
     const [reports, setReports] = useState<JoinedReport[]>([]);
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -194,14 +194,22 @@ export default function ReportsPage() {
         fetchDetails();
     }, [selectedReportId]);
 
-    if (employeeRole === "Receptionist") {
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionReports) {
         return (
             <div className="p-8 flex items-center justify-center min-h-[50vh] animate-fade-in" dir="rtl">
                 <div className="glass-card p-8 rounded-2xl border-border text-center max-w-md w-full relative overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-rose-500/10 blur-[50px] rounded-full pointer-events-none" />
                     <AlertCircle className="mx-auto text-rose-500 mb-4 relative z-10" size={48} />
-                    <h2 className="text-2xl font-bold text-foreground mb-2 relative z-10">غير مصرح لك</h2>
-                    <p className="text-muted-foreground relative z-10">عذراً، الاطلاع على الفواتير والأرباح مخصص لمدراء النظام.</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2 relative z-10">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground relative z-10">ليس لديك صلاحية للوصول إلى الفواتير والتقارير المالية.</p>
                 </div>
             </div>
         );

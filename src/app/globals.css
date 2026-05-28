@@ -457,3 +457,10 @@
     print-color-adjust: exact !important;
   }
 }
+
+/* Prevent iOS Safari from zooming in on inputs on touch screens (iPad/iPhone) */
+@media (hover: none) and (pointer: coarse) {
+  .input-field, input, select, textarea {
+    font-size: 16px !important;
+  }
+}

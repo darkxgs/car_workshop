@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight } from "lucide-react";
+import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2 } from "lucide-react";
 import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
+import { useAuth } from "@/lib/AuthProvider";
 
 type WorkOrder = {
     id: string;
@@ -20,6 +21,7 @@ type WorkOrder = {
     vehicles: { make: string; model: string; plate_number: string, clients?: { name: string; phone: string } };
     bay_number: string | null;
     technician_id: string | null;
+    branch_id: string | null;
 };
 
 type ReportServiceResult = {
@@ -32,16 +34,22 @@ type ReportServiceResult = {
 
 const PAPER_V2_SERVICE_DEFS: Record<string, { name: string; estimatedMinutes: number }> = {
     engineOil: { name: "زيت المحرك", estimatedMinutes: 30 },
-    oilFilter: { name: "فلتر الزيت", estimatedMinutes: 20 },
+    oilFilter: { name: "فلتر زيت المحرك", estimatedMinutes: 20 },
     airFilter: { name: "فلتر الهواء", estimatedMinutes: 20 },
-    acFilter: { name: "فلتر التكييف", estimatedMinutes: 20 },
-    transOil: { name: "زيت الفتيس (ناقل الحركة)", estimatedMinutes: 45 },
-    coolant: { name: "مياه التبريد (الراديتر)", estimatedMinutes: 30 },
-    brakeFluid: { name: "زيت الفرامل", estimatedMinutes: 25 },
+    acFilter: { name: "فلتر التبريد", estimatedMinutes: 20 },
+    brakeFluid: { name: "زيت المكابح", estimatedMinutes: 25 },
+    coolant: { name: "ماء الراديتر", estimatedMinutes: 30 },
     battery: { name: "البطارية", estimatedMinutes: 20 },
-    brakeCable: { name: "تيل الفرامل", estimatedMinutes: 30 },
+    engineBelts: { name: "قايش المحرك", estimatedMinutes: 30 },
+    brakePads: { name: "دسكات السيارة", estimatedMinutes: 30 },
     sparkPlugs: { name: "شمعات الاحتراق", estimatedMinutes: 30 },
-    engineBelts: { name: "سيور المحرك", estimatedMinutes: 30 },
+    gearboxHydraulic: { name: "هايدروليك الكير", estimatedMinutes: 45 },
+    gearboxFilter: { name: "فلتر الكير", estimatedMinutes: 30 },
+    wipers: { name: "الماسحات", estimatedMinutes: 15 },
+    additives: { name: "المضافات والمحسنات", estimatedMinutes: 10 },
+    // legacy support
+    transOil: { name: "زيت الفتيس (ناقل الحركة)", estimatedMinutes: 45 },
+    brakeCable: { name: "تيل الفرامل", estimatedMinutes: 30 },
     shockAbsorbers: { name: "المساعدين", estimatedMinutes: 40 },
     hydraulics: { name: "الهيدروليك والمصمات", estimatedMinutes: 40 },
     workshopNotes: { name: "ملاحظة الصيانة", estimatedMinutes: 15 },
@@ -57,9 +65,11 @@ export default function WorkOrderDetailPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
+    const { employeeRole, employeeBranchId, permissionWorkOrders, loading: authLoading } = useAuth();
 
     const [order, setOrder] = useState<WorkOrder | null>(null);
     const [loading, setLoading] = useState(true);
+    const [unauthorized, setUnauthorized] = useState(false);
     const [liveSeconds, setLiveSeconds] = useState(0);
     const [isAddingSvc, setIsAddingSvc] = useState(false);
     const [inspectedServices, setInspectedServices] = useState<ReportServiceResult[]>([]);
@@ -72,6 +82,7 @@ export default function WorkOrderDetailPage() {
     
     // Fetch
     useEffect(() => {
+        if (authLoading) return;
         fetchOrder();
         
         // Subscription for live mid-air updates
@@ -81,16 +92,21 @@ export default function WorkOrderDetailPage() {
             }).subscribe();
             
         return () => { supabase.removeChannel(channel); };
-    }, [id]);
+    }, [id, authLoading]);
 
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed, bay_number, selected_services, vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed, bay_number, selected_services, branch_id, vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
         if (data) {
+            if (employeeBranchId && employeeRole !== 'Owner' && data.branch_id && data.branch_id !== employeeBranchId) {
+                setUnauthorized(true);
+                setLoading(false);
+                return;
+            }
             setOrder(data as any as WorkOrder);
             
             let currentLiveSeconds = (data.elapsed_time || 0) * 60;
@@ -183,6 +199,36 @@ export default function WorkOrderDetailPage() {
             fetchOrder();
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionWorkOrders) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى ساحة الورشة والعمل الحي.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (unauthorized) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">أمر العمل هذا ينتمي لفرع آخر، لا يمكنك الاطلاع على تفاصيله.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) return <div className="p-12 text-center text-foreground"><Clock className="animate-spin inline mr-2"/> جاري تحميل البيانات الحية...</div>;
     
@@ -315,6 +361,7 @@ export default function WorkOrderDetailPage() {
                                         Object.entries(services).forEach(([key, value]: [string, any]) => {
                                             const def = PAPER_V2_SERVICE_DEFS[key];
                                             if (!def || !value) return;
+                                            if (value.status === 'جيد') return;
 
                                             const hasStatus = !!value.status;
                                             const hasPrice = value.price !== undefined && value.price !== null && String(value.price).trim() !== "";

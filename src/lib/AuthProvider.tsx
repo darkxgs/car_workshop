@@ -14,6 +14,12 @@ interface AuthContextType {
     employeeName: string | null;
     employeeBranchId: string | null;
     employeeId: string | null;
+    permissionDashboard: boolean | null;
+    permissionReception: boolean | null;
+    permissionWorkOrders: boolean | null;
+    permissionCustomers: boolean | null;
+    permissionReports: boolean | null;
+    permissionEmployees: boolean | null;
     loading: boolean;
     signOut: () => Promise<void>;
     setEmployeeBranchId: (id: string | null) => void;
@@ -26,6 +32,12 @@ const AuthContext = createContext<AuthContextType>({
     employeeName: null,
     employeeBranchId: null,
     employeeId: null,
+    permissionDashboard: null,
+    permissionReception: null,
+    permissionWorkOrders: null,
+    permissionCustomers: null,
+    permissionReports: null,
+    permissionEmployees: null,
     loading: true,
     signOut: async () => {},
     setEmployeeBranchId: () => {},
@@ -38,6 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [employeeName, setEmployeeName] = useState<string | null>(null);
     const [employeeBranchId, setEmployeeBranchId] = useState<string | null>(null);
     const [employeeId, setEmployeeId] = useState<string | null>(null);
+    const [permissionDashboard, setPermissionDashboard] = useState<boolean | null>(null);
+    const [permissionReception, setPermissionReception] = useState<boolean | null>(null);
+    const [permissionWorkOrders, setPermissionWorkOrders] = useState<boolean | null>(null);
+    const [permissionCustomers, setPermissionCustomers] = useState<boolean | null>(null);
+    const [permissionReports, setPermissionReports] = useState<boolean | null>(null);
+    const [permissionEmployees, setPermissionEmployees] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
     const [timedOut, setTimedOut] = useState(false);
     const [debugMsg, setDebugMsg] = useState("بدأ التحقق...");
@@ -58,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const { data, error } = await supabase
                 .from("employees")
-                .select("id, role, name, branch_id")
+                .select("id, role, name, branch_id, permission_dashboard, permission_reception, permission_work_orders, permission_customers, permission_reports, permission_employees")
                 .eq("auth_id", userId)
                 .limit(1)
                 .abortSignal(controller.signal);
@@ -83,6 +101,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setEmployeeName(data[0].name);
             setEmployeeBranchId(data[0].branch_id);
             setEmployeeId(data[0].id);
+            
+            setPermissionDashboard(data[0].permission_dashboard);
+            setPermissionReception(data[0].permission_reception);
+            setPermissionWorkOrders(data[0].permission_work_orders);
+            setPermissionCustomers(data[0].permission_customers);
+            setPermissionReports(data[0].permission_reports);
+            setPermissionEmployees(data[0].permission_employees);
 
             return data[0].role as UserRole;
         } catch (e: any) {
@@ -118,6 +143,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 
                 if (error) {
+                    if (error.message?.includes("Refresh Token") || error.message?.includes("not found") || error.status === 400) {
+                        console.warn("Outdated session detected. Resetting local auth state.");
+                        try {
+                            await supabase.auth.signOut({ scope: 'local' });
+                        } catch {}
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        if (isMounted) {
+                            setSession(null);
+                            setUser(null);
+                            setLoading(false);
+                            router.push("/login");
+                        }
+                        return;
+                    }
                     setDebugError(`getSession error: ${error.message}`);
                 }
 
@@ -147,6 +187,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setEmployeeName(null);
                     setEmployeeBranchId(null);
                     setEmployeeId(null);
+                    setPermissionDashboard(null);
+                    setPermissionReception(null);
+                    setPermissionWorkOrders(null);
+                    setPermissionCustomers(null);
+                    setPermissionReports(null);
+                    setPermissionEmployees(null);
                     setLoading(false);
                     redirect(null);
                 }
@@ -275,7 +321,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, employeeRole, employeeName, employeeBranchId, employeeId, loading, signOut, setEmployeeBranchId }}>
+        <AuthContext.Provider value={{
+            user, session, employeeRole, employeeName, employeeBranchId, employeeId,
+            permissionDashboard, permissionReception, permissionWorkOrders,
+            permissionCustomers, permissionReports, permissionEmployees,
+            loading, signOut, setEmployeeBranchId
+        }}>
             {children}
         </AuthContext.Provider>
     );
