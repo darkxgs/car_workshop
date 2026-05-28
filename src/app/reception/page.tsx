@@ -432,6 +432,43 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
 
             const receptionistName = employees.find(e => e.id === selectedReceptionistId)?.name || '';
 
+            // Calculate estimated duration in minutes
+            const SERVICE_ESTIMATED_MINUTES: Record<string, number> = {
+                engineOil: 30,
+                oilFilter: 20,
+                airFilter: 20,
+                acFilter: 20,
+                brakeFluid: 25,
+                coolant: 30,
+                battery: 20,
+                engineBelts: 30,
+                brakePads: 30,
+                sparkPlugs: 30,
+                gearboxHydraulic: 45,
+                gearboxFilter: 30,
+                wipers: 15,
+                additives: 10,
+            };
+
+            let calculatedDuration = 0;
+            Object.entries(services).forEach(([key, val]: [string, any]) => {
+                if (val && val.status === 'يحتاج تغيير') {
+                    calculatedDuration += SERVICE_ESTIMATED_MINUTES[key] || 30;
+                }
+            });
+            Object.entries(freeServices).forEach(([key, val]) => {
+                if (val) {
+                    calculatedDuration += 10;
+                }
+            });
+            if (Array.isArray(customServices)) {
+                calculatedDuration += customServices.length * 30;
+            }
+
+            if (calculatedDuration === 0) {
+                calculatedDuration = 30; // fallback minimum
+            }
+
             const paperPayload = {
                 is_paper_v2_format: true,
                 freeServices,
@@ -452,6 +489,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
+                        estimated_duration: calculatedDuration,
                     })
                     .eq('id', editReportId);
                 
@@ -472,6 +510,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                     status, total_price: parseFloat(totalPrice || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
+                    estimated_duration: calculatedDuration,
                 })
                 .select('id, report_number').single();
 
@@ -1095,11 +1134,30 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
 function ReceptionContainer() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { employeeBranchId, employeeRole } = useAuth();
+    const { employeeBranchId, employeeRole, permissionReception, loading: authLoading } = useAuth();
     const editId = searchParams.get('edit');
     const [isWizardOpen, setIsWizardOpen] = useState(!!editId);
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionReception) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى نظام الاستقبال وأوامر العمل.</p>
+                </div>
+            </div>
+        );
+    }
 
     useEffect(() => {
         if (editId) {

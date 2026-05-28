@@ -35,28 +35,49 @@ export interface Database {
           id: string
           auth_id: string | null
           name: string
+          username: string | null
           role: Database["public"]["Enums"]["user_role"]
           branch_id: string | null
           phone: string | null
           created_at: string
+          permission_dashboard: boolean | null
+          permission_reception: boolean | null
+          permission_work_orders: boolean | null
+          permission_customers: boolean | null
+          permission_reports: boolean | null
+          permission_employees: boolean | null
         }
         Insert: {
           id?: string
           auth_id?: string | null
           name: string
+          username?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           branch_id?: string | null
           phone?: string | null
           created_at?: string
+          permission_dashboard?: boolean | null
+          permission_reception?: boolean | null
+          permission_work_orders?: boolean | null
+          permission_customers?: boolean | null
+          permission_reports?: boolean | null
+          permission_employees?: boolean | null
         }
         Update: {
           id?: string
           auth_id?: string | null
           name?: string
+          username?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           branch_id?: string | null
           phone?: string | null
           created_at?: string
+          permission_dashboard?: boolean | null
+          permission_reception?: boolean | null
+          permission_work_orders?: boolean | null
+          permission_customers?: boolean | null
+          permission_reports?: boolean | null
+          permission_employees?: boolean | null
         }
         Relationships: [
           {

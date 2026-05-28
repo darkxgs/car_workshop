@@ -46,7 +46,18 @@ const ACCENT_BTN = "bg-rose-600 hover:bg-rose-500 text-white";
 
 export function Sidebar() {
     const pathname = usePathname();
-    const { signOut, employeeRole, employeeBranchId, setEmployeeBranchId } = useAuth();
+    const {
+        signOut,
+        employeeRole,
+        employeeBranchId,
+        setEmployeeBranchId,
+        permissionDashboard,
+        permissionReception,
+        permissionWorkOrders,
+        permissionCustomers,
+        permissionReports,
+        permissionEmployees
+    } = useAuth();
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -90,6 +101,12 @@ export function Sidebar() {
                 { href: "/reports", label: "الفواتير والتقارير (PDF)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
             ]
         },
+        {
+            title: "النظام والإدارة",
+            items: [
+                { href: "/settings", label: t.common.settings || "الإعدادات", icon: <Settings size={20} /> },
+            ]
+        },
         /* -- مخفية مؤقتاً لتبسيط النظام بناءً على طلب العميل --
         {
             title: "المالية والتحليلات (Finance & Analytics)",
@@ -121,9 +138,18 @@ export function Sidebar() {
     const authorizedCategories = navCategories.map(category => ({
         ...category,
         items: category.items.filter(item => {
-            if (!item.roles) return true;
-            if (!employeeRole) return false;
-            return item.roles.includes(employeeRole);
+            // Owner bypasses all tab permission checks
+            if (employeeRole === 'Owner') return true;
+
+            // Map path to appropriate permission flag
+            if (item.href === '/') return !!permissionDashboard;
+            if (item.href === '/reception') return !!permissionReception;
+            if (item.href === '/work-orders') return !!permissionWorkOrders;
+            if (item.href === '/customers') return !!permissionCustomers;
+            if (item.href === '/reports') return !!permissionReports;
+            if (item.href === '/settings') return !!permissionEmployees;
+
+            return true;
         })
     })).filter(category => category.items.length > 0);
 

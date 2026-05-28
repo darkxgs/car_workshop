@@ -11,7 +11,7 @@ import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 
 export default function SettingsPage() {
     const { t } = useLanguage();
-    const { employeeRole, loading: authLoading } = useAuth();
+    const { employeeRole, loading: authLoading, permissionEmployees } = useAuth();
     
     // Auth & Employees State
     const [employees, setEmployees] = useState<any[]>([]);
@@ -30,11 +30,17 @@ export default function SettingsPage() {
 
     const [formData, setFormData] = useState({
         name: "",
-        email: "",
+        username: "",
         phone: "",
         password: "",
         role: "Receptionist" as UserRole,
-        branch_id: ""
+        branch_id: "",
+        permission_dashboard: true,
+        permission_reception: true,
+        permission_work_orders: true,
+        permission_customers: true,
+        permission_reports: true,
+        permission_employees: false
     });
 
     const [branchData, setBranchData] = useState({
@@ -50,18 +56,7 @@ export default function SettingsPage() {
                 .order('created_at', { ascending: false });
                 
             if (!empErr && empData) {
-                // Fetch emails from auth
-                const emailsRes = await getAuthEmails();
-                let employeesWithEmails = empData;
-                
-                if (emailsRes.success && emailsRes.data) {
-                    const emailMap = new Map(emailsRes.data.map((u: any) => [u.id, u.email]));
-                    employeesWithEmails = empData.map(emp => ({
-                        ...emp,
-                        email: emailMap.get(emp.auth_id) || "غير متاح"
-                    }));
-                }
-                setEmployees(employeesWithEmails);
+                setEmployees(empData);
             }
             
             // Fetch Branches
@@ -80,12 +75,12 @@ export default function SettingsPage() {
 
     useEffect(() => {
         if (employeeRole === null) return; 
-        if (employeeRole === "Admin" || employeeRole === "Owner") {
+        if (employeeRole === "Owner" || permissionEmployees) {
             fetchAllData();
         } else {
             setLoadingEnv(false);
         }
-    }, [employeeRole]);
+    }, [employeeRole, permissionEmployees]);
 
     const handleDeleteBranch = async (id: string, name: string) => {
         const isConfirmed = await showConfirm(
@@ -119,8 +114,8 @@ export default function SettingsPage() {
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.role) {
-            showError("بيانات ناقصة", "يرجى تعبئة الحقول المطلوبة (الاسم، الصلاحية)");
+        if (!formData.name || !formData.role || !formData.username) {
+            showError("بيانات ناقصة", "يرجى تعبئة الحقول المطلوبة (الاسم، اسم المستخدم، الصلاحية)");
             return;
         }
         setIsSubmitting(true);
@@ -130,10 +125,23 @@ export default function SettingsPage() {
         
         if (res.success) {
             setIsAddModalOpen(false);
-            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
+            setFormData({
+                name: "",
+                username: "",
+                phone: "",
+                password: "",
+                role: "Receptionist",
+                branch_id: "",
+                permission_dashboard: true,
+                permission_reception: true,
+                permission_work_orders: true,
+                permission_customers: true,
+                permission_reports: true,
+                permission_employees: false
+            });
             await fetchAllData();
         } else {
-            setFormError(res.error || "فشل في إنشاء الحساب. لعل البريد الإلكتروني مستخدم مسبقاً.");
+            setFormError(res.error || "فشل في إنشاء الحساب. لعل اسم المستخدم مستخدم مسبقاً.");
         }
         
         setIsSubmitting(false);
@@ -147,11 +155,17 @@ export default function SettingsPage() {
         setEditingEmployeeId(emp.auth_id);
         setFormData({
             name: emp.name,
-            email: emp.email || "غير متاح للتعديل", // Display real email if available
+            username: emp.username || "",
             phone: emp.phone || "",
             password: "", // empty so it won't update unless typed
             role: emp.role as UserRole,
-            branch_id: emp.branch_id || ""
+            branch_id: emp.branch_id || "",
+            permission_dashboard: emp.permission_dashboard ?? true,
+            permission_reception: emp.permission_reception ?? true,
+            permission_work_orders: emp.permission_work_orders ?? true,
+            permission_customers: emp.permission_customers ?? true,
+            permission_reports: emp.permission_reports ?? true,
+            permission_employees: emp.permission_employees ?? false
         });
         setIsEditModalOpen(true);
     };
@@ -167,7 +181,20 @@ export default function SettingsPage() {
         if (res.success) {
             showSuccess("تم التحديث", "تم تحديث بيانات المستخدم بنجاح");
             setIsEditModalOpen(false);
-            setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
+            setFormData({
+                name: "",
+                username: "",
+                phone: "",
+                password: "",
+                role: "Receptionist",
+                branch_id: "",
+                permission_dashboard: true,
+                permission_reception: true,
+                permission_work_orders: true,
+                permission_customers: true,
+                permission_reports: true,
+                permission_employees: false
+            });
             setEditingEmployeeId(null);
             await fetchAllData();
         } else {
@@ -250,7 +277,7 @@ export default function SettingsPage() {
         return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-rose-500 w-10 h-10" /></div>;
     }
 
-    if (employeeRole !== "Admin" && employeeRole !== "Owner") {
+    if (employeeRole !== "Owner" && !permissionEmployees) {
         return (
             <div className="p-8 flex items-center justify-center min-h-[50vh] animate-fade-in" dir="rtl">
                 <div className="glass-card p-8 rounded-2xl border-border text-center max-w-md w-full relative overflow-hidden">
@@ -372,7 +399,7 @@ export default function SettingsPage() {
                                                 <div className="w-8 h-8 rounded-full bg-cyan-950/30 text-cyan-500 flex items-center justify-center border border-cyan-900/50 font-mono text-xs shadow-sm">{emp.name.charAt(0)}</div>
                                                 <div className="flex flex-col">
                                                     <span>{emp.name}</span>
-                                                    <span className="text-[10px] text-muted-foreground font-mono font-normal mt-0.5" dir="ltr">{emp.email || "—"}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-mono font-normal mt-0.5" dir="ltr">@{emp.username || "—"}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -477,8 +504,8 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="emp-email" className="text-sm font-medium text-muted-foreground">البريد الإلكتروني (لتسجيل الدخول)</label>
-                                <input id="emp-email" name="email" required type="email" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 text-left" dir="ltr" placeholder="employee@autoworkshop.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                                <label htmlFor="emp-username" className="text-sm font-medium text-muted-foreground">اسم المستخدم (لتسجيل الدخول)</label>
+                                <input id="emp-username" name="username" required type="text" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 text-left font-mono" dir="ltr" placeholder="مثال: ahmed123" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                             </div>
 
                             <div className="space-y-2">
@@ -505,9 +532,39 @@ export default function SettingsPage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="col-span-2 space-y-2">
                                     <label htmlFor="emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال للتنبيهات</label>
                                     <input id="emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 border-t border-border pt-4 mt-4">
+                                <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
+                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_reception} onChange={e => setFormData({...formData, permission_reception: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">الاستقبال وأوامر العمل</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_work_orders} onChange={e => setFormData({...formData, permission_work_orders: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">ساحة الورشة (العمل الحي)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_customers} onChange={e => setFormData({...formData, permission_customers: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">سجل العملاء CRM</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_reports} onChange={e => setFormData({...formData, permission_reports: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">الفواتير والتقارير المالية</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_employees} onChange={e => setFormData({...formData, permission_employees: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">إدارة الموظفين والصلاحيات</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -533,7 +590,20 @@ export default function SettingsPage() {
                             <button type="button" onClick={() => {
                                 setIsEditModalOpen(false);
                                 setEditingEmployeeId(null);
-                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
+                                setFormData({
+                                    name: "",
+                                    username: "",
+                                    phone: "",
+                                    password: "",
+                                    role: "Receptionist",
+                                    branch_id: "",
+                                    permission_dashboard: true,
+                                    permission_reception: true,
+                                    permission_work_orders: true,
+                                    permission_customers: true,
+                                    permission_reports: true,
+                                    permission_employees: false
+                                });
                             }} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg border border-border">
                                 <X size={20} />
                             </button>
@@ -553,8 +623,8 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="edit-emp-email" className="text-sm font-medium text-muted-foreground">البريد الإلكتروني (غير متاح للتعديل)</label>
-                                <input id="edit-emp-email" name="email" readOnly type="email" className="w-full bg-muted border border-border rounded-xl p-3 text-muted-foreground focus:outline-none cursor-not-allowed text-left" dir="ltr" value={formData.email} />
+                                <label htmlFor="edit-emp-username" className="text-sm font-medium text-muted-foreground">اسم المستخدم (لتسجيل الدخول)</label>
+                                <input id="edit-emp-username" name="username" required type="text" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 text-left font-mono" dir="ltr" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                             </div>
 
                             <div className="space-y-2">
@@ -581,9 +651,39 @@ export default function SettingsPage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="col-span-2 space-y-2">
                                     <label htmlFor="edit-emp-phone" className="text-sm font-medium text-muted-foreground">رقم الجوال</label>
                                     <input id="edit-emp-phone" name="phone" type="tel" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left" dir="ltr" placeholder="05XXXXXXXX" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 border-t border-border pt-4 mt-4">
+                                <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
+                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_reception} onChange={e => setFormData({...formData, permission_reception: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">الاستقبال وأوامر العمل</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_work_orders} onChange={e => setFormData({...formData, permission_work_orders: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">ساحة الورشة (العمل الحي)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_customers} onChange={e => setFormData({...formData, permission_customers: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">سجل العملاء CRM</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_reports} onChange={e => setFormData({...formData, permission_reports: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">الفواتير والتقارير المالية</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                        <input type="checkbox" checked={formData.permission_employees} onChange={e => setFormData({...formData, permission_employees: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                        <span className="text-foreground font-medium">إدارة الموظفين والصلاحيات</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -592,7 +692,20 @@ export default function SettingsPage() {
                             <button type="button" onClick={() => {
                                 setIsEditModalOpen(false);
                                 setEditingEmployeeId(null);
-                                setFormData({ name: "", email: "", phone: "", password: "", role: "Receptionist", branch_id: "" });
+                                setFormData({
+                                    name: "",
+                                    username: "",
+                                    phone: "",
+                                    password: "",
+                                    role: "Receptionist",
+                                    branch_id: "",
+                                    permission_dashboard: true,
+                                    permission_reception: true,
+                                    permission_work_orders: true,
+                                    permission_customers: true,
+                                    permission_reports: true,
+                                    permission_employees: false
+                                });
                             }} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
                             <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.2)] disabled:opacity-50">
                                 {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} تحديث البيانات

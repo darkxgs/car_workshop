@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { 
     Users, User, Search, Download, Plus, MapPin, Phone, 
     Mail, Car, FileText, ChevronLeft, ShieldAlert,
-    Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench
+    Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench, Loader2
 } from "lucide-react";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import Link from "next/link";
@@ -30,8 +30,27 @@ type ClientWithVehicles = {
 export default function CustomersPage() {
     const { t } = useLanguage();
     const router = useRouter();
-    const { employeeRole, employeeBranchId } = useAuth();
+    const { employeeRole, employeeBranchId, permissionCustomers, loading: authLoading } = useAuth();
     const isOwnerOrAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (employeeRole !== 'Owner' && !permissionCustomers) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى سجل العملاء والمركبات.</p>
+                </div>
+            </div>
+        );
+    }
     
     const [clients, setClients] = useState<ClientWithVehicles[]>([]);
     const [loading, setLoading] = useState(true);
