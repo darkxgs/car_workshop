@@ -143,9 +143,92 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
     },
 ];
 
+const SECTOR_BRANCH_SERVICES = [
+    {
+        section: "المحرك",
+        items: [
+            { key: "engineFlash", label: "فلاش محرك", guide: "أول زيارة / 30K كم", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "engineOil", label: "زيت محرك", guide: "5K - 10K km", detailFields: [
+                { key: "brand", label: "النوع / الماركة", listId: "oilBrands" },
+                { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
+                { key: "qty", label: "عدد اللترات" },
+                { key: "unitPrice", label: "سعر اللتر" },
+            ]},
+            { key: "oilFilter", label: "فلتر زيت محرك", guide: "مع تغيير الزيت", detailFields: [
+                { key: "brand",      label: "النوع / الماركة", listId: "filterBrands" },
+                { key: "filterNum", label: "رقم الفلتر" },
+            ]},
+            { key: "coolant", label: "ماء / سائل تبريد", guide: "عند النقص", detailFields: [
+                { key: "brand", label: "النوع / الماركة" },
+                { key: "qty",  label: "العدد" },
+                { key: "unitPrice", label: "سعر العبوة" },
+            ]},
+            { key: "engineCeramic", label: "سيراميك محرك", guide: "30K - 50K km", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "linerCleaner", label: "منظف بطانة (جكجكة)", guide: "كل 20K - 30K", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "oilLeakPreventer", label: "مانع تسريب زيت", guide: "عند نضوح زيت", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "smokePreventer", label: "مانع دخان / نقص زيت", guide: "عند نقص الزيت / دخان", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+        ]
+    },
+    {
+        section: "الكير",
+        items: [
+            { key: "gearboxFlash", label: "فلاش كير", guide: "التبديل الكامل", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "gearboxOil", label: "زيت كير", guide: "40K - 60K km", detailFields: [
+                { key: "brand", label: "النوع / الماركة" },
+                { key: "qty",  label: "اللترات" },
+            ]},
+            { key: "gearboxFilter", label: "فلتر كير", guide: "مع زيت الكير", detailFields: [
+                { key: "brand", label: "النوع / الماركة" },
+                { key: "filterNum", label: "رقم الفلتر" },
+                { key: "unitPrice", label: "السعر" },
+            ]},
+            { key: "gearboxCeramic", label: "سيراميك كير", guide: "لحماية التروس", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "gearboxAntiSlip", label: "مانع انزلاق الكير", guide: "عند النتعة / التأخير", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+        ]
+    },
+    {
+        section: "التبريد والفرامل",
+        items: [
+            { key: "airFilter", label: "فلتر هواء", guide: "5K - 10K km", detailFields: [
+                { key: "brand",      label: "النوع / الماركة", listId: "filterBrands" },
+                { key: "filterNum", label: "رقم الفلتر" },
+            ]},
+            { key: "acFilter", label: "فلتر تبريد", guide: "مع الفلتر / 6 أشهر", detailFields: [
+                { key: "brand",      label: "النوع / الماركة" },
+                { key: "filterNum", label: "رقم الفلتر" },
+            ]},
+            { key: "acCleaner", label: "منظف دورة التبريد", guide: "مع فلتر التبريد", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "brakeFluid", label: "زيت بريك", guide: "40K km", detailFields: [
+                { key: "brand", label: "النوع / الماركة" },
+                { key: "qty",  label: "عدد القطع" },
+            ]},
+        ]
+    },
+    {
+        section: "المنظفات والأساسيات",
+        items: [
+            { key: "injectorCleaner", label: "منظف بخاخات", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "fuelSystemCleaner", label: "منظف نظام الوقود", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "octaneBooster", label: "أوكتان بنزين", guide: "أساسي للوقود", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "battery", label: "البطارية", guide: "فحص دوري", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "batteryFilter", label: "فلتر البطارية", guide: "حسب الصيانة", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+            { key: "wipers", label: "مساحات زجاج", guide: "موسمي", detailFields: [
+                { key: "brand", label: "النوع / الماركة", listId: "wiperTypes" },
+                { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }
+            ]},
+            { key: "windshieldFluid", label: "سائل غسيل جام", guide: "عند النقص", detailFields: [{ key: "brand", label: "النوع / الماركة" }, { key: "qty", label: "الكمية" }] },
+        ]
+    }
+];
+
 const initServices = (): Record<string, ServiceEntry> => {
     const obj: Record<string, ServiceEntry> = {};
     MAIN_SERVICES.forEach(s => { obj[s.key] = makeService(); });
+    SECTOR_BRANCH_SERVICES.forEach(section => {
+        section.items.forEach(s => {
+            obj[s.key] = makeService();
+        });
+    });
     return obj;
 };
 
@@ -163,6 +246,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     // ---------- Branches ----------
     const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+    const [branchChangePending, setBranchChangePending] = useState<string | null>(null);
 
     // ---------- Employees ----------
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
@@ -206,6 +290,10 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [error, setError] = useState<string | null>(null);
     const [createdWorkOrderId, setCreatedWorkOrderId] = useState<string | null>(null);
     const [reportNumber, setReportNumber] = useState<number | null>(null);
+
+    const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
+
+
 
     // Fetch branches + employees on mount
     useEffect(() => {
@@ -347,8 +435,8 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         setServices(prev => {
             const newDet = { ...prev[key].details, [field]: value };
             let newPrice = prev[key].price;
-            if (key === 'engineOil' && (field === 'liters' || field === 'unitPrice')) {
-                const l = parseFloat(field === 'liters' ? value : newDet.liters) || 0;
+            if (key === 'engineOil' && (field === 'liters' || field === 'qty' || field === 'unitPrice')) {
+                const l = parseFloat(field === 'liters' || field === 'qty' ? value : (newDet.liters || newDet.qty)) || 0;
                 const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
                 newPrice = (l * up) > 0 ? (l * up).toString() : '';
             }
@@ -448,6 +536,22 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 gearboxFilter: 30,
                 wipers: 15,
                 additives: 10,
+                // Sector Branch new service keys mapping
+                engineFlash: 20,
+                engineCeramic: 15,
+                linerCleaner: 15,
+                oilLeakPreventer: 15,
+                smokePreventer: 15,
+                gearboxFlash: 25,
+                gearboxOil: 35,
+                gearboxCeramic: 15,
+                gearboxAntiSlip: 15,
+                acCleaner: 20,
+                injectorCleaner: 20,
+                fuelSystemCleaner: 20,
+                octaneBooster: 10,
+                batteryFilter: 15,
+                windshieldFluid: 10,
             };
 
             let calculatedDuration = 0;
@@ -525,7 +629,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         }
     };
 
-    const resetWizard = () => {
+    const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
         setOdometer(""); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
@@ -533,7 +637,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         setCustomServices([]);
         setBookletType("");
         setBookletChanges("");
-        setSelectedBranchId("");
+        setSelectedBranchId(newBranchId || "");
         setSelectedReceptionistId(""); setSelectedTechnicianId("");
         setTotalPrice(""); setDiscount(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
@@ -611,7 +715,19 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                                     <label className="text-sm font-medium text-muted-foreground">الفرع <span className="text-rose-500">*</span></label>
                                     <select
                                         value={selectedBranchId}
-                                        onChange={e => setSelectedBranchId(e.target.value)}
+                                        onChange={(e) => {
+                                            const newBranchId = e.target.value;
+                                            const hasData = name.trim() !== "" || phone.trim() !== "" || make.trim() !== "" || model.trim() !== "" || odometer.trim() !== "" || plateNumber.trim() !== "" ||
+                                                Object.values(freeServices).some(v => v) ||
+                                                Object.values(services).some(s => s.status !== "") ||
+                                                customServices.length > 0;
+                                            
+                                            if (hasData) {
+                                                setBranchChangePending(newBranchId);
+                                            } else {
+                                                setSelectedBranchId(newBranchId);
+                                            }
+                                        }}
                                         className="input-field"
                                     >
                                         <option value="">-- اختر الفرع --</option>
@@ -749,147 +865,227 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         {/* Main 14 Services */}
                         <div>
                             <h3 className="text-lg font-bold mb-4 pb-2 border-b border-border text-foreground">
-                                خدمات العميل (1-{MAIN_SERVICES.length}) — فحص دوري مع كل زيارة
+                                {isSectorBranch 
+                                    ? "خدمات فرع القطاع — فحص دوري مع كل زيارة"
+                                    : `خدمات العميل (1-${MAIN_SERVICES.length}) — فحص دوري مع كل زيارة`
+                                }
                             </h3>
 
-                            <div className="space-y-3">
-                                {MAIN_SERVICES.map((svc, idx) => {
-                                    const entry = services[svc.key];
-                                    return (
-                                        <div key={svc.key} className={`rounded-xl border transition-colors ${entry.status === 'يحتاج تغيير' ? 'border-rose-500/40 bg-rose-950/10' : entry.status === 'جيد' ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border bg-background/40'}`}>
-                                            <div className="flex flex-wrap items-center gap-3 p-3">
-                                                {/* Row number + name */}
-                                                <span className="text-xs font-mono text-muted-foreground w-5 text-center">{idx + 1}</span>
-                                                <span className="font-bold text-sm flex-1 min-w-[140px]">{svc.label}</span>
+                            {isSectorBranch ? (
+                                <div className="space-y-6">
+                                    {SECTOR_BRANCH_SERVICES.map((section) => (
+                                        <div key={section.section} className="space-y-3">
+                                            <h4 className="text-md font-bold text-rose-500 border-r-4 border-rose-500 pr-2 dark:text-rose-400">
+                                                {section.section}
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {section.items.map((svc, idx) => {
+                                                    const entry = services[svc.key] || { status: "", details: {}, price: "" };
+                                                    return (
+                                                        <div key={svc.key} className={`rounded-xl border transition-colors ${entry.status === 'يحتاج تغيير' ? 'border-rose-500/40 bg-rose-950/10' : entry.status === 'جيد' ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border bg-background/40'}`}>
+                                                            <div className="flex flex-wrap items-center gap-3 p-3">
+                                                                <span className="text-xs font-mono text-muted-foreground w-5 text-center">{idx + 1}</span>
+                                                                <div className="flex flex-col flex-1 min-w-[140px]">
+                                                                    <span className="font-bold text-sm">{svc.label}</span>
+                                                                    <span className="text-xs text-muted-foreground">{svc.guide}</span>
+                                                                </div>
 
-                                                {/* Status buttons */}
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => setServiceStatus(svc.key, "جيد")}
-                                                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "جيد" ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-muted border-border hover:border-emerald-500/50'}`}>
-                                                        جيد ✓
-                                                    </button>
-                                                    <button onClick={() => setServiceStatus(svc.key, "يحتاج تغيير")}
-                                                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "يحتاج تغيير" ? 'bg-rose-600 border-rose-500 text-white' : 'bg-muted border-border hover:border-rose-500/50'}`}>
-                                                        يحتاج تغيير
-                                                    </button>
-                                                </div>
+                                                                {/* Status buttons */}
+                                                                <div className="flex gap-2">
+                                                                    <button onClick={() => setServiceStatus(svc.key, "جيد")}
+                                                                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "جيد" ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-muted border-border hover:border-emerald-500/50'}`}>
+                                                                        جيد ✓
+                                                                    </button>
+                                                                    <button onClick={() => setServiceStatus(svc.key, "يحتاج تغيير")}
+                                                                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "يحتاج تغيير" ? 'bg-rose-600 border-rose-500 text-white' : 'bg-muted border-border hover:border-rose-500/50'}`}>
+                                                                        يحتاج تغيير
+                                                                    </button>
+                                                                </div>
 
-                                                {/* Price field */}
-                                                <div className="flex items-center gap-1">
-                                                    <input
-                                                        type="number"
-                                                        placeholder="السعر"
-                                                        className="input-field text-xs py-1.5 w-24 text-left"
-                                                        dir="ltr"
-                                                        value={entry.price}
-                                                        onChange={e => setServicePrice(svc.key, e.target.value)}
-                                                    />
-                                                    <span className="text-xs text-muted-foreground">د.ع</span>
-                                                </div>
-                                            </div>
+                                                                {/* Price field */}
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="السعر"
+                                                                        className="input-field text-xs py-1.5 w-24 text-left"
+                                                                        dir="ltr"
+                                                                        value={entry.price}
+                                                                        onChange={e => setServicePrice(svc.key, e.target.value)}
+                                                                    />
+                                                                    <span className="text-xs text-muted-foreground">د.ع</span>
+                                                                </div>
+                                                            </div>
 
-                                            {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives') && (
-                                                <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                    {svc.key === 'additives' ? (
-                                                        <div className="flex flex-col gap-2 w-full max-w-sm">
-                                                            {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
-                                                                const priceKey = k.replace('prod_', 'price_');
-                                                                return (
-                                                                    <div key={k} className="flex items-center gap-2">
-                                                                        <input
-                                                                            type="text"
-                                                                            placeholder={`اسم المنتج ${i + 1}`}
-                                                                            className="input-field text-xs py-1.5 flex-1"
-                                                                            value={entry.details[k] || ""}
-                                                                            onChange={e => setServiceDetail(svc.key, k, e.target.value)}
-                                                                        />
-                                                                        <div className="flex items-center gap-1 w-24">
-                                                                            <input 
-                                                                                type="number"
-                                                                                placeholder="السعر"
-                                                                                className="input-field text-xs py-1.5 w-full text-left"
-                                                                                dir="ltr"
-                                                                                value={entry.details[priceKey] || ""}
-                                                                                onChange={e => {
-                                                                                    setServiceDetail(svc.key, priceKey, e.target.value);
-                                                                                    setTimeout(() => {
-                                                                                        setServices(prev => {
-                                                                                            const svcData = prev[svc.key];
-                                                                                            const details = svcData.details;
-                                                                                            let sum = 0;
-                                                                                            Object.keys(details).forEach(dk => {
-                                                                                                if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
-                                                                                            });
-                                                                                            return { ...prev, [svc.key]: { ...svcData, price: sum > 0 ? String(sum) : "" } };
-                                                                                        });
-                                                                                    }, 50);
-                                                                                }}
+                                                            {/* Expandable detail fields when يحتاج تغيير is selected */}
+                                                            {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
+                                                                <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
+                                                                    {svc.detailFields.map(df => {
+                                                                        return (
+                                                                            <input
+                                                                                key={df.key}
+                                                                                type={df.key === 'unitPrice' || df.key === 'qty' || df.key === 'liters' ? "number" : "text"}
+                                                                                placeholder={df.label}
+                                                                                list={df.listId}
+                                                                                className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                                                                value={entry.details[df.key] || ""}
+                                                                                onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
                                                                             />
-                                                                        </div>
-                                                                        {i > 0 && (
-                                                                            <button type="button" onClick={() => {
-                                                                                const newDetails = {...entry.details};
-                                                                                delete newDetails[k];
-                                                                                delete newDetails[priceKey];
-                                                                                let sum = 0;
-                                                                                Object.keys(newDetails).forEach(dk => {
-                                                                                    if (dk.startsWith('price_')) sum += Number(newDetails[dk] || 0);
-                                                                                });
-                                                                                setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : ""}}));
-                                                                            }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                            <button 
-                                                                type="button" 
-                                                                onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')}
-                                                                className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3"
-                                                            >
-                                                                + منتج آخر
-                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ) : svc.detailFields.map(df => {
-                                                        if (svc.key === 'coolant' && df.key === 'size') {
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {MAIN_SERVICES.map((svc, idx) => {
+                                        const entry = services[svc.key];
+                                        return (
+                                            <div key={svc.key} className={`rounded-xl border transition-colors ${entry.status === 'يحتاج تغيير' ? 'border-rose-500/40 bg-rose-950/10' : entry.status === 'جيد' ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border bg-background/40'}`}>
+                                                <div className="flex flex-wrap items-center gap-3 p-3">
+                                                    {/* Row number + name */}
+                                                    <span className="text-xs font-mono text-muted-foreground w-5 text-center">{idx + 1}</span>
+                                                    <span className="font-bold text-sm flex-1 min-w-[140px]">{svc.label}</span>
+
+                                                    {/* Status buttons */}
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => setServiceStatus(svc.key, "جيد")}
+                                                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "جيد" ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-muted border-border hover:border-emerald-500/50'}`}>
+                                                            جيد ✓
+                                                        </button>
+                                                        <button onClick={() => setServiceStatus(svc.key, "يحتاج تغيير")}
+                                                            className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${entry.status === "يحتاج تغيير" ? 'bg-rose-600 border-rose-500 text-white' : 'bg-muted border-border hover:border-rose-500/50'}`}>
+                                                            يحتاج تغيير
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Price field */}
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            placeholder="السعر"
+                                                            className="input-field text-xs py-1.5 w-24 text-left"
+                                                            dir="ltr"
+                                                            value={entry.price}
+                                                            onChange={e => setServicePrice(svc.key, e.target.value)}
+                                                        />
+                                                        <span className="text-xs text-muted-foreground">د.ع</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Expandable detail fields when يحتاج تغيير is selected */}
+                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives') && (
+                                                    <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
+                                                        {svc.key === 'additives' ? (
+                                                            <div className="flex flex-col gap-2 w-full max-w-sm">
+                                                                {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
+                                                                    const priceKey = k.replace('prod_', 'price_');
+                                                                    return (
+                                                                        <div key={k} className="flex items-center gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder={`اسم المنتج ${i + 1}`}
+                                                                                className="input-field text-xs py-1.5 flex-1"
+                                                                                value={entry.details[k] || ""}
+                                                                                onChange={e => setServiceDetail(svc.key, k, e.target.value)}
+                                                                            />
+                                                                            <div className="flex items-center gap-1 w-24">
+                                                                                <input 
+                                                                                    type="number"
+                                                                                    placeholder="السعر"
+                                                                                    className="input-field text-xs py-1.5 w-full text-left"
+                                                                                    dir="ltr"
+                                                                                    value={entry.details[priceKey] || ""}
+                                                                                    onChange={e => {
+                                                                                        setServiceDetail(svc.key, priceKey, e.target.value);
+                                                                                        setTimeout(() => {
+                                                                                            setServices(prev => {
+                                                                                                const svcData = prev[svc.key];
+                                                                                                const details = svcData.details;
+                                                                                                let sum = 0;
+                                                                                                Object.keys(details).forEach(dk => {
+                                                                                                    if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
+                                                                                                });
+                                                                                                return { ...prev, [svc.key]: { ...svcData, price: sum > 0 ? String(sum) : "" } };
+                                                                                            });
+                                                                                        }, 50);
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                            {i > 0 && (
+                                                                                <button type="button" onClick={() => {
+                                                                                    const newDetails = {...entry.details};
+                                                                                    delete newDetails[k];
+                                                                                    delete newDetails[priceKey];
+                                                                                    let sum = 0;
+                                                                                    Object.keys(newDetails).forEach(dk => {
+                                                                                        if (dk.startsWith('price_')) sum += Number(newDetails[dk] || 0);
+                                                                                    });
+                                                                                    setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : ""}}));
+                                                                                }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')}
+                                                                    className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3"
+                                                                >
+                                                                    + منتج آخر
+                                                                </button>
+                                                            </div>
+                                                        ) : svc.detailFields.map(df => {
+                                                            if (svc.key === 'coolant' && df.key === 'size') {
+                                                                return (
+                                                                    <select 
+                                                                        key={df.key} 
+                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                                                        value={entry.details[df.key] || ""}
+                                                                        onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
+                                                                    >
+                                                                        <option value="">اختر الحجم</option>
+                                                                        <option value="دبة 1 لتر">دبة 1 لتر</option>
+                                                                        <option value="دبة 4 لتر">دبة 4 لتر</option>
+                                                                    </select>
+                                                                );
+                                                            }
                                                             return (
-                                                                <select 
-                                                                    key={df.key} 
+                                                                <input
+                                                                    key={df.key}
+                                                                    type={df.key === 'unitPrice' || df.key === 'qty' ? "number" : "text"}
+                                                                    placeholder={df.label}
+                                                                    list={df.listId}
                                                                     className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
                                                                     value={entry.details[df.key] || ""}
                                                                     onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
-                                                                >
-                                                                    <option value="">اختر الحجم</option>
-                                                                    <option value="دبة 1 لتر">دبة 1 لتر</option>
-                                                                    <option value="دبة 4 لتر">دبة 4 لتر</option>
-                                                                </select>
+                                                                />
                                                             );
-                                                        }
-                                                        return (
-                                                            <input
-                                                                key={df.key}
-                                                                type={df.key === 'unitPrice' || df.key === 'qty' ? "number" : "text"}
-                                                                placeholder={df.label}
-                                                                list={df.listId}
-                                                                className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
-                                                                value={entry.details[df.key] || ""}
-                                                                onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
-                                                            />
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
                         {/* Maintenance Events (أحداث الصيانة - previously Custom Services) */}
                         <div className="rounded-xl border border-border bg-background/40">
                             <div className="flex flex-wrap items-center justify-between gap-3 p-3">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xs font-mono text-muted-foreground w-5 text-center">{MAIN_SERVICES.length + 1}</span>
+                                    <span className="text-xs font-mono text-muted-foreground w-5 text-center">
+                                        {isSectorBranch 
+                                            ? SECTOR_BRANCH_SERVICES.reduce((acc, s) => acc + s.items.length, 0) + 1
+                                            : MAIN_SERVICES.length + 1
+                                        }
+                                    </span>
                                     <span className="font-bold text-sm min-w-[140px]">أحداث الصيانة (خدمات إضافية)</span>
                                 </div>
                                 {customServices.length === 0 && (
@@ -1058,7 +1254,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         </a>
                     </div>
                     <div className="mt-8 pt-8 border-t border-border">
-                        <button onClick={resetWizard} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-bold">
+                        <button onClick={() => resetWizard()} className="text-muted-foreground hover:text-foreground transition-colors text-sm font-bold">
                             + إنشاء أمر عمل جديد
                         </button>
                     </div>
@@ -1126,6 +1322,42 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 <option value="26 Inch" />
                 <option value="28 Inch" />
             </datalist>
+
+            {branchChangePending && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-ibm">
+                    <div className="bg-[#0b0f19] border border-rose-900/30 rounded-3xl p-6 max-w-md w-full shadow-[0_0_50px_rgba(244,63,94,0.15)] animate-scale-in text-center space-y-6" dir="rtl">
+                        {/* Glowing Alert Icon */}
+                        <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+                            <AlertCircle className="text-rose-500 w-8 h-8 animate-pulse" />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-bold text-foreground">تغيير الفرع الحالي</h3>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                سيتم مسح جميع البيانات التي قمت بإدخالها والبدء من جديد عند تبديل الفرع. هل أنت متأكد من الاستمرار؟
+                            </p>
+                        </div>
+                        
+                        <div className="flex gap-3 justify-center pt-2">
+                            <button
+                                onClick={() => {
+                                    resetWizard(branchChangePending);
+                                    setBranchChangePending(null);
+                                }}
+                                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-rose-600/20 w-1/2"
+                            >
+                                نعم، تبديل ومسح
+                            </button>
+                            <button
+                                onClick={() => setBranchChangePending(null)}
+                                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-foreground border border-slate-700 font-bold rounded-xl transition-all w-1/2"
+                            >
+                                إلغاء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

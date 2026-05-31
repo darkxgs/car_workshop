@@ -14,8 +14,8 @@ export default function PrintPage() {
     const id = params.id as string;
     const mode = searchParams.get('mode') || 'full';
     const [report, setReport] = useState<any>(null);
-    const [services, setServices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [scale, setScale] = useState(1);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -23,7 +23,8 @@ export default function PrintPage() {
                 .from("inspection_reports")
                 .select(`
                     id, report_number, status, created_at, completed_at, odometer_reading,
-                    estimated_duration, elapsed_time, start_time, selected_services, notes,
+                    estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
+                    branches(id, name),
                     vehicles (make, model, plate_number, engine_size, clients (name, phone)),
                     receptionist:receptionist_id(name)
                 `)
@@ -32,17 +33,27 @@ export default function PrintPage() {
 
             if (reportData) {
                 setReport(reportData);
-                const { data: svcs } = await supabase
-                    .from("report_services")
-                    .select("*")
-                    .eq("report_id", id);
-                setServices(svcs || []);
             }
             setLoading(false);
         };
 
         fetchData();
     }, [id]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth;
+            if (width < 840) {
+                // scale to fit within viewport width with 20px padding on each side
+                setScale((width - 40) / 800);
+            } else {
+                setScale(1);
+            }
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         // Auto-trigger print once data is loaded
@@ -74,10 +85,30 @@ export default function PrintPage() {
                 html, body { background: white; }
                 @media screen {
                     body { padding: 20px; background: #f5f5f5; }
+                    .print-scale-container {
+                        width: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: flex-start;
+                        overflow: hidden;
+                        padding: 10px 0;
+                    }
                 }
                 @media print {
                     html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
                     @page { size: A4 portrait; margin: 0; }
+                    .print-scale-container {
+                        padding: 0 !important;
+                        overflow: visible !important;
+                        display: block !important;
+                    }
+                    .print-scale-wrapper {
+                        transform: none !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        height: auto !important;
+                    }
                 }
                 .no-print-btn {
                     position: fixed; bottom: 20px; right: 20px;
@@ -104,7 +135,18 @@ export default function PrintPage() {
                 </button>
             </div>
 
-            <PrintableInspectionReport report={report} mode={mode} />
+            <div className="print-scale-container">
+                <div className="print-scale-wrapper" style={{
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top center',
+                    width: '800px',
+                    flexShrink: 0,
+                    marginBottom: `calc(800px * (${scale} - 1))`,
+                    height: 'auto'
+                }}>
+                    <PrintableInspectionReport report={report} mode={mode} />
+                </div>
+            </div>
         </>
     );
 }
