@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X } from "lucide-react";
 import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
+import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 type WorkOrder = {
     id: string;
@@ -15,9 +16,11 @@ type WorkOrder = {
     estimated_duration: number;
     elapsed_time: number;
     start_time: string | null;
+    completed_at?: string | null;
     is_delayed: boolean;
     selected_services: any[];
     receptionist: { name: string } | null;
+    branches?: { id: string; name: string } | null;
     vehicles: { make: string; model: string; plate_number: string, clients?: { name: string; phone: string } };
     bay_number: string | null;
     technician_id: string | null;
@@ -96,6 +99,10 @@ export default function WorkOrderDetailPage() {
     const [diagStatus, setDiagStatus] = useState("يحتاج صيانة");
     const [diagNotes, setDiagNotes] = useState("");
     
+    // Print Preview States
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewMode, setPreviewMode] = useState<'full' | 'short'>('short');
+    
     // Fetch
     useEffect(() => {
         if (authLoading) return;
@@ -113,7 +120,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, is_delayed, bay_number, selected_services, branch_id, vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, bay_number, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -279,6 +286,12 @@ export default function WorkOrderDetailPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
+                    <button
+                        onClick={() => { setPreviewOpen(true); setPreviewMode('short'); }}
+                        className="px-4 py-2.5 bg-cyan-600/10 hover:bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 font-bold transition-all flex items-center gap-2 rounded-xl text-xs md:text-sm shadow-sm shadow-cyan-950/20"
+                    >
+                        <Eye size={16} /> معاينة التقرير 🔍
+                    </button>
                     <div className="flex bg-background border border-border rounded-xl shadow-sm overflow-hidden">
                         <button 
                             onClick={() => router.push(`/print/${id}?mode=short`)}
@@ -506,6 +519,73 @@ export default function WorkOrderDetailPage() {
 
                 </div>
             </div>
+
+            {/* Print Preview Modal */}
+            {previewOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in font-ibm">
+                    <div className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl p-6 max-w-4xl w-full h-[90vh] shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col space-y-4 text-right" dir="rtl">
+                        
+                        {/* Header Area */}
+                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                                {order && (
+                                    <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                        #{order.report_number}
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Controls */}
+                            <div className="flex items-center gap-3">
+                                {/* Toggle full/short Mode */}
+                                <div className="flex bg-muted rounded-xl p-1 border border-border/40">
+                                    <button 
+                                        onClick={() => setPreviewMode('full')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير شامل (للعميل)
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewMode('short')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير مختصر (للفني)
+                                    </button>
+                                </div>
+
+                                {/* Direct Print Button */}
+                                <button
+                                    onClick={() => window.open(`/print/${id}?mode=${previewMode}`, '_blank')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                >
+                                    <Printer size={16} /> إرسال للطباعة 🖨️
+                                </button>
+
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setPreviewOpen(false)}
+                                    className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Preview Area */}
+                        <div className="flex-1 overflow-auto bg-neutral-950/60 border border-border/20 rounded-2xl p-4 md:p-6 flex justify-center items-start min-h-0 relative">
+                            {order ? (
+                                <div className="bg-white p-6 rounded-2xl shadow-2xl overflow-x-auto min-w-[800px] transition-transform origin-top print-preview-doc">
+                                    <PrintableInspectionReport report={order} mode={previewMode} />
+                                </div>
+                            ) : (
+                                <div className="text-center text-muted-foreground">حدث خطأ أثناء تحميل التقرير.</div>
+                            )}
+                        </div>
+                        
+                    </div>
+                </div>
+            )}
 
         </div>
     );
