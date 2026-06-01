@@ -1410,74 +1410,84 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
             )}
 
             {previewReportId && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in font-ibm">
-                    <div className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl p-6 max-w-4xl w-full h-[90vh] shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col space-y-4 text-right" dir="rtl">
-                        
-                        {/* Header Area */}
-                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
-                                {previewReport && (
-                                    <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
-                                        #{previewReport.report_number}
-                                    </span>
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm"
+                        onClick={() => setPreviewReportId(null)}
+                    />
+                    {/* Outer: grid centering — no transform conflict */}
+                    <div
+                        className="fixed inset-0 z-[9999] font-ibm"
+                        style={{ display: 'grid', alignItems: 'start', justifyItems: 'center', padding: '16px', paddingTop: '24px' }}
+                    >
+                        {/* Inner card: animate here only, not on the centering wrapper */}
+                        <div
+                            className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
+                            style={{ maxHeight: '90vh', maxWidth: '900px' }}
+                            dir="rtl"
+                        >
+                            {/* ── Header (never moves) ── */}
+                            <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 flex-shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                                    {previewReport && (
+                                        <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                            #{previewReport.report_number}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex bg-muted rounded-xl p-1 border border-border/40">
+                                        <button
+                                            onClick={() => setPreviewMode('full')}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            تقرير شامل (للعميل)
+                                        </button>
+                                        <button
+                                            onClick={() => setPreviewMode('short')}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            تقرير مختصر (للفني)
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                    >
+                                        <Printer size={16} /> إرسال للطباعة 🖨️
+                                    </button>
+                                    <button
+                                        onClick={() => setPreviewReportId(null)}
+                                        className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* ── Scrollable document preview ── */}
+                            <div className="flex-1 overflow-auto bg-neutral-950/60 p-4 flex justify-center items-start min-h-0">
+                                {previewLoading ? (
+                                    <div className="flex flex-col items-center justify-center gap-3 py-20">
+                                        <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
+                                        <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
+                                    </div>
+                                ) : previewReport ? (
+                                    <div
+                                        className="bg-white rounded-2xl shadow-2xl print-preview-doc"
+                                        style={{ zoom: '0.68', minWidth: '800px', transformOrigin: 'top center' }}
+                                    >
+                                        <PrintableInspectionReport report={previewReport} mode={previewMode} />
+                                    </div>
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">حدث خطأ أثناء تحميل التقرير.</div>
                                 )}
                             </div>
-                            
-                            {/* Controls */}
-                            <div className="flex items-center gap-3">
-                                {/* Toggle full/short Mode */}
-                                <div className="flex bg-muted rounded-xl p-1 border border-border/40">
-                                    <button 
-                                        onClick={() => setPreviewMode('full')}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
-                                    >
-                                        تقرير شامل (للعميل)
-                                    </button>
-                                    <button 
-                                        onClick={() => setPreviewMode('short')}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
-                                    >
-                                        تقرير مختصر (للفني)
-                                    </button>
-                                </div>
-
-                                {/* Direct Print Button */}
-                                <button
-                                    onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
-                                >
-                                    <Printer size={16} /> إرسال للطباعة 🖨️
-                                </button>
-
-                                {/* Close Button */}
-                                <button
-                                    onClick={() => setPreviewReportId(null)}
-                                    className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
                         </div>
-
-                        {/* Preview Area */}
-                        <div className="flex-1 overflow-auto bg-neutral-950/60 border border-border/20 rounded-2xl p-4 md:p-6 flex justify-center items-start min-h-0 relative">
-                            {previewLoading ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                                    <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
-                                    <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
-                                </div>
-                            ) : previewReport ? (
-                                <div className="bg-white p-6 rounded-2xl shadow-2xl overflow-x-auto min-w-[800px] transition-transform origin-top print-preview-doc">
-                                    <PrintableInspectionReport report={previewReport} mode={previewMode} />
-                                </div>
-                            ) : (
-                                <div className="text-center text-muted-foreground">حدث خطأ أثناء تحميل التقرير.</div>
-                            )}
-                        </div>
-                        
                     </div>
-                </div>
+                </>
             )}
 
         </div>
@@ -1675,74 +1685,81 @@ function ReceptionContainer() {
             </div>
 
             {previewReportId && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in font-ibm">
-                    <div className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl p-6 max-w-4xl w-full h-[90vh] shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col space-y-4 text-right" dir="rtl">
-                        
-                        {/* Header Area */}
-                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
-                                {previewReport && (
-                                    <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
-                                        #{previewReport.report_number}
-                                    </span>
+                <>
+                    <div
+                        className="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm"
+                        onClick={() => setPreviewReportId(null)}
+                    />
+                    <div
+                        className="fixed inset-0 z-[9999] font-ibm"
+                        style={{ display: 'grid', alignItems: 'start', justifyItems: 'center', padding: '16px', paddingTop: '24px' }}
+                    >
+                        <div
+                            className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
+                            style={{ maxHeight: '90vh', maxWidth: '900px' }}
+                            dir="rtl"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 flex-shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                                    {previewReport && (
+                                        <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                            #{previewReport.report_number}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex bg-muted rounded-xl p-1 border border-border/40">
+                                        <button
+                                            onClick={() => setPreviewMode('full')}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            تقرير شامل (للعميل)
+                                        </button>
+                                        <button
+                                            onClick={() => setPreviewMode('short')}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            تقرير مختصر (للفني)
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                    >
+                                        <Printer size={16} /> إرسال للطباعة 🖨️
+                                    </button>
+                                    <button
+                                        onClick={() => setPreviewReportId(null)}
+                                        className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Scrollable preview */}
+                            <div className="flex-1 overflow-auto bg-neutral-950/60 p-4 flex justify-center items-start min-h-0">
+                                {previewLoading ? (
+                                    <div className="flex flex-col items-center justify-center gap-3 py-20">
+                                        <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
+                                        <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
+                                    </div>
+                                ) : previewReport ? (
+                                    <div
+                                        className="bg-white rounded-2xl shadow-2xl print-preview-doc"
+                                        style={{ zoom: '0.68', minWidth: '800px' }}
+                                    >
+                                        <PrintableInspectionReport report={previewReport} mode={previewMode} />
+                                    </div>
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">حدث خطأ أثناء تحميل التقرير.</div>
                                 )}
                             </div>
-                            
-                            {/* Controls */}
-                            <div className="flex items-center gap-3">
-                                {/* Toggle full/short Mode */}
-                                <div className="flex bg-muted rounded-xl p-1 border border-border/40">
-                                    <button 
-                                        onClick={() => setPreviewMode('full')}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
-                                    >
-                                        تقرير شامل (للعميل)
-                                    </button>
-                                    <button 
-                                        onClick={() => setPreviewMode('short')}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
-                                    >
-                                        تقرير مختصر (للفني)
-                                    </button>
-                                </div>
-
-                                {/* Direct Print Button */}
-                                <button
-                                    onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
-                                >
-                                    <Printer size={16} /> إرسال للطباعة 🖨️
-                                </button>
-
-                                {/* Close Button */}
-                                <button
-                                    onClick={() => setPreviewReportId(null)}
-                                    className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
                         </div>
-
-                        {/* Preview Area */}
-                        <div className="flex-1 overflow-auto bg-neutral-950/60 border border-border/20 rounded-2xl p-4 md:p-6 flex justify-center items-start min-h-0 relative">
-                            {previewLoading ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                                    <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
-                                    <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
-                                </div>
-                            ) : previewReport ? (
-                                <div className="bg-white p-6 rounded-2xl shadow-2xl overflow-x-auto min-w-[800px] transition-transform origin-top print-preview-doc">
-                                    <PrintableInspectionReport report={previewReport} mode={previewMode} />
-                                </div>
-                            ) : (
-                                <div className="text-center text-muted-foreground">حدث خطأ أثناء تحميل التقرير.</div>
-                            )}
-                        </div>
-                        
                     </div>
-                </div>
+                </>
             )}
 
         </div>
