@@ -271,16 +271,18 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 {/* ══ META STRIP ══ */}
                 <div style={{
                     background: '#f1f5f9', borderRadius: '8px',
-                    padding: '4px 10px',                           // ↓ was 5px 12px
+                    padding: '4px 10px',
                     display: 'flex', justifyContent: 'space-between',
-                    marginBottom: mb('4px', '8px'),                // ↓ was 6px/10px
-                    fontSize: '12px',                              // ↑ was 11px
+                    marginBottom: mb('4px', '8px'),
+                    fontSize: '11px',
                     flexWrap: 'wrap', gap: '4px',
                 }}>
-                    <span>وقت الفتح: <strong>{openTime}</strong></span>
-                    <span>وقت الانتهاء: <strong>{closeTime}</strong></span>
+                    <span>رقم الخانة: <strong>{report.bay_number || '___________'}</strong></span>
+                    <span>الشفت: <strong>{data?.shiftName || '___________'}</strong></span>
+                    <span>مشرف الشفت: <strong>{data?.shiftSupervisor || '___________'}</strong></span>
                     <span>موظف الاستقبال: <strong>{data?.receptionistName || report.receptionist?.name || '___________'}</strong></span>
                     <span>اسم الفني: <strong>{data?.technicianName || '___________'}</strong></span>
+                    <span>وقت الفتح: <strong>{openTime}</strong></span>
                 </div>
 
                 {/* ══ BOOKLET ══ */}

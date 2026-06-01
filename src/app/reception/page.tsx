@@ -10,6 +10,7 @@ import {
     CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X, Trash2
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
+import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 type Step = 1 | 2 | 3;
 
@@ -248,6 +249,10 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
     const [branchChangePending, setBranchChangePending] = useState<string | null>(null);
 
+    // ---------- Additional Fields ----------
+    const [shiftName, setShiftName] = useState<string>("");
+    const [shiftSupervisor, setShiftSupervisor] = useState<string>("");
+
     // ---------- Employees ----------
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
     const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
@@ -292,9 +297,37 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
     const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
+    // ---------- Print Preview States ----------
+    const [previewReportId, setPreviewReportId] = useState<string | null>(null);
+    const [previewMode, setPreviewMode] = useState<'full' | 'short'>('full');
+    const [previewReport, setPreviewReport] = useState<any>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
-
-
+    useEffect(() => {
+        if (!previewReportId) {
+            setPreviewReport(null);
+            return;
+        }
+        const fetchPreview = async () => {
+            setPreviewLoading(true);
+            const { data } = await supabase
+                .from("inspection_reports")
+                .select(`
+                    id, report_number, status, created_at, completed_at, odometer_reading,
+                    estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
+                    branches(id, name),
+                    vehicles (make, model, plate_number, engine_size, clients (name, phone)),
+                    receptionist:receptionist_id(name)
+                `)
+                .eq("id", previewReportId)
+                .single();
+            if (data) {
+                setPreviewReport(data);
+            }
+            setPreviewLoading(false);
+        };
+        fetchPreview();
+    }, [previewReportId]);
     // Fetch branches + employees on mount
     useEffect(() => {
         let branchQuery = supabase.from('branches').select('id, name');
@@ -350,6 +383,8 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                     if (payload.freeServices) setFreeServices(payload.freeServices);
                     if (payload.services) setServices({ ...initServices(), ...payload.services });
                     if (payload.customServices) setCustomServices(payload.customServices);
+                    if (payload.shiftName) setShiftName(payload.shiftName);
+                    if (payload.shiftSupervisor) setShiftSupervisor(payload.shiftSupervisor);
                     if (payload.booklet) {
                         setBookletType(payload.booklet.type || "");
                         setBookletChanges(payload.booklet.changes || "");
@@ -578,6 +613,8 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 freeServices,
                 services,
                 customServices,
+                shiftName,
+                shiftSupervisor,
                 booklet: { type: bookletType, changes: bookletChanges },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient, amountOwedToClient },
                 receptionistName,
@@ -1174,7 +1211,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                             </div>
                         </div>
 
-                        {/* Notes & Bay */}
+                        {/* Notes, Bay, and Shift */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-bold text-rose-400 mb-2 block">رقم الخانة (الموقف):</label>
@@ -1182,7 +1219,20 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                             </div>
                             <div>
                                 <label className="text-sm font-bold text-rose-400 mb-2 block">ملاحظات إضافية:</label>
-                                <textarea className="input-field h-20 py-3 bg-background" placeholder="ملاحظات للفاتورة..." value={notes} onChange={e => setNotes(e.target.value)} />
+                                <textarea className="input-field h-12 py-3 bg-background" placeholder="ملاحظات للفاتورة..." value={notes} onChange={e => setNotes(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-rose-400 mb-2 block">الشفت (الوردية):</label>
+                                <select className="input-field bg-background text-lg font-bold" value={shiftName} onChange={e => setShiftName(e.target.value)}>
+                                    <option value="">اختيار الشفت...</option>
+                                    <option value="صباحي">صباحي</option>
+                                    <option value="مسائي">مسائي</option>
+                                    <option value="ليلي">ليلي</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-rose-400 mb-2 block">مشرف الشفت:</label>
+                                <input type="text" className="input-field bg-background text-lg font-bold" placeholder="اسم المشرف..." value={shiftSupervisor} onChange={e => setShiftSupervisor(e.target.value)} />
                             </div>
                         </div>
 
@@ -1240,11 +1290,11 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                     <h2 className="text-3xl font-display font-bold text-foreground mb-2">تم إنشاء أمر العمل!</h2>
                     <p className="text-muted-foreground mb-8">رقم الطلب: <span className="text-foreground font-mono bg-muted px-3 py-1 rounded-lg">#{reportNumber}</span></p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <button onClick={() => router.push(`/print/${createdWorkOrderId}?mode=full`)}
+                        <button onClick={() => { setPreviewReportId(createdWorkOrderId); setPreviewMode('full'); }}
                             className="px-6 py-3 rounded-xl bg-blue-600/20 text-blue-500 font-bold hover:bg-blue-600/30 transition-colors flex items-center justify-center gap-2">
                             <Printer size={20} /> طباعة للعميل (شامل)
                         </button>
-                        <button onClick={() => router.push(`/print/${createdWorkOrderId}?mode=short`)}
+                        <button onClick={() => { setPreviewReportId(createdWorkOrderId); setPreviewMode('short'); }}
                             className="px-6 py-3 rounded-xl bg-amber-600/20 text-amber-500 font-bold hover:bg-amber-600/30 transition-colors flex items-center justify-center gap-2">
                             <Printer size={20} /> طباعة للفني (مختصر)
                         </button>
@@ -1359,6 +1409,77 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 </div>
             )}
 
+            {previewReportId && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in font-ibm">
+                    <div className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl p-6 max-w-4xl w-full h-[90vh] shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col space-y-4 text-right" dir="rtl">
+                        
+                        {/* Header Area */}
+                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                                {previewReport && (
+                                    <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                        #{previewReport.report_number}
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Controls */}
+                            <div className="flex items-center gap-3">
+                                {/* Toggle full/short Mode */}
+                                <div className="flex bg-muted rounded-xl p-1 border border-border/40">
+                                    <button 
+                                        onClick={() => setPreviewMode('full')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير شامل (للعميل)
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewMode('short')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير مختصر (للفني)
+                                    </button>
+                                </div>
+
+                                {/* Direct Print Button */}
+                                <button
+                                    onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                >
+                                    <Printer size={16} /> إرسال للطباعة 🖨️
+                                </button>
+
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setPreviewReportId(null)}
+                                    className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Preview Area */}
+                        <div className="flex-1 overflow-auto bg-neutral-950/60 border border-border/20 rounded-2xl p-4 md:p-6 flex justify-center items-start min-h-0 relative">
+                            {previewLoading ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
+                                    <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
+                                </div>
+                            ) : previewReport ? (
+                                <div className="bg-white p-6 rounded-2xl shadow-2xl overflow-x-auto min-w-[800px] transition-transform origin-top print-preview-doc">
+                                    <PrintableInspectionReport report={previewReport} mode={previewMode} />
+                                </div>
+                            ) : (
+                                <div className="text-center text-muted-foreground">حدث خطأ أثناء تحميل التقرير.</div>
+                            )}
+                        </div>
+                        
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
@@ -1371,6 +1492,38 @@ function ReceptionContainer() {
     const [isWizardOpen, setIsWizardOpen] = useState(!!editId);
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // ---------- Print Preview States ----------
+    const [previewReportId, setPreviewReportId] = useState<string | null>(null);
+    const [previewMode, setPreviewMode] = useState<'full' | 'short'>('full');
+    const [previewReport, setPreviewReport] = useState<any>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    useEffect(() => {
+        if (!previewReportId) {
+            setPreviewReport(null);
+            return;
+        }
+        const fetchPreview = async () => {
+            setPreviewLoading(true);
+            const { data } = await supabase
+                .from("inspection_reports")
+                .select(`
+                    id, report_number, status, created_at, completed_at, odometer_reading,
+                    estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
+                    branches(id, name),
+                    vehicles (make, model, plate_number, engine_size, clients (name, phone)),
+                    receptionist:receptionist_id(name)
+                `)
+                .eq("id", previewReportId)
+                .single();
+            if (data) {
+                setPreviewReport(data);
+            }
+            setPreviewLoading(false);
+        };
+        fetchPreview();
+    }, [previewReportId]);
 
     if (authLoading) {
         return (
@@ -1504,7 +1657,7 @@ function ReceptionContainer() {
                                             <button onClick={() => { router.replace(`/reception?edit=${o.id}`); setIsWizardOpen(true); }} className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg transition-colors" title="تعديل">
                                                 <Edit2 size={16}/>
                                             </button>
-                                            <button onClick={() => router.push(`/print/${o.id}?mode=full`)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors" title="طباعة">
+                                            <button onClick={() => { setPreviewReportId(o.id); setPreviewMode('full'); }} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors" title="طباعة">
                                                 <Printer size={16}/>
                                             </button>
                                             {(employeeRole === 'Owner' || employeeRole === 'Admin') && (
@@ -1520,6 +1673,78 @@ function ReceptionContainer() {
                     </div>
                 )}
             </div>
+
+            {previewReportId && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in font-ibm">
+                    <div className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl p-6 max-w-4xl w-full h-[90vh] shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col space-y-4 text-right" dir="rtl">
+                        
+                        {/* Header Area */}
+                        <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                                {previewReport && (
+                                    <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                        #{previewReport.report_number}
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Controls */}
+                            <div className="flex items-center gap-3">
+                                {/* Toggle full/short Mode */}
+                                <div className="flex bg-muted rounded-xl p-1 border border-border/40">
+                                    <button 
+                                        onClick={() => setPreviewMode('full')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير شامل (للعميل)
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewMode('short')}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        تقرير مختصر (للفني)
+                                    </button>
+                                </div>
+
+                                {/* Direct Print Button */}
+                                <button
+                                    onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                >
+                                    <Printer size={16} /> إرسال للطباعة 🖨️
+                                </button>
+
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setPreviewReportId(null)}
+                                    className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Preview Area */}
+                        <div className="flex-1 overflow-auto bg-neutral-950/60 border border-border/20 rounded-2xl p-4 md:p-6 flex justify-center items-start min-h-0 relative">
+                            {previewLoading ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="animate-spin text-cyan-500 w-10 h-10" />
+                                    <p className="text-sm text-muted-foreground">جاري تحميل تفاصيل الفاتورة...</p>
+                                </div>
+                            ) : previewReport ? (
+                                <div className="bg-white p-6 rounded-2xl shadow-2xl overflow-x-auto min-w-[800px] transition-transform origin-top print-preview-doc">
+                                    <PrintableInspectionReport report={previewReport} mode={previewMode} />
+                                </div>
+                            ) : (
+                                <div className="text-center text-muted-foreground">حدث خطأ أثناء تحميل التقرير.</div>
+                            )}
+                        </div>
+                        
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
