@@ -107,6 +107,7 @@ export default function WorkOrderDetailPage() {
 
     // Technician & Bay Details States
     const [techName, setTechName] = useState("");
+    const [supervisorName, setSupervisorName] = useState("");
     const [bayNum, setBayNum] = useState("");
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
@@ -143,6 +144,7 @@ export default function WorkOrderDetailPage() {
             // Initialize details states
             const firstSvc = data.selected_services?.[0];
             setTechName(firstSvc?.technicianName || "");
+            setSupervisorName(firstSvc?.shiftSupervisor || "");
             setBayNum(data.bay_number || "");
             setMaintNotes(data.notes || "");
             
@@ -181,12 +183,14 @@ export default function WorkOrderDetailPage() {
             if (updatedServices.length > 0) {
                 updatedServices[0] = {
                     ...updatedServices[0],
-                    technicianName: techName
+                    technicianName: techName,
+                    shiftSupervisor: supervisorName
                 };
             } else {
                 updatedServices.push({
                     is_paper_v2_format: true,
                     technicianName: techName,
+                    shiftSupervisor: supervisorName,
                     services: {}
                 });
             }
@@ -223,12 +227,14 @@ export default function WorkOrderDetailPage() {
             if (updatedServices.length > 0) {
                 updatedServices[0] = {
                     ...updatedServices[0],
-                    technicianName: techName
+                    technicianName: techName,
+                    shiftSupervisor: supervisorName
                 };
             } else {
                 updatedServices.push({
                     is_paper_v2_format: true,
                     technicianName: techName,
+                    shiftSupervisor: supervisorName,
                     services: {}
                 });
             }
@@ -441,6 +447,18 @@ export default function WorkOrderDetailPage() {
                         <hr className="border-border" />
                         
                         <div className="space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground block mb-1">اسم المشرف</label>
+                                <input
+                                    type="text"
+                                    value={supervisorName}
+                                    onChange={(e) => setSupervisorName(e.target.value)}
+                                    placeholder="أدخل اسم المشرف..."
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                    disabled={order.status === 'تم الانتهاء'}
+                                />
+                            </div>
+                            
                             <div>
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">اسم الفني</label>
                                 <input

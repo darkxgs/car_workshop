@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Wrench, ShieldAlert, ArrowLeft, Clock, Car, Activity, Loader2 } from "lucide-react";
+import { Wrench, ShieldAlert, Shield, ArrowLeft, Clock, Car, Activity, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrderList = {
@@ -18,6 +18,7 @@ type WorkOrderList = {
     created_at: string;
     estimated_duration: number;
     is_delayed: boolean;
+    selected_services: any[] | null;
 };
 
 export default function WorkOrdersListPage() {
@@ -65,7 +66,7 @@ export default function WorkOrdersListPage() {
     const fetchOrders = async () => {
         let query = supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), technician:technician_id(name)`)
+            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
@@ -152,12 +153,15 @@ export default function WorkOrdersListPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-1 mb-4 text-sm font-bold text-muted-foreground border-b border-border/50 pb-3">
+                                    <div className="flex flex-col gap-1.5 mb-4 text-sm font-bold text-muted-foreground border-b border-border/50 pb-3">
                                         <div className="flex items-center gap-2">
-                                            <Wrench size={16} /> الفني: <span className="text-foreground">{order.technician?.name || 'غير محدد'}</span>
+                                            <Shield className="text-rose-400" size={16} /> المشرف: <span className="text-foreground">{order.selected_services?.[0]?.shiftSupervisor || 'غير محدد'}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Activity size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
+                                            <Wrench className="text-blue-400" size={16} /> الفني: <span className="text-foreground">{order.selected_services?.[0]?.technicianName || 'غير محدد'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Activity className="text-emerald-400" size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
                                         </div>
                                     </div>
 
