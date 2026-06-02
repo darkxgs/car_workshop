@@ -45,31 +45,31 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "oilFilter",
         label: "فلتر زيت المحرك",
         detailFields: [
-            { key: "type",      label: "نوع الفلتر", listId: "filterBrands" },
-            { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+            { key: "type",      label: "نوع الفلتر", listId: "oilFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "oilFilterCodes" },
         ],
     },
     {
         key: "airFilter",
         label: "فلتر الهواء",
         detailFields: [
-            { key: "type",      label: "نوع الفلتر", listId: "filterBrands" },
-            { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+            { key: "type",      label: "نوع الفلتر", listId: "airFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "airFilterCodes" },
         ],
     },
     {
         key: "acFilter",
         label: "فلتر التبريد",
         detailFields: [
-            { key: "type",      label: "نوع الفلتر", listId: "filterBrands" },
-            { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+            { key: "type",      label: "نوع الفلتر", listId: "acFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "acFilterCodes" },
         ],
     },
     {
         key: "brakeFluid",
         label: "زيت المكابح",
         detailFields: [
-            { key: "type", label: "نوع الزيت", listId: "cleanersAndAdditives" },
+            { key: "type", label: "نوع الزيت", listId: "brakeFluids" },
             { key: "qty",  label: "عدد القطع" },
         ],
     },
@@ -77,7 +77,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "coolant",
         label: "ماء الراديتر",
         detailFields: [
-            { key: "type", label: "نوع الماء", listId: "cleanersAndAdditives" },
+            { key: "type", label: "نوع الماء", listId: "coolants" },
             { key: "size", label: "الحجم (4L / 1L)" },
             { key: "qty",  label: "العدد" },
             { key: "unitPrice", label: "سعر العبوة" },
@@ -92,7 +92,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "engineBelts",
         label: "قايش المحرك",
         detailFields: [
-            { key: "type", label: "نوع القايش", listId: "cleanersAndAdditives" },
+            { key: "type", label: "نوع القايش", listId: "engineBeltsBrands" },
             { key: "num",  label: "رقم القايش" },
         ],
     },
@@ -100,7 +100,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "brakePads",
         label: "دسكات السيارة",
         detailFields: [
-            { key: "type", label: "نوع الدسكات", listId: "cleanersAndAdditives" },
+            { key: "type", label: "نوع الدسكات", listId: "brakePadsBrands" },
             { key: "num",  label: "رقم الدسكات" },
         ],
     },
@@ -108,7 +108,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "sparkPlugs",
         label: "شمعات الاحتراق",
         detailFields: [
-            { key: "type", label: "نوع الشمعات", listId: "cleanersAndAdditives" },
+            { key: "type", label: "نوع الشمعات", listId: "sparkPlugsBrands" },
             { key: "num",  label: "رقم البلكات" },
         ],
     },
@@ -124,8 +124,8 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "gearboxFilter",
         label: "فلتر الكير",
         detailFields: [
-            { key: "type", label: "نوع الفلتر", listId: "filterBrands" },
-            { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+            { key: "type", label: "نوع الفلتر", listId: "gearboxFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "gearboxFilterCodes" },
             { key: "unitPrice", label: "السعر" },
         ],
     },
@@ -133,7 +133,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "wipers",
         label: "الماسحات",
         detailFields: [
-            { key: "type", label: "نوع الماسحات", listId: "wiperTypes" },
+            { key: "type", label: "نوع الماسحات", listId: "wiperBrands" },
             { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }
         ],
     },
@@ -148,7 +148,7 @@ const SECTOR_BRANCH_SERVICES = [
     {
         section: "المحرك",
         items: [
-            { key: "engineFlash", label: "فلاش محرك", guide: "أول زيارة / 30K كم", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "engineFlash", label: "فلاش محرك", guide: "أول زيارة / 30K كم", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "engineFlashBrands" }, { key: "qty", label: "الكمية" }] },
             { key: "engineOil", label: "زيت محرك", guide: "5K - 10K km", detailFields: [
                 { key: "brand", label: "النوع / الماركة", listId: "oilBrands" },
                 { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
@@ -156,51 +156,51 @@ const SECTOR_BRANCH_SERVICES = [
                 { key: "unitPrice", label: "سعر اللتر" },
             ]},
             { key: "oilFilter", label: "فلتر زيت محرك", guide: "مع تغيير الزيت", detailFields: [
-                { key: "brand",      label: "النوع / الماركة", listId: "filterBrands" },
-                { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+                { key: "brand",      label: "النوع / الماركة", listId: "oilFilterBrands" },
+                { key: "filterNum", label: "رقم الفلتر", listId: "oilFilterCodes" },
             ]},
             { key: "coolant", label: "ماء / سائل تبريد", guide: "عند النقص", detailFields: [
-                { key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" },
+                { key: "brand", label: "النوع / الماركة", listId: "coolants" },
                 { key: "qty",  label: "العدد" },
                 { key: "unitPrice", label: "سعر العبوة" },
             ]},
-            { key: "engineCeramic", label: "سيراميك محرك", guide: "30K - 50K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "linerCleaner", label: "منظف بطانة (جكجكة)", guide: "كل 20K - 30K", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "oilLeakPreventer", label: "مانع تسريب زيت", guide: "عند نضوح زيت", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "smokePreventer", label: "مانع دخان / نقص زيت", guide: "عند نقص الزيت / دخان", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "engineCeramic", label: "سيراميك محرك", guide: "30K - 50K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "engineCeramicBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "linerCleaner", label: "منظف بطانة (جكجكة)", guide: "كل 20K - 30K", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "linerCleanerBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "oilLeakPreventer", label: "مانع تسريب زيت", guide: "عند نضوح زيت", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "oilLeakPreventerBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "smokePreventer", label: "مانع دخان / نقص زيت", guide: "عند نقص الزيت / دخان", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "smokePreventerBrands" }, { key: "qty", label: "الكمية" }] },
         ]
     },
     {
         section: "الكير",
         items: [
-            { key: "gearboxFlash", label: "فلاش كير", guide: "التبديل الكامل", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "gearboxFlash", label: "فلاش كير", guide: "التبديل الكامل", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "gearboxFlashBrands" }, { key: "qty", label: "الكمية" }] },
             { key: "gearboxOil", label: "زيت كير", guide: "40K - 60K km", detailFields: [
                 { key: "brand", label: "النوع / الماركة", listId: "gearboxOils" },
                 { key: "qty",  label: "اللترات" },
             ]},
             { key: "gearboxFilter", label: "فلتر كير", guide: "مع زيت الكير", detailFields: [
-                { key: "brand", label: "النوع / الماركة", listId: "filterBrands" },
-                { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+                { key: "brand", label: "النوع / الماركة", listId: "gearboxFilterBrands" },
+                { key: "filterNum", label: "رقم الفلتر", listId: "gearboxFilterCodes" },
                 { key: "unitPrice", label: "السعر" },
             ]},
-            { key: "gearboxCeramic", label: "سيراميك كير", guide: "لحماية التروس", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "gearboxAntiSlip", label: "مانع انزلاق الكير", guide: "عند النتعة / التأخير", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "gearboxCeramic", label: "سيراميك كير", guide: "لحماية التروس", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "gearboxCeramicBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "gearboxAntiSlip", label: "مانع انزلاق الكير", guide: "عند النتعة / التأخير", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "gearboxAntiSlipBrands" }, { key: "qty", label: "الكمية" }] },
         ]
     },
     {
         section: "التبريد والفرامل",
         items: [
             { key: "airFilter", label: "فلتر هواء", guide: "5K - 10K km", detailFields: [
-                { key: "brand",      label: "النوع / الماركة", listId: "filterBrands" },
-                { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+                { key: "brand",      label: "النوع / الماركة", listId: "airFilterBrands" },
+                { key: "filterNum", label: "رقم الفلتر", listId: "airFilterCodes" },
             ]},
             { key: "acFilter", label: "فلتر تبريد", guide: "مع الفلتر / 6 أشهر", detailFields: [
-                { key: "brand",      label: "النوع / الماركة", listId: "filterBrands" },
-                { key: "filterNum", label: "رقم الفلتر", listId: "filterCodes" },
+                { key: "brand",      label: "النوع / الماركة", listId: "acFilterBrands" },
+                { key: "filterNum", label: "رقم الفلتر", listId: "acFilterCodes" },
             ]},
-            { key: "acCleaner", label: "منظف دورة التبريد", guide: "مع فلتر التبريد", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "acCleaner", label: "منظف دورة التبريد", guide: "مع فلتر التبريد", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "acCleanerBrands" }, { key: "qty", label: "الكمية" }] },
             { key: "brakeFluid", label: "زيت بريك", guide: "40K km", detailFields: [
-                { key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" },
+                { key: "brand", label: "النوع / الماركة", listId: "brakeFluids" },
                 { key: "qty",  label: "عدد القطع" },
             ]},
         ]
@@ -208,16 +208,16 @@ const SECTOR_BRANCH_SERVICES = [
     {
         section: "المنظفات والأساسيات",
         items: [
-            { key: "injectorCleaner", label: "منظف بخاخات", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "fuelSystemCleaner", label: "منظف نظام الوقود", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
-            { key: "octaneBooster", label: "أوكتان بنزين", guide: "أساسي للوقود", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "injectorCleaner", label: "منظف بخاخات", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "injectorCleanerBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "fuelSystemCleaner", label: "منظف نظام الوقود", guide: "10K - 20K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "fuelSystemCleanerBrands" }, { key: "qty", label: "الكمية" }] },
+            { key: "octaneBooster", label: "أوكتان بنزين", guide: "أساسي للوقود", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "octaneBoosterBrands" }, { key: "qty", label: "الكمية" }] },
             { key: "battery", label: "البطارية", guide: "فحص دوري", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "batteries" }, { key: "qty", label: "الكمية" }] },
-            { key: "batteryFilter", label: "فلتر البطارية", guide: "حسب الصيانة", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "batteryFilter", label: "فلتر البطارية", guide: "حسب الصيانة", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "batteryFilterBrands" }, { key: "qty", label: "الكمية" }] },
             { key: "wipers", label: "مساحات زجاج", guide: "موسمي", detailFields: [
-                { key: "brand", label: "النوع / الماركة", listId: "wiperTypes" },
+                { key: "brand", label: "النوع / الماركة", listId: "wiperBrands" },
                 { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }
             ]},
-            { key: "windshieldFluid", label: "سائل غسيل جام", guide: "عند النقص", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "cleanersAndAdditives" }, { key: "qty", label: "الكمية" }] },
+            { key: "windshieldFluid", label: "سائل غسيل جام", guide: "عند النقص", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "windshieldFluids" }, { key: "qty", label: "الكمية" }] },
         ]
     }
 ];
@@ -233,91 +233,62 @@ const initServices = (): Record<string, ServiceEntry> => {
     return obj;
 };
 
-// ==================== لستات الاقتراحات الثابتة ====================
+// ==================== لستات الاقتراحات الافتراضية الثابتة ====================
 
-const STANDARD_OILS = [
-    "ليكي مولي اخضر",
-    "ليكي مولي رصاصي",
-    "ليكي مولي ديزل",
-    "ليكي مولي ازرق",
-    "ليكي مولي دراجات",
-    "ليكي مولي سكوتر",
-    "ستيرلنك",
-    "موبيل 1",
-    "كاسترول ماغنتك",
-    "كاسترول ايدج",
-    "كاسترول GTX",
-    "ميغوين احمر",
-    "ميغوين اخضر",
-    "ميغوين فيروزي",
-    "ميغيون اصفر",
-    "ميغوين",
-    "شل",
-    "شل الترا",
-    "فالفولاين رصاصي",
-    "فالفولاين احمر",
-    "فالفولاين ازرق",
-];
-
-const STANDARD_VISCOSITIES = [
-    "0W-20", "0W-30", "0W-40",
-    "5W-20", "5W-30", "5W-40",
-    "10W-30", "10W-40", "10W-50",
-    "15W-40", "20W-50",
-];
-
-const STANDARD_FILTERS = [
-    "Mann", "Mahle", "Bosch", "Denso",
-    "Hengst", "WIX", "Fram", "K&N",
-    "Sakura", "Purflux", "UFI",
-    "ليكي مولي", "هيونداي اصلي", "تويوتا اصلي", "كيا اصلي",
-];
-
-const STANDARD_FILTER_CODES = [
-    "HU 514 X", "HU 716/2 X", "HU 612/2 X",
-    "OC 21", "OC 47", "OC 983",
-    "W 712/95", "W 7015", "W 610/3",
-    "C 25 710/3", "C 30 005",
-    "LX 3778", "CU 2545",
-];
-
-const STANDARD_BATTERIES = [
-    "Varta", "Bosch", "AC Delco",
-    "Optima", "Exide", "GS Yuasa",
-    "Amaron", "هانكوك", "اطلس",
-];
-
-const STANDARD_CLEANERS = [
-    "ليكي مولي فلاش محرك",
-    "ليكي مولي سيراميك محرك",
-    "ليكي مولي منظف بخاخات",
-    "ليكي مولي منظف وقود",
-    "ليكي مولي مانع تسريب زيت",
-    "ليكي مولي مانع دخان",
-    "ليكي مولي اوكتان",
-    "ليكي مولي منظف دورة تبريد",
-    "ليكي مولي سيراميك كير",
-    "ليكي مولي فلاش كير",
-    "ليكي مولي مانع انزلاق كير",
-    "ليكي مولي منظف بطانة",
-    "ليكي مولي واقي رديتر",
-    "BG فلاش محرك",
-    "BG منظف بخاخات",
-    "Wurth منظف",
-];
-
-const STANDARD_GEARBOX_OILS = [
-    "ليكي مولي ATF",
-    "ليكي مولي CVT",
-    "ليكي مولي DCT",
-    "ليكي مولي Top Tec 1800",
-    "ستيرلنك ATF",
-    "موبيل ATF",
-    "كاسترول ATF",
-    "شل ATF",
-    "ZF LifeGuard",
-    "Aisin ATF",
-];
+const DEFAULT_SUGGESTION_LISTS: Record<string, string[]> = {
+    oilBrands: [
+        "لكوي مولي اخضر", "لكوي مولي ازرق", "لكوي مولي احمر", "لكوي مولي بنفسجي",
+        "لكوي مولي رصاصي", "لكوي مولي سمائي", "لكوي مولي توب تك", "لكوي مولي دراجات",
+        "لكوي مولي سكوتر", "فالفولاين احمر", "فالفولاين ازرق", "فالفولاين رصاصي",
+        "فالفولاين رصاصي بريميوم", "فالفولاين ديزل", "فالفولاين دراجات", "فالفولاين رصاصي دراجات",
+        "كاسترول ايدج", "كاسترول ايدج DX1", "كاسترول ماجناتيك", "كاسترول ماجناتيك DX",
+        "كاسترول CRB", "كاسترول GTX", "كاسترول ديزل", "ميغوين احمر", "ميغوين اخضر",
+        "ميغوين ازرق", "ميغوين اصفر", "ميغوين جوزي", "ميغوين فيروزي", "ميغوين زيوت محركات",
+        "ميغوين سكوتر", "شل ULTRA", "شل ULTRA X", "شل HX5", "شل HX6", "شل HX7",
+        "شل HX8", "شل R4 X", "ستيرلنك", "ستيرلنك دراجات", "موتل 8100", "موتل 6100",
+        "موتل 4100", "موتل محركات هايبرد", "موتل دراجات", "موبيل 1 سبيشل", "موبيل 1 سوبر 2000",
+        "موبيل 1 سوبر 3000", "موبيل 1 ديزل", "موبيل 1 زيوت محركات", "مانول زيوت محركات",
+        "مانول دراجات", "هاناتا", "امزويل"
+    ],
+    viscosities: [
+        "0W-20", "0W-30", "0W-40", "5W-20", "5W-30", "5W-40",
+        "10W-30", "10W-40", "10W-50", "15W-40", "20W-50"
+    ],
+    brakeFluids: ["Ate DOT 4", "Bosch DOT 4", "ليكي مولي DOT 4", "ليكي مولي DOT 5.1", "شل DOT 4"],
+    coolants: ["ليكي مولي احمر", "ليكي مولي اخضر", "تويوتا اصلي احمر", "ميتسوبيشي اخضر", "كاسترول جاهز"],
+    oilFilterBrands: ["Mann", "Mahle", "Bosch", "Hengst", "هيونداي اصلي", "تويوتا اصلي", "كيا اصلي"],
+    oilFilterCodes: ["HU 514 X", "HU 716/2 X", "HU 612/2 X", "OC 21", "OC 47", "W 712/95"],
+    airFilterBrands: ["Mann", "Mahle", "Bosch", "Sakura", "Purflux", "هيونداي اصلي", "تويوتا اصلي"],
+    airFilterCodes: ["C 25 710/3", "C 30 005", "LX 3778"],
+    acFilterBrands: ["Mann", "Mahle", "Bosch", "Hengst", "Sakura", "اصلي"],
+    acFilterCodes: ["CU 2545"],
+    gearboxFilterBrands: ["ZF", "Mann", "Mahle", "Aisin", "اصلي"],
+    gearboxFilterCodes: ["OC 983"],
+    batteryFilterBrands: ["اصلي", "كوري", "ياباني"],
+    gearboxOils: [
+        "ليكي مولي ATF", "ليكي مولي CVT", "ليكي مولي DCT", "ليكي مولي Top Tec 1800",
+        "ستيرلنك ATF", "موبيل ATF", "كاسترول ATF", "شل ATF", "ZF LifeGuard", "Aisin ATF"
+    ],
+    engineFlashBrands: ["ليكي مولي فلاش محرك", "BG فلاش محرك"],
+    engineCeramicBrands: ["ليكي مولي سيراميك محرك"],
+    linerCleanerBrands: ["ليكي مولي منظف بطانة"],
+    oilLeakPreventerBrands: ["ليكي مولي مانع تسريب زيت"],
+    smokePreventerBrands: ["ليكي مولي مانع دخان"],
+    gearboxFlashBrands: ["ليكي مولي فلاش كير"],
+    gearboxCeramicBrands: ["ليكي مولي سيراميك كير"],
+    gearboxAntiSlipBrands: ["ليكي مولي مانع انزلاق كير"],
+    acCleanerBrands: ["ليكي مولي منظف دورة تبريد", "ليكي مولي واقي رديتر"],
+    injectorCleanerBrands: ["ليكي مولي منظف بخاخات", "BG منظف بخاخات"],
+    fuelSystemCleanerBrands: ["ليكي مولي منظف وقود"],
+    octaneBoosterBrands: ["ليكي مولي اوكتان"],
+    batteries: ["Varta", "Bosch", "AC Delco", "Optima", "Exide", "GS Yuasa", "Amaron", "هانكوك", "اطلس"],
+    wiperBrands: ["Bosch", "Denso", "Michelin", "اصلي"],
+    wiperSizes: ["14 Inch", "16 Inch", "18 Inch", "20 Inch", "22 Inch", "24 Inch", "26 Inch", "28 Inch"],
+    engineBeltsBrands: ["Gates", "Contitech", "Dongil", "اصلي"],
+    brakePadsBrands: ["Brembo", "Ate", "Bosch", "Sangsin", "اصلي"],
+    sparkPlugsBrands: ["NGK Laser", "Denso Iridium", "Bosch Double Platinum", "اصلي"],
+    windshieldFluids: ["ليكي مولي مركز", "سائل رغوي جاهز", "ماء مقطر"]
+};
 
 function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const { t } = useLanguage();
@@ -335,31 +306,37 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
     const [branchChangePending, setBranchChangePending] = useState<string | null>(null);
 
-    // ---------- Suggestion Lists (from localStorage, managed at /suggestions) ----------
-    const [suggestionLists, setSuggestionLists] = useState<Record<string, string[]>>({
-        oilBrands: STANDARD_OILS,
-        viscosities: STANDARD_VISCOSITIES,
-        filterBrands: STANDARD_FILTERS,
-        filterCodes: STANDARD_FILTER_CODES,
-        batteries: STANDARD_BATTERIES,
-        cleanersAndAdditives: STANDARD_CLEANERS,
-        gearboxOils: STANDARD_GEARBOX_OILS,
-    });
+    // ---------- Suggestion Lists (from Supabase Database) ----------
+    const [suggestionLists, setSuggestionLists] = useState<Record<string, string[]>>(DEFAULT_SUGGESTION_LISTS);
 
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem('workshop_suggestion_lists');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                setSuggestionLists(prev => {
-                    const merged: Record<string, string[]> = {};
-                    for (const key of Object.keys(prev)) {
-                        merged[key] = parsed[key] || prev[key];
-                    }
-                    return merged;
-                });
+        // Fetch from Supabase
+        async function loadFromDB() {
+            try {
+                const { data, error } = await (supabase as any)
+                    .from('suggestion_lists')
+                    .select('key, items');
+                
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    const fetchedLists: Record<string, string[]> = {};
+                    data.forEach((row: any) => {
+                        fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
+                    });
+
+                    setSuggestionLists(prev => {
+                        const merged: Record<string, string[]> = {};
+                        for (const key of Object.keys(prev)) {
+                            merged[key] = fetchedLists[key] || prev[key];
+                        }
+                        return merged;
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load suggestion lists from DB:", err);
             }
-        } catch {}
+        }
+        loadFromDB();
     }, []);
 
     // ---------- Additional Fields ----------
@@ -1424,34 +1401,14 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 </div>
             )}
 
-            {/* Datalists — يقرأ من صفحة إدارة الاقتراحات */}
-            <datalist id="oilBrands">
-                {suggestionLists.oilBrands.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="viscosities">
-                {suggestionLists.viscosities.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="filterBrands">
-                {suggestionLists.filterBrands.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="filterCodes">
-                {suggestionLists.filterCodes.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="cleanersAndAdditives">
-                {suggestionLists.cleanersAndAdditives.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="batteries">
-                {suggestionLists.batteries.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
-
-            <datalist id="gearboxOils">
-                {suggestionLists.gearboxOils.map((item, idx) => <option key={idx} value={item} />)}
-            </datalist>
+            {/* Datalists — يقرأ ديناميكياً من السيرفر كقائمة اقتراحات مستقلة لكل فئة */}
+            {Object.keys(suggestionLists).map(key => (
+                <datalist id={key} key={key}>
+                    {suggestionLists[key]?.map((item, idx) => (
+                        <option key={idx} value={item} />
+                    ))}
+                </datalist>
+            ))}
 
             <datalist id="customServicesList">
                 <option value="فحص شامل (كمبيوتر)" />
@@ -1462,23 +1419,6 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 <option value="تبديل سفايف (بريكات)" />
                 <option value="شحن غاز تبريد" />
                 <option value="تبديل بطارية" />
-            </datalist>
-
-            <datalist id="wiperTypes">
-                <option value="VH" />
-                <option value="VP" />
-                <option value="VS" />
-            </datalist>
-
-            <datalist id="wiperSizes">
-                <option value="14 Inch" />
-                <option value="16 Inch" />
-                <option value="18 Inch" />
-                <option value="20 Inch" />
-                <option value="22 Inch" />
-                <option value="24 Inch" />
-                <option value="26 Inch" />
-                <option value="28 Inch" />
             </datalist>
 
             {branchChangePending && (
