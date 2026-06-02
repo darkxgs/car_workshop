@@ -84,6 +84,7 @@ export function Sidebar() {
             items: [
                 { href: "/", label: t.common.dashboard || "لوحة التحكم", icon: <LayoutDashboard size={20} /> },
                 { href: "/reception", label: "الاستقبال وأوامر العمل", icon: <ClipboardList size={20} /> },
+                { href: "/inventory", label: "إدارة المخزون", icon: <PackageOpen size={20} /> },
                 // { href: "/services", label: "الفحص والصيانة", icon: <Hammer size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
                 { href: "/work-orders", label: "ساحة الورشة (العمل الحي)", icon: <Wrench size={20} /> },
                 // { href: "/status", label: "متابعة وإنجاز العمل", icon: <Activity size={20} /> }

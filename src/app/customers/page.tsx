@@ -247,7 +247,8 @@ export default function CustomersPage() {
     const exportExcel = async () => {
         const { data, error } = await supabase
             .from("inspection_reports")
-            .select(`id, report_number, created_at, total_price, status, selected_services,
+            .select(`id, report_number, created_at, total_price, status, selected_services, odometer_reading,
+                     receptionist:receptionist_id(name),
                      vehicles(make, model, plate_number, clients(name, phone)), branches(name)`)
             .order("created_at", { ascending: false });
 
@@ -310,6 +311,12 @@ export default function CustomersPage() {
                 ? `${bookletObj.type}${bookletObj.changes ? ` (${bookletObj.changes})` : ""}`
                 : "";
 
+            // New fields
+            const odometer = r.odometer_reading || "";
+            const receptionistName = r.receptionist?.name || payload?.receptionistName || "";
+            const supervisorName = payload?.shiftSupervisor || "";
+            const technicianName = payload?.technicianName || "";
+
             return {
                 seq: idx + 1,
                 branch_name: r.branches?.name || "—",
@@ -319,6 +326,10 @@ export default function CustomersPage() {
                 car_model: vehicle?.model || "—",
                 plate: vehicle?.plate_number || "—",
                 created_at: new Date(r.created_at).toLocaleDateString("ar-IQ"),
+                receptionist_name: receptionistName || "—",
+                supervisor_name: supervisorName || "—",
+                technician_name: technicianName || "—",
+                odometer: odometer || "—",
                 service_type: needChange.join("، ") || "فحص",
                 oil_type: oilType, oil_viscosity: oilVisc, oil_liters: oilLiters,
                 extra_services: customLabels.join("، "),
@@ -330,19 +341,22 @@ export default function CustomersPage() {
 
         const wsData = [
             ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ",
+             "موظف الاستقبال", "المشرف", "الفني", "العداد (كم)",
              "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
              "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
             ...mapped.map(r => [
-                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate,
-                r.created_at, r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
+                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate, r.created_at,
+                r.receptionist_name, r.supervisor_name, r.technician_name, r.odometer,
+                r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
                 r.extra_services, r.booklet, r.total_price, r.status
             ])
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch:5},{wch:16},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},
-            {wch:28},{wch:18},{wch:14},{wch:10},{wch:28},{wch:14},{wch:12},{wch:12},
+            {wch:5}, {wch:16}, {wch:22}, {wch:16}, {wch:14}, {wch:14}, {wch:14}, {wch:14},
+            {wch:18}, {wch:18}, {wch:18}, {wch:14},
+            {wch:28}, {wch:18}, {wch:14}, {wch:10}, {wch:28}, {wch:14}, {wch:12}, {wch:12},
         ];
         if (!ws["!opts"]) ws["!opts"] = {};
         (ws as any)["!opts"].RTL = true;

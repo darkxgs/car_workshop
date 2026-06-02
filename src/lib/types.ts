@@ -343,6 +343,8 @@ export interface Database {
           unit_price: number
           total_price: number
           created_at: string
+          part_name: string | null
+          part_code: string | null
         }
         Insert: {
           id?: string
@@ -352,6 +354,8 @@ export interface Database {
           unit_price: number
           total_price: number
           created_at?: string
+          part_name?: string | null
+          part_code?: string | null
         }
         Update: {
           id?: string
@@ -361,6 +365,8 @@ export interface Database {
           unit_price?: number
           total_price?: number
           created_at?: string
+          part_name?: string | null
+          part_code?: string | null
         }
         Relationships: [
           {
@@ -421,6 +427,63 @@ export interface Database {
         }
         Relationships: []
       }
+      inventory_transactions: {
+        Row: {
+          id: string
+          branch_id: string | null
+          inventory_id: string | null
+          item_code: string | null
+          item_name: string | null
+          transaction_type: string
+          quantity_changed: number
+          quantity_before: number
+          quantity_after: number
+          user_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          branch_id?: string | null
+          inventory_id?: string | null
+          item_code?: string | null
+          item_name?: string | null
+          transaction_type: string
+          quantity_changed: number
+          quantity_before: number
+          quantity_after: number
+          user_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          branch_id?: string | null
+          inventory_id?: string | null
+          item_code?: string | null
+          item_name?: string | null
+          transaction_type?: string
+          quantity_changed?: number
+          quantity_before?: number
+          quantity_after?: number
+          user_name?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -448,6 +511,7 @@ export type InspectionReportRow = Database['public']['Tables']['inspection_repor
 export type InventoryRow = Database['public']['Tables']['inventory']['Row'];
 export type ReportServiceRow = Database['public']['Tables']['report_services']['Row'];
 export type UsedPartRow = Database['public']['Tables']['used_parts']['Row'];
+export type InventoryTransactionRow = Database['public']['Tables']['inventory_transactions']['Row'];
 
 export type UserRole = Database['public']['Enums']['user_role'];
 export type ReportStatus = Database['public']['Enums']['report_status'];
