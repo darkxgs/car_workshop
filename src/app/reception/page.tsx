@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
@@ -233,6 +233,8 @@ const initServices = (): Record<string, ServiceEntry> => {
     return obj;
 };
 
+// ==================== لستات الاقتراحات الثابتة ====================
+
 const STANDARD_OILS = [
     "ليكي مولي اخضر",
     "ليكي مولي رصاصي",
@@ -254,7 +256,67 @@ const STANDARD_OILS = [
     "شل الترا",
     "فالفولاين رصاصي",
     "فالفولاين احمر",
-    "فالفولاين ازرق"
+    "فالفولاين ازرق",
+];
+
+const STANDARD_VISCOSITIES = [
+    "0W-20", "0W-30", "0W-40",
+    "5W-20", "5W-30", "5W-40",
+    "10W-30", "10W-40", "10W-50",
+    "15W-40", "20W-50",
+];
+
+const STANDARD_FILTERS = [
+    "Mann", "Mahle", "Bosch", "Denso",
+    "Hengst", "WIX", "Fram", "K&N",
+    "Sakura", "Purflux", "UFI",
+    "ليكي مولي", "هيونداي اصلي", "تويوتا اصلي", "كيا اصلي",
+];
+
+const STANDARD_FILTER_CODES = [
+    "HU 514 X", "HU 716/2 X", "HU 612/2 X",
+    "OC 21", "OC 47", "OC 983",
+    "W 712/95", "W 7015", "W 610/3",
+    "C 25 710/3", "C 30 005",
+    "LX 3778", "CU 2545",
+];
+
+const STANDARD_BATTERIES = [
+    "Varta", "Bosch", "AC Delco",
+    "Optima", "Exide", "GS Yuasa",
+    "Amaron", "هانكوك", "اطلس",
+];
+
+const STANDARD_CLEANERS = [
+    "ليكي مولي فلاش محرك",
+    "ليكي مولي سيراميك محرك",
+    "ليكي مولي منظف بخاخات",
+    "ليكي مولي منظف وقود",
+    "ليكي مولي مانع تسريب زيت",
+    "ليكي مولي مانع دخان",
+    "ليكي مولي اوكتان",
+    "ليكي مولي منظف دورة تبريد",
+    "ليكي مولي سيراميك كير",
+    "ليكي مولي فلاش كير",
+    "ليكي مولي مانع انزلاق كير",
+    "ليكي مولي منظف بطانة",
+    "ليكي مولي واقي رديتر",
+    "BG فلاش محرك",
+    "BG منظف بخاخات",
+    "Wurth منظف",
+];
+
+const STANDARD_GEARBOX_OILS = [
+    "ليكي مولي ATF",
+    "ليكي مولي CVT",
+    "ليكي مولي DCT",
+    "ليكي مولي Top Tec 1800",
+    "ستيرلنك ATF",
+    "موبيل ATF",
+    "كاسترول ATF",
+    "شل ATF",
+    "ZF LifeGuard",
+    "Aisin ATF",
 ];
 
 function ReceptionWizard({ onClose }: { onClose: () => void }) {
@@ -273,124 +335,32 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
     const [branchChangePending, setBranchChangePending] = useState<string | null>(null);
 
-    // ---------- Inventory Autocomplete ----------
-    const [inventoryItems, setInventoryItems] = useState<{ id: string; name: string; category: string | null }[]>([]);
+    // ---------- Suggestion Lists (from localStorage, managed at /suggestions) ----------
+    const [suggestionLists, setSuggestionLists] = useState<Record<string, string[]>>({
+        oilBrands: STANDARD_OILS,
+        viscosities: STANDARD_VISCOSITIES,
+        filterBrands: STANDARD_FILTERS,
+        filterCodes: STANDARD_FILTER_CODES,
+        batteries: STANDARD_BATTERIES,
+        cleanersAndAdditives: STANDARD_CLEANERS,
+        gearboxOils: STANDARD_GEARBOX_OILS,
+    });
 
     useEffect(() => {
-        setInventoryItems([]);
-        const fetchInventoryItems = async () => {
-            if (!selectedBranchId) return;
-            const { data, error } = await supabase
-                .from('inventory')
-                .select('id, name, category')
-                .eq('branch_id', selectedBranchId)
-                .gt('quantity', 0);
-            
-            if (!error && data) {
-                setInventoryItems(data);
-            }
-        };
-        fetchInventoryItems();
-    }, [selectedBranchId]);
-
-    const processedSuggestions = useMemo(() => {
-        const oilsSet = new Set<string>();
-        const viscositiesSet = new Set<string>();
-        const filtersSet = new Set<string>();
-        const filterCodesSet = new Set<string>();
-        const batteriesSet = new Set<string>();
-        const cleanersAndAdditivesSet = new Set<string>();
-        const gearboxOilsSet = new Set<string>();
-        const othersSet = new Set<string>();
-
-        inventoryItems.forEach(item => {
-            const originalName = item?.name || "";
-            if (!originalName) return;
-            const nameLower = originalName.toLowerCase();
-
-            // 1. Viscosity check
-            const viscosityRegex = /\b\d{1,2}[wW][-_\s]?\d{1,2}\b/g;
-            const viscosityMatches = originalName.match(viscosityRegex);
-            let cleanedName = originalName;
-            if (viscosityMatches) {
-                viscosityMatches.forEach(v => {
-                    viscositiesSet.add(v.toUpperCase());
-                    cleanedName = cleanedName.replace(v, '');
+        try {
+            const raw = localStorage.getItem('workshop_suggestion_lists');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                setSuggestionLists(prev => {
+                    const merged: Record<string, string[]> = {};
+                    for (const key of Object.keys(prev)) {
+                        merged[key] = parsed[key] || prev[key];
+                    }
+                    return merged;
                 });
-                cleanedName = cleanedName.replace(/\s+/g, ' ').trim();
             }
-
-            // 2. Classify based on name content & category
-            const isFilter = nameLower.includes('فلتر') || nameLower.includes('شوتة') || nameLower.includes('شوته');
-            const isBattery = nameLower.includes('بطارية') || nameLower.includes('بطاريه') || item.category === 'كهرباء';
-            const isGearboxOil = nameLower.includes('atf') || nameLower.includes('cvt') || nameLower.includes('كير') || nameLower.includes('هيدروليك كير') || nameLower.includes('هايدروليك') || nameLower.includes('ستيرلنك هيدروليك');
-            const isOil = item.category === 'زيوت' || nameLower.includes('زيت') || nameLower.includes('دهن') || nameLower.includes('شل') || nameLower.includes('موتول') || nameLower.includes('كاسترول') || nameLower.includes('امزويل') || nameLower.includes('ليكي مولي') || nameLower.includes('ستيرلنك') || nameLower.includes('بيزول');
-            const isAdditive = nameLower.includes('منظف') || nameLower.includes('فلاش') || nameLower.includes('سيراميك') || nameLower.includes('مانع') || nameLower.includes('واقي') || nameLower.includes('اوكتان') || nameLower.includes('ستوب') || nameLower.includes('سبريه') || item.category === 'تكييف';
-
-            if (isFilter) {
-                // Split filter brand and code
-                const tokens = originalName.split(/\s+/);
-                let code = '';
-                const brandParts = [];
-                for (const token of tokens) {
-                    const hasLetter = /[A-Za-z]/.test(token);
-                    const hasDigit = /[0-9]/.test(token);
-                    const hasHyphen = /[-_]/.test(token);
-                    if ((hasLetter && hasDigit) || (hasHyphen && (hasLetter || hasDigit))) {
-                        code = token;
-                    } else {
-                        brandParts.push(token);
-                    }
-                }
-                if (!code) {
-                    for (const token of tokens) {
-                        if (/^\d+$/.test(token) && token.length >= 2) {
-                            code = token;
-                            const idx = brandParts.indexOf(token);
-                            if (idx > -1) brandParts.splice(idx, 1);
-                            break;
-                        }
-                    }
-                }
-                const brand = brandParts.join(' ')
-                    .replace(/فلتر زيت|فلتر تبريد|فلتر هواء|فلتر كير|فلتر/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                if (brand) filtersSet.add(brand);
-                if (code) filterCodesSet.add(code);
-            } else if (isBattery) {
-                const batteryBrand = originalName.replace(/بطارية|بطاريه/g, '').replace(/\s+/g, ' ').trim();
-                if (batteryBrand) batteriesSet.add(batteryBrand);
-            } else if (isGearboxOil) {
-                gearboxOilsSet.add(cleanedName);
-            } else if (isOil) {
-                const oilBrand = cleanedName.replace(/زيت محرك|زيت|دهن/g, '').replace(/\s+/g, ' ').trim();
-                if (oilBrand) oilsSet.add(oilBrand);
-            } else if (isAdditive) {
-                cleanersAndAdditivesSet.add(originalName);
-            } else {
-                othersSet.add(originalName);
-            }
-        });
-
-        return {
-            oilBrands: Array.from(oilsSet).sort(),
-            viscosities: Array.from(viscositiesSet).sort(),
-            filterBrands: Array.from(filtersSet).sort(),
-            filterCodes: Array.from(filterCodesSet).sort(),
-            batteries: Array.from(batteriesSet).sort(),
-            cleanersAndAdditives: Array.from(cleanersAndAdditivesSet).sort(),
-            gearboxOils: Array.from(gearboxOilsSet).sort(),
-            others: Array.from(othersSet).sort()
-        };
-    }, [inventoryItems]);
-
-    const mergedOilBrands = useMemo(() => {
-        const set = new Set(STANDARD_OILS);
-        processedSuggestions.oilBrands.forEach(item => set.add(item));
-        return Array.from(set).sort();
-    }, [processedSuggestions.oilBrands]);
+        } catch {}
+    }, []);
 
     // ---------- Additional Fields ----------
     const [shiftName, setShiftName] = useState<string>("");
@@ -1454,47 +1424,33 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 </div>
             )}
 
-            {/* Datalists for Auto-complete */}
+            {/* Datalists — يقرأ من صفحة إدارة الاقتراحات */}
             <datalist id="oilBrands">
-                {mergedOilBrands.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.oilBrands.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="viscosities">
-                {processedSuggestions.viscosities.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.viscosities.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="filterBrands">
-                {processedSuggestions.filterBrands.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.filterBrands.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="filterCodes">
-                {processedSuggestions.filterCodes.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.filterCodes.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="cleanersAndAdditives">
-                {processedSuggestions.cleanersAndAdditives.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.cleanersAndAdditives.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="batteries">
-                {processedSuggestions.batteries.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.batteries.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="gearboxOils">
-                {processedSuggestions.gearboxOils.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
+                {suggestionLists.gearboxOils.map((item, idx) => <option key={idx} value={item} />)}
             </datalist>
 
             <datalist id="customServicesList">
