@@ -1456,7 +1456,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
 
             {/* Datalists for Auto-complete */}
             <datalist id="oilBrands">
-                {processedSuggestions.oilBrands.map((item, idx) => (
+                {mergedOilBrands.map((item, idx) => (
                     <option key={idx} value={item} />
                 ))}
             </datalist>
