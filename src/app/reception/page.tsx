@@ -233,6 +233,30 @@ const initServices = (): Record<string, ServiceEntry> => {
     return obj;
 };
 
+const STANDARD_OILS = [
+    "ليكي مولي اخضر",
+    "ليكي مولي رصاصي",
+    "ليكي مولي ديزل",
+    "ليكي مولي ازرق",
+    "ليكي مولي دراجات",
+    "ليكي مولي سكوتر",
+    "ستيرلنك",
+    "موبيل 1",
+    "كاسترول ماغنتك",
+    "كاسترول ايدج",
+    "كاسترول GTX",
+    "ميغوين احمر",
+    "ميغوين اخضر",
+    "ميغوين فيروزي",
+    "ميغيون اصفر",
+    "ميغوين",
+    "شل",
+    "شل الترا",
+    "فالفولاين رصاصي",
+    "فالفولاين احمر",
+    "فالفولاين ازرق"
+];
+
 function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const { t } = useLanguage();
     const { user, employeeRole, employeeBranchId } = useAuth();
@@ -361,6 +385,12 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
             others: Array.from(othersSet).sort()
         };
     }, [inventoryItems]);
+
+    const mergedOilBrands = useMemo(() => {
+        const set = new Set(STANDARD_OILS);
+        processedSuggestions.oilBrands.forEach(item => set.add(item));
+        return Array.from(set).sort();
+    }, [processedSuggestions.oilBrands]);
 
     // ---------- Additional Fields ----------
     const [shiftName, setShiftName] = useState<string>("");
