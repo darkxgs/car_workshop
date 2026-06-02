@@ -8,6 +8,7 @@ import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import { showSuccess, showError } from "@/lib/alerts";
 
 type WorkOrder = {
     id: string;
@@ -25,6 +26,7 @@ type WorkOrder = {
     bay_number: string | null;
     technician_id: string | null;
     branch_id: string | null;
+    notes: string | null;
 };
 
 type ReportServiceResult = {
@@ -102,6 +104,12 @@ export default function WorkOrderDetailPage() {
     // Print Preview States
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewMode, setPreviewMode] = useState<'full' | 'short'>('short');
+
+    // Technician & Bay Details States
+    const [techName, setTechName] = useState("");
+    const [bayNum, setBayNum] = useState("");
+    const [maintNotes, setMaintNotes] = useState("");
+    const [isSavingDetails, setIsSavingDetails] = useState(false);
     
     // Fetch
     useEffect(() => {
@@ -120,7 +128,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, bay_number, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -131,6 +139,12 @@ export default function WorkOrderDetailPage() {
                 return;
             }
             setOrder(data as any as WorkOrder);
+            
+            // Initialize details states
+            const firstSvc = data.selected_services?.[0];
+            setTechName(firstSvc?.technicianName || "");
+            setBayNum(data.bay_number || "");
+            setMaintNotes(data.notes || "");
             
             let currentLiveSeconds = (data.elapsed_time || 0) * 60;
             if (data.status === 'قيد العمل' && data.start_time) {
@@ -159,16 +173,84 @@ export default function WorkOrderDetailPage() {
         return () => clearInterval(interval);
     }, [order]);
 
+    const handleSaveDetailsOnly = async () => {
+        if (!order) return;
+        setIsSavingDetails(true);
+        try {
+            const updatedServices = [...(order.selected_services || [])];
+            if (updatedServices.length > 0) {
+                updatedServices[0] = {
+                    ...updatedServices[0],
+                    technicianName: techName
+                };
+            } else {
+                updatedServices.push({
+                    is_paper_v2_format: true,
+                    technicianName: techName,
+                    services: {}
+                });
+            }
+
+            const { error } = await supabase
+                .from('inspection_reports')
+                .update({
+                    bay_number: bayNum || null,
+                    notes: maintNotes || null,
+                    selected_services: updatedServices
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            showSuccess("تم الحفظ", "تم تحديث تفاصيل الصيانة بنجاح!");
+            fetchOrder();
+        } catch (err) {
+            console.error(err);
+            showError("خطأ", "فشل حفظ التفاصيل");
+        } finally {
+            setIsSavingDetails(false);
+        }
+    };
+
     const handleStart = async () => {
-        const bayNum = prompt('أدخل رقم الخانة (Bay Number):', order?.bay_number || '');
-        if (bayNum === null) return; // Cancelled
-        
-        await supabase.from('inspection_reports').update({ 
-            status: 'قيد العمل', 
-            start_time: new Date().toISOString(),
-            bay_number: bayNum || null 
-        }).eq('id', id);
-        fetchOrder();
+        if (!order) return;
+        if (!techName.trim()) {
+            showError("تنبيه", "يرجى كتابة اسم الفني أولاً للبدء بالعمل!");
+            return;
+        }
+
+        try {
+            const updatedServices = [...(order.selected_services || [])];
+            if (updatedServices.length > 0) {
+                updatedServices[0] = {
+                    ...updatedServices[0],
+                    technicianName: techName
+                };
+            } else {
+                updatedServices.push({
+                    is_paper_v2_format: true,
+                    technicianName: techName,
+                    services: {}
+                });
+            }
+
+            const { error } = await supabase
+                .from('inspection_reports')
+                .update({ 
+                    status: 'قيد العمل', 
+                    start_time: new Date().toISOString(),
+                    bay_number: bayNum || null,
+                    notes: maintNotes || null,
+                    selected_services: updatedServices
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            showSuccess("تم البدء", "تم بدء العمل على المركبة بنجاح!");
+            fetchOrder();
+        } catch (err) {
+            console.error(err);
+            showError("خطأ", "فشل بدء العمل");
+        }
     };
 
     const handleComplete = async () => {
@@ -325,28 +407,102 @@ export default function WorkOrderDetailPage() {
             </div>
 
             <div className="print:hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Right: Live Timer Status */}
-                <div className={`lg:col-span-1 glass-card p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center relative overflow-hidden transition-colors ${order.status === 'تم الانتهاء' ? 'border-emerald-500/50 bg-emerald-500/5' : isOverdue ? 'border-rose-500/50 bg-rose-500/5' : 'border-blue-500/30 bg-blue-500/5'}`}>
-                    <div className="mb-4">
-                        <Activity className={order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500 animate-pulse' : 'text-blue-500'} size={48} />
-                    </div>
-                    <p className="text-muted-foreground font-bold mb-2 uppercase text-xs tracking-wider">الزمن المستغرق (Live Timing)</p>
-                    <p className={`text-6xl font-display font-black font-mono mb-2 ${order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500' : 'text-blue-500'}`}>
-                        {order.status === 'تم الانتهاء' ? `${order.elapsed_time}:00` : liveTimeString}
-                    </p>
-                    <p className="text-muted-foreground text-sm font-medium flex items-center justify-center gap-2">
-                        من أصل <span className="text-foreground font-bold bg-muted px-2 py-0.5 rounded border border-border">{order.estimated_duration}m</span> مقدرة
-                        {order.status !== 'تم الانتهاء' && (
-                            <button onClick={handleEditTime} className="text-blue-500 hover:text-blue-400 p-1 bg-blue-500/10 rounded">تعديل</button>
+                {/* Right Column */}
+                <div className="lg:col-span-1 space-y-6 flex flex-col">
+                    {/* Live Timer Status */}
+                    <div className={`glass-card p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center relative overflow-hidden transition-colors ${order.status === 'تم الانتهاء' ? 'border-emerald-500/50 bg-emerald-500/5' : isOverdue ? 'border-rose-500/50 bg-rose-500/5' : 'border-blue-500/30 bg-blue-500/5'}`}>
+                        <div className="mb-4">
+                            <Activity className={order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500 animate-pulse' : 'text-blue-500'} size={48} />
+                        </div>
+                        <p className="text-muted-foreground font-bold mb-2 uppercase text-xs tracking-wider">الزمن المستغرق (Live Timing)</p>
+                        <p className={`text-6xl font-display font-black font-mono mb-2 ${order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500' : 'text-blue-500'}`}>
+                            {order.status === 'تم الانتهاء' ? `${order.elapsed_time}:00` : liveTimeString}
+                        </p>
+                        <p className="text-muted-foreground text-sm font-medium flex items-center justify-center gap-2">
+                            من أصل <span className="text-foreground font-bold bg-muted px-2 py-0.5 rounded border border-border">{order.estimated_duration}m</span> مقدرة
+                            {order.status !== 'تم الانتهاء' && (
+                                <button onClick={handleEditTime} className="text-blue-500 hover:text-blue-400 p-1 bg-blue-500/10 rounded">تعديل</button>
+                            )}
+                        </p>
+                        
+                        {isOverdue && order.status !== 'تم الانتهاء' && (
+                            <div className="absolute top-0 w-full bg-rose-500 text-white text-xs font-bold py-1">⚠️ تأخير عن الموعد!</div>
                         )}
-                    </p>
-                    
-                    {isOverdue && order.status !== 'تم الانتهاء' && (
-                        <div className="absolute top-0 w-full bg-rose-500 text-white text-xs font-bold py-1">⚠️ تأخير عن الموعد!</div>
-                    )}
-                    {order.status === 'قيد العمل' && !isOverdue && (
-                        <div className="absolute top-0 w-full bg-blue-500 text-white text-xs font-bold py-1">العداد يعمل الآن...</div>
-                    )}
+                        {order.status === 'قيد العمل' && !isOverdue && (
+                            <div className="absolute top-0 w-full bg-blue-500 text-white text-xs font-bold py-1">العداد يعمل الآن...</div>
+                        )}
+                    </div>
+
+                    {/* Technician Details & Start Card */}
+                    <div className="glass-card p-6 rounded-3xl border border-border shadow-sm space-y-4">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <Wrench className="text-blue-500" size={18} /> تفاصيل الصيانة والفني
+                        </h3>
+                        <hr className="border-border" />
+                        
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground block mb-1">اسم الفني</label>
+                                <input
+                                    type="text"
+                                    value={techName}
+                                    onChange={(e) => setTechName(e.target.value)}
+                                    placeholder="أدخل اسم الفني المسؤول..."
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                    disabled={order.status === 'تم الانتهاء'}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground block mb-1">رقم الخانة (Bay Number)</label>
+                                <input
+                                    type="text"
+                                    value={bayNum}
+                                    onChange={(e) => setBayNum(e.target.value)}
+                                    placeholder="مثال: الخانة 1..."
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                    disabled={order.status === 'تم الانتهاء'}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground block mb-1">ملاحظات الصيانة العامة</label>
+                                <textarea
+                                    value={maintNotes}
+                                    onChange={(e) => setMaintNotes(e.target.value)}
+                                    placeholder="اكتب أي ملاحظات صيانة هنا..."
+                                    rows={3}
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors resize-none font-ibm"
+                                    disabled={order.status === 'تم الانتهاء'}
+                                />
+                            </div>
+                        </div>
+                        
+                        {order.status === 'تم الاستلام' && (
+                            <button
+                                onClick={handleStart}
+                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 font-ibm"
+                            >
+                                <Play size={16} /> حفظ وابدأ بالعمل
+                            </button>
+                        )}
+                        
+                        {order.status === 'قيد العمل' && (
+                            <button
+                                onClick={handleSaveDetailsOnly}
+                                disabled={isSavingDetails}
+                                className="w-full py-3 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 font-ibm"
+                            >
+                                {isSavingDetails ? (
+                                    <>
+                                        <Loader2 className="animate-spin w-4 h-4" /> جاري الحفظ...
+                                    </>
+                                ) : (
+                                    <>حفظ التفاصيل فقط</>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Left: Services List & Inspected items */}

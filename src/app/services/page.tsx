@@ -47,7 +47,7 @@ const CATEGORIES = [
 
 export default function ServicesPage() {
     const { t } = useLanguage();
-    const { employeeRole } = useAuth();
+    const { employeeRole, employeeName } = useAuth();
     
     const [reports, setReports] = useState<any[]>([]);
     const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -168,7 +168,8 @@ export default function ServicesPage() {
                 item_code: item.item_code,
                 sell_price: item.sell_price,
                 quantity_used: 1,
-                max_quantity: item.quantity
+                max_quantity: item.quantity,
+                branch_id: item.branch_id
             }]);
         }
     };
@@ -210,6 +211,25 @@ export default function ServicesPage() {
         setSuccessMessage("");
         
         try {
+            // 0. Pre-verify inventory availability (Prevent negative quantity and handle concurrency)
+            if (usedParts.length > 0) {
+                for (const p of usedParts) {
+                    const { data: dbItem, error: getErr } = await supabase
+                        .from('inventory')
+                        .select('quantity, name')
+                        .eq('id', p.inventory_id)
+                        .single();
+
+                    if (getErr || !dbItem) {
+                        throw new Error(`المنفذ غير قادر على التحقق من وجود "${p.name}" في المخزن!`);
+                    }
+
+                    if ((dbItem.quantity || 0) < p.quantity_used) {
+                        throw new Error(`عذراً، الكمية المطلوبة من "${p.name}" (${p.quantity_used}) غير متوفرة حالياً في المخزن! المتاح هو (${dbItem.quantity || 0}) فقط.`);
+                    }
+                }
+            }
+
             const total = computeTotal();
 
             // 1. Update report status to completed
@@ -243,7 +263,9 @@ export default function ServicesPage() {
                     inventory_id: p.inventory_id,
                     quantity: p.quantity_used,
                     unit_price: p.sell_price,
-                    total_price: p.quantity_used * p.sell_price
+                    total_price: p.quantity_used * p.sell_price,
+                    part_name: p.name || null,
+                    part_code: p.item_code || null
                 }));
                 
                 await supabase.from('used_parts').insert(partsToInsert);
@@ -253,6 +275,19 @@ export default function ServicesPage() {
                 for (const p of usedParts) {
                     const remainingQty = p.max_quantity - p.quantity_used;
                     await supabase.from('inventory').update({ quantity: remainingQty }).eq('id', p.inventory_id);
+                    
+                    // Log the transaction
+                    await supabase.from('inventory_transactions').insert({
+                        branch_id: p.branch_id || null,
+                        inventory_id: p.inventory_id,
+                        item_code: p.item_code || null,
+                        item_name: p.name,
+                        transaction_type: 'صرف كمية',
+                        quantity_changed: -p.quantity_used,
+                        quantity_before: p.max_quantity,
+                        quantity_after: remainingQty,
+                        user_name: employeeName || 'نظام الصيانة'
+                    });
                 }
             }
 
@@ -271,9 +306,10 @@ export default function ServicesPage() {
             setUsedParts([]);
             setExpandedCategories(['engine']);
             
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            showError("خطأ", "حدث خطأ أثناء الحفظ");
+            const errMsg = err?.message || "حدث خطأ أثناء الحفظ";
+            showError("خطأ في الاعتماد", errMsg);
         } finally {
             setSaving(false);
         }
