@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-    FileSpreadsheet, Plus, Trash2, Save, RotateCcw, Search, X,
+    FileSpreadsheet, Plus, Trash2, Save, Search, X,
     Droplets, Thermometer, Filter, Zap, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
     Shield, Wrench, Activity
 } from "lucide-react";
