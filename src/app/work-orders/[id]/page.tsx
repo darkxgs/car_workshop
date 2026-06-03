@@ -127,17 +127,6 @@ export default function WorkOrderDetailPage() {
     const [suggLists, setSuggLists] = useState<Record<string, string[]>>({
         technicianNames: [], supervisorNames: [], bayNumbers: []
     });
-    useEffect(() => {
-        (supabase as any).from('suggestion_lists').select('key, items')
-            .in('key', ['technicianNames', 'supervisorNames', 'bayNumbers'])
-            .then(({ data }: { data: any[] | null }) => {
-                if (data) {
-                    const m: Record<string, string[]> = {};
-                    data.forEach(r => { m[r.key] = Array.isArray(r.items) ? r.items : []; });
-                    setSuggLists(prev => ({ ...prev, ...m }));
-                }
-            });
-    }, []);
     
     // Fetch
     useEffect(() => {
@@ -175,6 +164,18 @@ export default function WorkOrderDetailPage() {
             setBayNum(data.bay_number || "");
             setOdometer(data.odometer_reading?.toString() || "");
             setMaintNotes(data.notes || "");
+
+            // Fetch suggestions for this order's branch
+            (supabase as any).from('suggestion_lists').select('key, items')
+                .in('key', ['technicianNames', 'supervisorNames', 'bayNumbers'])
+                .eq('branch_id', data.branch_id)
+                .then(({ data: suggData }: { data: any[] | null }) => {
+                    if (suggData) {
+                        const m: Record<string, string[]> = {};
+                        suggData.forEach(r => { m[r.key] = Array.isArray(r.items) ? r.items : []; });
+                        setSuggLists(prev => ({ ...prev, ...m }));
+                    }
+                });
             
             let currentLiveSeconds = (data.elapsed_time || 0) * 60;
             if (data.status === 'قيد العمل' && data.start_time) {
@@ -780,7 +781,7 @@ export default function WorkOrderDetailPage() {
                                     <div key={idx} className="flex justify-between items-center p-3 bg-card border border-border rounded-xl shadow-sm hover:border-rose-500/30 transition-colors">
                                         <div>
                                             <p className="font-bold text-foreground text-sm">{svc.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">{svc.category} {svc.details ? `• ${svc.details}` : ''}</p>
+                                            <p className="text-[10px] text-muted-foreground">{svc.category} {(svc as any).details ? `• ${(svc as any).details}` : ''}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {(svc as any).price !== undefined && (svc as any).price > 0 && (
