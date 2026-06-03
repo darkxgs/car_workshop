@@ -383,8 +383,6 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [totalPrice, setTotalPrice] = useState("");
     const [discount, setDiscount] = useState("");
     const [amountReceived, setAmountReceived] = useState("");
-    const [amountOwedByClient, setAmountOwedByClient] = useState("");
-    const [amountOwedToClient, setAmountOwedToClient] = useState("");
 
     // ---------- UI States ----------
     const [loading, setLoading] = useState(false);
@@ -489,8 +487,6 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         setTotalPrice(payload.pricing.totalPrice || data.total_price?.toString() || "");
                         setDiscount(payload.pricing.discount || "");
                         setAmountReceived(payload.pricing.amountReceived || "");
-                        setAmountOwedByClient(payload.pricing.amountOwedByClient || "");
-                        setAmountOwedToClient(payload.pricing.amountOwedToClient || "");
                     } else {
                         setTotalPrice(data.total_price?.toString() || "");
                     }
@@ -506,20 +502,11 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         const sumCustom = customServices.reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
         const subtotal = sumServices + sumCustom;
         
-        setTotalPrice(subtotal.toString());
-
         const discVal = parseFloat(discount) || 0;
         const netTotal = Math.max(0, subtotal - discVal);
-        const receivedVal = parseFloat(amountReceived) || 0;
         
-        if (receivedVal > netTotal) {
-            setAmountOwedToClient((receivedVal - netTotal).toString());
-            setAmountOwedByClient("0");
-        } else {
-            setAmountOwedByClient((netTotal - receivedVal).toString());
-            setAmountOwedToClient("0");
-        }
-    }, [services, customServices, discount, amountReceived]);
+        setTotalPrice(netTotal.toString());
+    }, [services, customServices, discount]);
 
     // Custom services helpers
     const addCustomService = () => {
@@ -755,7 +742,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 shiftName,
                 shiftSupervisor,
                 booklet: { type: bookletType, changes: bookletChanges },
-                pricing: { totalPrice, discount, amountReceived, amountOwedByClient, amountOwedToClient },
+                pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
             };
 
@@ -766,7 +753,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                     .update({
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
-                        total_price: parseFloat(totalPrice || "0") - parseFloat(discount || "0"),
+                        total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
                         estimated_duration: calculatedDuration,
@@ -793,7 +780,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 .insert({
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
-                    status, total_price: parseFloat(totalPrice || "0") - parseFloat(discount || "0"),
+                    status, total_price: parseFloat(totalPrice || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
                     estimated_duration: calculatedDuration,
@@ -829,7 +816,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         setBookletChanges("");
         setSelectedBranchId(newBranchId || "");
         setSelectedReceptionistId(""); setSelectedTechnicianId("");
-        setTotalPrice(""); setDiscount(""); setAmountReceived(""); setAmountOwedByClient(""); setAmountOwedToClient("");
+        setTotalPrice(""); setDiscount(""); setAmountReceived("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);
         router.replace('/reception'); // clear edit param
@@ -1416,10 +1403,10 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         {/* Pricing */}
                         <div className="bg-rose-950/20 border border-rose-900/30 p-5 rounded-xl space-y-3">
                             <h3 className="text-sm font-bold text-rose-300 mb-3">الأسعار</h3>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className="text-xs text-muted-foreground block mb-1">المجموع الكلي (د.ع)</label>
-                                    <input type="number" className="input-field bg-background text-lg font-bold" placeholder="0" value={totalPrice} onChange={e => setTotalPrice(e.target.value)} />
+                                    <input type="number" className="input-field bg-background text-lg font-bold" placeholder="0" value={totalPrice} onChange={e => setTotalPrice(e.target.value)} disabled />
                                 </div>
                                 <div>
                                     <label className="text-xs text-rose-400 font-bold block mb-1">الخصم (د.ع)</label>
@@ -1427,15 +1414,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                                 </div>
                                 <div>
                                     <label className="text-xs text-muted-foreground block mb-1">الواصل (د.ع)</label>
-                                    <input type="number" className="input-field bg-background" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-muted-foreground block mb-1">مدين لنا (د.ع)</label>
-                                    <input type="number" className="input-field bg-background" placeholder="0" value={amountOwedByClient} onChange={e => setAmountOwedByClient(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-muted-foreground block mb-1">دائن علينا (د.ع)</label>
-                                    <input type="number" className="input-field bg-background" placeholder="0" value={amountOwedToClient} onChange={e => setAmountOwedToClient(e.target.value)} />
+                                    <input type="number" className="input-field bg-background text-lg" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} />
                                 </div>
                             </div>
                         </div>
