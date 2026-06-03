@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileSpreadsheet, Plus, Trash2, Save, RotateCcw, Search, X,
-    Droplets, Thermometer, Filter, Zap, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2
+    Droplets, Thermometer, Filter, Zap, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
+    Shield, Wrench, Activity
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { showSuccess, showError, showConfirm } from "@/lib/alerts";
@@ -61,7 +62,10 @@ const DEFAULT_LISTS: Record<string, string[]> = {
     engineBeltsBrands: ["Gates", "Contitech", "Dongil", "اصلي"],
     brakePadsBrands: ["Brembo", "Ate", "Bosch", "Sangsin", "اصلي"],
     sparkPlugsBrands: ["NGK Laser", "Denso Iridium", "Bosch Double Platinum", "اصلي"],
-    windshieldFluids: ["ليكي مولي مركز", "سائل رغوي جاهز", "ماء مقطر"]
+    windshieldFluids: ["ليكي مولي مركز", "سائل رغوي جاهز", "ماء مقطر"],
+    technicianNames: ["أحمد", "حيدر", "مصطفى", "علي", "سجاد", "كرار"],
+    supervisorNames: ["محمد", "حسن", "عمر", "جعفر"],
+    bayNumbers: ["الخانة 1", "الخانة 2", "الخانة 3", "الخانة 4", "الخانة 5"]
 };
 
 // ─── Visual Groupings ───
@@ -128,6 +132,16 @@ const GROUPS = [
             { key: "brakePadsBrands", label: "دسكات السيارة/الفرامل", icon: <Cog size={16} />, color: "rose" },
             { key: "sparkPlugsBrands", label: "شمعات الاحتراق/البواجي", icon: <Cog size={16} />, color: "purple" },
             { key: "windshieldFluids", label: "سائل غسيل جام", icon: <Cog size={16} />, color: "cyan" },
+        ]
+    },
+    {
+        id: "staff",
+        name: "طاقم العمل والورشة",
+        icon: <Wrench size={18} />,
+        categories: [
+            { key: "technicianNames", label: "أسماء الفنيين", icon: <Wrench size={16} />, color: "blue" },
+            { key: "supervisorNames", label: "أسماء المشرفين", icon: <Shield size={16} />, color: "rose" },
+            { key: "bayNumbers", label: "أرقام الخانات", icon: <Activity size={16} />, color: "emerald" },
         ]
     }
 ];

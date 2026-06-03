@@ -287,7 +287,10 @@ const DEFAULT_SUGGESTION_LISTS: Record<string, string[]> = {
     engineBeltsBrands: ["Gates", "Contitech", "Dongil", "اصلي"],
     brakePadsBrands: ["Brembo", "Ate", "Bosch", "Sangsin", "اصلي"],
     sparkPlugsBrands: ["NGK Laser", "Denso Iridium", "Bosch Double Platinum", "اصلي"],
-    windshieldFluids: ["ليكي مولي مركز", "سائل رغوي جاهز", "ماء مقطر"]
+    windshieldFluids: ["ليكي مولي مركز", "سائل رغوي جاهز", "ماء مقطر"],
+    technicianNames: ["أحمد", "حيدر", "مصطفى", "علي", "سجاد", "كرار"],
+    supervisorNames: ["محمد", "حسن", "عمر", "جعفر"],
+    bayNumbers: ["الخانة 1", "الخانة 2", "الخانة 3", "الخانة 4", "الخانة 5"]
 };
 
 function ReceptionWizard({ onClose }: { onClose: () => void }) {
@@ -1305,7 +1308,19 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-bold text-rose-400 mb-2 block">رقم الخانة (الموقف):</label>
-                                <input type="text" className="input-field bg-background text-lg font-bold" placeholder="مثال: A1, 5, يمين الباب..." value={bayNumber} onChange={e => setBayNumber(e.target.value)} />
+                                <input
+                                    type="text"
+                                    list="bay-number-list"
+                                    className="input-field bg-background text-lg font-bold"
+                                    placeholder="مثال: الخانة 1..."
+                                    value={bayNumber}
+                                    onChange={e => setBayNumber(e.target.value)}
+                                />
+                                <datalist id="bay-number-list">
+                                    {(suggestionLists.bayNumbers || []).map((b, i) => (
+                                        <option key={i} value={b} />
+                                    ))}
+                                </datalist>
                             </div>
                             <div>
                                 <label className="text-sm font-bold text-rose-400 mb-2 block">ملاحظات إضافية:</label>
@@ -1322,7 +1337,19 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                             </div>
                             <div>
                                 <label className="text-sm font-bold text-rose-400 mb-2 block">مشرف الشفت:</label>
-                                <input type="text" className="input-field bg-background text-lg font-bold" placeholder="اسم المشرف..." value={shiftSupervisor} onChange={e => setShiftSupervisor(e.target.value)} />
+                                <input
+                                    type="text"
+                                    list="supervisor-names-list"
+                                    className="input-field bg-background text-lg font-bold"
+                                    placeholder="اسم المشرف..."
+                                    value={shiftSupervisor}
+                                    onChange={e => setShiftSupervisor(e.target.value)}
+                                />
+                                <datalist id="supervisor-names-list">
+                                    {(suggestionLists.supervisorNames || []).map((s, i) => (
+                                        <option key={i} value={s} />
+                                    ))}
+                                </datalist>
                             </div>
                         </div>
 
