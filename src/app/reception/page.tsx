@@ -310,7 +310,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
     const [branchChangePending, setBranchChangePending] = useState<string | null>(null);
 
     // ---------- Suggestion Lists (from Supabase Database) ----------
-    const [suggestionLists, setSuggestionLists] = useState<Record<string, string[]>>(DEFAULT_SUGGESTION_LISTS);
+    const [suggestionLists, setSuggestionLists] = useState<Record<string, any[]>>(DEFAULT_SUGGESTION_LISTS);
 
     useEffect(() => {
         // Fetch from Supabase
@@ -325,13 +325,13 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 
                 if (error) throw error;
                 if (data && data.length > 0) {
-                    const fetchedLists: Record<string, string[]> = {};
+                    const fetchedLists: Record<string, any[]> = {};
                     data.forEach((row: any) => {
                         fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
                     });
 
                     setSuggestionLists(prev => {
-                        const merged: Record<string, string[]> = {};
+                        const merged: Record<string, any[]> = {};
                         for (const key of Object.keys(prev)) {
                             merged[key] = fetchedLists[key] || prev[key];
                         }
@@ -564,21 +564,60 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         setServices(prev => {
             const newDet = { ...prev[key].details, [field]: value };
             let newPrice = prev[key].price;
-            if (key === 'engineOil' && (field === 'liters' || field === 'qty' || field === 'unitPrice')) {
-                const l = parseFloat(field === 'liters' || field === 'qty' ? value : (newDet.liters || newDet.qty)) || 0;
-                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
+
+            // Find listId
+            let listId: string | undefined = undefined;
+            const mainSvc = MAIN_SERVICES.find(s => s.key === key);
+            const mainField = mainSvc?.detailFields.find(f => f.key === field);
+            if (mainField?.listId) {
+                listId = mainField.listId;
+            } else {
+                for (const sec of SECTOR_BRANCH_SERVICES) {
+                    const item = sec.items.find(it => it.key === key);
+                    const fld = item?.detailFields?.find(f => f.key === field);
+                    if (fld?.listId) {
+                        listId = fld.listId;
+                        break;
+                    }
+                }
+            }
+
+            // Look up price in suggestions
+            if (listId && suggestionLists[listId]) {
+                const matchedItem = suggestionLists[listId].find(item => {
+                    const itemName = typeof item === 'object' && item !== null ? item.name : String(item);
+                    return itemName.trim().toLowerCase() === value.trim().toLowerCase();
+                });
+                
+                if (matchedItem && typeof matchedItem === 'object' && matchedItem !== null && matchedItem.price) {
+                    const itemPrice = String(matchedItem.price);
+                    
+                    const hasUnitPriceField = (mainSvc?.detailFields.some(f => f.key === 'unitPrice')) ||
+                        (SECTOR_BRANCH_SERVICES.find(s => s.items.some(it => it.key === key))?.items.find(it => it.key === key)?.detailFields?.some(f => f.key === 'unitPrice'));
+
+                    if (hasUnitPriceField) {
+                        newDet.unitPrice = itemPrice;
+                    } else {
+                        newPrice = itemPrice;
+                    }
+                }
+            }
+
+            // Recalculate totals for services with subtotal calculations
+            if (key === 'engineOil') {
+                const l = parseFloat(newDet.liters || newDet.qty) || 0;
+                const up = parseFloat(newDet.unitPrice) || 0;
                 newPrice = (l * up) > 0 ? (l * up).toString() : '';
-            }
-            if (key === 'transOil' && (field === 'qty' || field === 'unitPrice')) {
-                const q = parseFloat(field === 'qty' ? value : newDet.qty) || 0;
-                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
+            } else if (key === 'transOil') {
+                const q = parseFloat(newDet.qty) || 0;
+                const up = parseFloat(newDet.unitPrice) || 0;
+                newPrice = (q * up) > 0 ? (q * up).toString() : '';
+            } else if (key === 'coolant') {
+                const q = parseFloat(newDet.qty) || 0;
+                const up = parseFloat(newDet.unitPrice) || 0;
                 newPrice = (q * up) > 0 ? (q * up).toString() : '';
             }
-            if (key === 'coolant' && (field === 'qty' || field === 'unitPrice')) {
-                const q = parseFloat(field === 'qty' ? value : newDet.qty) || 0;
-                const up = parseFloat(field === 'unitPrice' ? value : newDet.unitPrice) || 0;
-                newPrice = (q * up) > 0 ? (q * up).toString() : '';
-            }
+
             return {
                 ...prev,
                 [key]: { ...prev[key], details: newDet, price: newPrice }
@@ -1474,9 +1513,10 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
             {/* Datalists — يقرأ ديناميكياً من السيرفر كقائمة اقتراحات مستقلة لكل فئة */}
             {Object.keys(suggestionLists).map(key => (
                 <datalist id={key} key={key}>
-                    {suggestionLists[key]?.map((item, idx) => (
-                        <option key={idx} value={item} />
-                    ))}
+                    {suggestionLists[key]?.map((item, idx) => {
+                        const name = typeof item === 'object' && item !== null ? (item as any).name : String(item);
+                        return <option key={idx} value={name} />;
+                    })}
                 </datalist>
             ))}
 
