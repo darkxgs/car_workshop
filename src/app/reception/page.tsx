@@ -316,9 +316,12 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         // Fetch from Supabase
         async function loadFromDB() {
             try {
-                const { data, error } = await (supabase as any)
-                    .from('suggestion_lists')
-                    .select('key, items');
+                const activeBranchId = selectedBranchId || employeeBranchId;
+                let query = (supabase as any).from('suggestion_lists').select('key, items');
+                if (activeBranchId) {
+                    query = query.eq('branch_id', activeBranchId);
+                }
+                const { data, error } = await query;
                 
                 if (error) throw error;
                 if (data && data.length > 0) {
@@ -340,7 +343,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
             }
         }
         loadFromDB();
-    }, []);
+    }, [selectedBranchId, employeeBranchId]);
 
     // ---------- Additional Fields ----------
     const [shiftName, setShiftName] = useState<string>("");

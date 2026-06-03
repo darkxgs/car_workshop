@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { showSuccess, showError, showConfirm } from "@/lib/alerts";
+import { useAuth } from "@/lib/AuthProvider";
 
 // ─── Default Lists (used as initial seed / fallback) ───
 const DEFAULT_LISTS: Record<string, string[]> = {
@@ -176,37 +177,57 @@ export default function SuggestionsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Branch state parameters
+    const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState("");
+    const { employeeBranchId, employeeRole } = useAuth();
+
+    // Fetch branches list
+    useEffect(() => {
+        const fetchBranches = async () => {
+            const { data } = await supabase.from('branches').select('id, name');
+            if (data && data.length > 0) {
+                setBranches(data);
+                setSelectedBranchId(employeeBranchId || data[0].id);
+            }
+        };
+        fetchBranches();
+    }, [employeeBranchId]);
+
     // Fetch from Supabase
     const fetchLists = useCallback(async () => {
+        if (!selectedBranchId) return;
         setLoading(true);
         try {
             const { data, error } = await (supabase as any)
                 .from("suggestion_lists")
-                .select("key, items");
+                .select("key, items")
+                .eq("branch_id", selectedBranchId);
             
             if (error) throw error;
 
+            const fetchedLists: Record<string, string[]> = {};
             if (data && data.length > 0) {
-                const fetchedLists: Record<string, string[]> = {};
                 data.forEach((row: any) => {
                     fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
                 });
-
-                // Merge with DEFAULT_LISTS in case some keys are missing in DB
-                const merged: Record<string, string[]> = {};
-                for (const key of Object.keys(DEFAULT_LISTS)) {
-                    merged[key] = fetchedLists[key] || DEFAULT_LISTS[key];
-                }
-
-                setLists(merged);
             }
+
+            // Merge with DEFAULT_LISTS in case some keys are missing in DB
+            const merged: Record<string, string[]> = {};
+            for (const key of Object.keys(DEFAULT_LISTS)) {
+                merged[key] = fetchedLists[key] || DEFAULT_LISTS[key];
+            }
+
+            setLists(merged);
+            setHasChanges(false);
         } catch (err) {
             console.error("Error fetching suggestion lists from Supabase:", err);
             showError("خطأ في الاتصال", "فشل جلب الاقتراحات من السيرفر. تم استخدام القيم الافتراضية.");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedBranchId]);
 
     useEffect(() => {
         fetchLists();
@@ -236,12 +257,14 @@ export default function SuggestionsPage() {
     }, []);
 
     const handleSave = useCallback(async () => {
+        if (!selectedBranchId) return;
         setSaving(true);
         try {
             // Write each list to Supabase
             const promises = Object.keys(lists).map(async key => {
                 const label = CATEGORY_META.find(c => c.key === key)?.label || key;
                 return (supabase as any).from("suggestion_lists").upsert({
+                    branch_id: selectedBranchId,
                     key,
                     label,
                     items: lists[key],
@@ -261,7 +284,7 @@ export default function SuggestionsPage() {
         } finally {
             setSaving(false);
         }
-    }, [lists]);
+    }, [lists, selectedBranchId]);
 
     const handleReset = useCallback(async () => {
         const confirmed = await showConfirm(
@@ -301,6 +324,28 @@ export default function SuggestionsPage() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                    {/* Branch Dropdown Select */}
+                    {branches.length > 0 && (employeeRole === 'Owner' || employeeRole === 'Admin' || !employeeBranchId) && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-muted-foreground">الفرع:</span>
+                            <select
+                                value={selectedBranchId}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (hasChanges) {
+                                        if (confirm("لديك تغييرات غير محفوظة، هل أنت متأكد من الانتقال وتجاهل التعديلات؟")) {
+                                            setSelectedBranchId(val);
+                                        }
+                                    } else {
+                                        setSelectedBranchId(val);
+                                    }
+                                }}
+                                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-rose-500/50"
+                            >
+                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
+                    )}
                     <div className="bg-card border border-border rounded-xl px-4 py-2 text-sm font-bold text-muted-foreground">
                         الإجمالي: <span className="text-foreground">{totalItems}</span> اقتراح
                     </div>
