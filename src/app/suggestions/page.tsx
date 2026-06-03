@@ -286,17 +286,7 @@ export default function SuggestionsPage() {
         }
     }, [lists, selectedBranchId]);
 
-    const handleReset = useCallback(async () => {
-        const confirmed = await showConfirm(
-            "إعادة تعيين للقيم الافتراضية؟",
-            "هل تريد إرجاع جميع القوائم للقيم الافتراضية؟ سيتم استبدال البيانات الحالية (يجب الضغط على حفظ بعدها لتأكيد التحديث في السيرفر)."
-        );
-        if (confirmed) {
-            setLists({ ...DEFAULT_LISTS });
-            setHasChanges(true);
-            showSuccess("تم الاستعادة مؤقتاً", "تم تحميل القيم الافتراضية. اضغط على حفظ لحفظها في قاعدة البيانات.");
-        }
-    }, []);
+
 
     const totalItems = useMemo(() => {
         return Object.values(lists).reduce((sum, arr) => sum + arr.length, 0);
@@ -349,12 +339,7 @@ export default function SuggestionsPage() {
                     <div className="bg-card border border-border rounded-xl px-4 py-2 text-sm font-bold text-muted-foreground">
                         الإجمالي: <span className="text-foreground">{totalItems}</span> اقتراح
                     </div>
-                    <button
-                        onClick={handleReset}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-amber-500/30 transition-all text-sm font-bold"
-                    >
-                        <RotateCcw size={16} /> استعادة الافتراضي
-                    </button>
+
                     <button
                         onClick={handleSave}
                         disabled={!hasChanges || saving}
