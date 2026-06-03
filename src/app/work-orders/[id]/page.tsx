@@ -24,6 +24,7 @@ type WorkOrder = {
     branches?: { id: string; name: string } | null;
     vehicles: { make: string; model: string; plate_number: string, clients?: { name: string; phone: string } };
     bay_number: string | null;
+    odometer_reading: number;
     technician_id: string | null;
     branch_id: string | null;
     notes: string | null;
@@ -109,6 +110,7 @@ export default function WorkOrderDetailPage() {
     const [techName, setTechName] = useState("");
     const [supervisorName, setSupervisorName] = useState("");
     const [bayNum, setBayNum] = useState("");
+    const [odometer, setOdometer] = useState("");
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
 
@@ -145,7 +147,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -162,6 +164,7 @@ export default function WorkOrderDetailPage() {
             setTechName(firstSvc?.technicianName || "");
             setSupervisorName(firstSvc?.shiftSupervisor || "");
             setBayNum(data.bay_number || "");
+            setOdometer(data.odometer_reading?.toString() || "");
             setMaintNotes(data.notes || "");
             
             let currentLiveSeconds = (data.elapsed_time || 0) * 60;
@@ -216,6 +219,7 @@ export default function WorkOrderDetailPage() {
                 .update({
                     bay_number: bayNum || null,
                     notes: maintNotes || null,
+                    odometer_reading: odometer ? parseInt(odometer) : 0,
                     selected_services: updatedServices
                 })
                 .eq('id', id);
@@ -262,6 +266,7 @@ export default function WorkOrderDetailPage() {
                     start_time: new Date().toISOString(),
                     bay_number: bayNum || null,
                     notes: maintNotes || null,
+                    odometer_reading: odometer ? parseInt(odometer) : 0,
                     selected_services: updatedServices
                 })
                 .eq('id', id);
@@ -472,7 +477,6 @@ export default function WorkOrderDetailPage() {
                                     onChange={(e) => setSupervisorName(e.target.value)}
                                     placeholder="أدخل اسم المشرف..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
-                                    disabled={order.status === 'تم الانتهاء'}
                                 />
                                 <datalist id="wo-supervisor-list">
                                     {suggLists.supervisorNames.map((n, i) => <option key={i} value={n} />)}
@@ -488,7 +492,6 @@ export default function WorkOrderDetailPage() {
                                     onChange={(e) => setTechName(e.target.value)}
                                     placeholder="أدخل اسم الفني المسؤول..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
-                                    disabled={order.status === 'تم الانتهاء'}
                                 />
                                 <datalist id="wo-tech-list">
                                     {suggLists.technicianNames.map((n, i) => <option key={i} value={n} />)}
@@ -504,11 +507,21 @@ export default function WorkOrderDetailPage() {
                                     onChange={(e) => setBayNum(e.target.value)}
                                     placeholder="مثال: الخانة 1..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
-                                    disabled={order.status === 'تم الانتهاء'}
                                 />
                                 <datalist id="wo-bay-list">
                                     {suggLists.bayNumbers.map((n, i) => <option key={i} value={n} />)}
                                 </datalist>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground block mb-1">عداد السيارة (Odometer)</label>
+                                <input
+                                    type="number"
+                                    value={odometer}
+                                    onChange={(e) => setOdometer(e.target.value)}
+                                    placeholder="أدخل قراءة العداد بالكم..."
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                />
                             </div>
                             
                             <div>
@@ -519,7 +532,6 @@ export default function WorkOrderDetailPage() {
                                     placeholder="اكتب أي ملاحظات صيانة هنا..."
                                     rows={3}
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors resize-none font-ibm"
-                                    disabled={order.status === 'تم الانتهاء'}
                                 />
                             </div>
                         </div>
@@ -533,7 +545,7 @@ export default function WorkOrderDetailPage() {
                             </button>
                         )}
                         
-                        {order.status === 'قيد العمل' && (
+                        {order.status !== 'تم الاستلام' && (
                             <button
                                 onClick={handleSaveDetailsOnly}
                                 disabled={isSavingDetails}
@@ -558,11 +570,9 @@ export default function WorkOrderDetailPage() {
                     <div>
                         <div className="flex justify-between items-center mb-4 pb-3 border-b border-rose-500/10">
                             <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Wrench className="text-rose-500" size={20}/> الخدمات المطلوبة (Services)</h2>
-                            {order.status !== 'تم الانتهاء' && (
-                                <button onClick={() => setIsAddingSvc(!isAddingSvc)} className="text-blue-600 hover:text-blue-500 text-sm font-bold flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-colors">
-                                    <Plus size={16} /> إضافة خدمة إضافية
-                                </button>
-                            )}
+                        <button onClick={() => setIsAddingSvc(!isAddingSvc)} className="text-blue-600 hover:text-blue-500 text-sm font-bold flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-colors font-ibm">
+                            <Plus size={16} /> إضافة خدمة إضافية
+                        </button>
                         </div>
 
                         {isAddingSvc && (
@@ -657,11 +667,9 @@ export default function WorkOrderDetailPage() {
                     <div>
                         <div className="flex justify-between items-center mb-4 pb-3 border-b border-emerald-500/10">
                             <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><CheckCircle2 className="text-emerald-500" size={20}/> تشخيص الأعطال (Diagnosis)</h2>
-                            {order.status !== 'تم الانتهاء' && (
-                                <button onClick={() => setIsDiagnosing(true)} className="text-emerald-600 hover:text-emerald-500 text-sm font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors">
-                                    <Plus size={16} /> تسجيل عطل فني
-                                </button>
-                            )}
+                            <button onClick={() => setIsDiagnosing(true)} className="text-emerald-600 hover:text-emerald-500 text-sm font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors font-ibm">
+                                <Plus size={16} /> تسجيل عطل فني
+                            </button>
                         </div>
 
                         {/* Diagnostics Form */}
