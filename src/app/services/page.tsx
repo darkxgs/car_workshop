@@ -47,7 +47,7 @@ const CATEGORIES = [
 
 export default function ServicesPage() {
     const { t } = useLanguage();
-    const { employeeRole, employeeName } = useAuth();
+    const { employeeRole, employeeName, employeeBranchId } = useAuth();
     
     const [reports, setReports] = useState<any[]>([]);
     const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -76,11 +76,16 @@ export default function ServicesPage() {
         const fetchInitialData = async () => {
             try {
                 // Fetch valid open reports
-                const { data: reportsData } = await supabase
+                let query = supabase
                     .from('inspection_reports')
-                    .select('id, report_number, odometer_reading, vehicles(make, model, plate_number, clients(name))')
-                    .neq('status', 'تم الانتهاء')
-                    .order('created_at', { ascending: false });
+                    .select('id, report_number, odometer_reading, branch_id, vehicles(make, model, plate_number, clients(name))')
+                    .neq('status', 'تم الانتهاء');
+                
+                if (employeeBranchId) {
+                    query = query.eq('branch_id', employeeBranchId);
+                }
+                
+                const { data: reportsData } = await query.order('created_at', { ascending: false });
                 
                 if (reportsData) {
                     setReports(reportsData);
@@ -93,7 +98,7 @@ export default function ServicesPage() {
             }
         };
         fetchInitialData();
-    }, []);
+    }, [employeeBranchId]);
 
     // Debounce Parts Search
     useEffect(() => {

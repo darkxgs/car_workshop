@@ -124,13 +124,27 @@ export default function CustomersPage() {
                     }
                 }
 
+                // Deduplicate vehicles for display (e.g. by make, model, and plate number)
+                const uniqueVehicles: any[] = [];
+                const seenVehKeys = new Set<string>();
+                c.vehicles?.forEach((v: any) => {
+                    const makeKey = (v.make || "").trim().toLowerCase();
+                    const modelKey = (v.model || "").trim().toLowerCase();
+                    const plateKey = (v.plate_number || "").trim().toLowerCase();
+                    const key = `${makeKey}_${modelKey}_${plateKey}`;
+                    if (!seenVehKeys.has(key)) {
+                        seenVehKeys.add(key);
+                        uniqueVehicles.push(v);
+                    }
+                });
+
                 return {
                     id: c.id,
                     name: c.name,
                     phone: c.phone,
                     email: c.email,
                     created_at: c.created_at,
-                    vehicles: c.vehicles,
+                    vehicles: uniqueVehicles,
                     latestStatus,
                     branchIds: Array.from(branchIdSet),
                     branchNames: Array.from(branchNameSet),

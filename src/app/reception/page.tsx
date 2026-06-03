@@ -497,15 +497,26 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         loadReport();
     }, [editId]);
 
-    // Real-time calculation of total price
+    // Real-time calculation of total price, discount, and owed amounts
     useEffect(() => {
         const sumServices = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
         const sumCustom = customServices.reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
-        const sum = sumServices + sumCustom;
-        if (sum > 0) {
-            setTotalPrice(sum.toString());
+        const subtotal = sumServices + sumCustom;
+        
+        setTotalPrice(subtotal.toString());
+
+        const discVal = parseFloat(discount) || 0;
+        const netTotal = Math.max(0, subtotal - discVal);
+        const receivedVal = parseFloat(amountReceived) || 0;
+        
+        if (receivedVal > netTotal) {
+            setAmountOwedToClient((receivedVal - netTotal).toString());
+            setAmountOwedByClient("0");
+        } else {
+            setAmountOwedByClient((netTotal - receivedVal).toString());
+            setAmountOwedToClient("0");
         }
-    }, [services, customServices]);
+    }, [services, customServices, discount, amountReceived]);
 
     // Custom services helpers
     const addCustomService = () => {
@@ -612,10 +623,11 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
         setStep(3); 
     };
 
-    const handleSaveDraft = async () => saveWorkOrder('تم الاستلام', null);
-    const handleStartWorkOrder = async () => saveWorkOrder('قيد العمل', new Date().toISOString());
+    const handleSaveDraft = async () => saveWorkOrder('تم الاستلام', null, false);
+    const handleSaveOnly = async () => saveWorkOrder('تم الاستلام', null, true);
+    const handleStartWorkOrder = async () => saveWorkOrder('قيد العمل', new Date().toISOString(), false);
 
-    const saveWorkOrder = async (status: 'تم الاستلام' | 'قيد العمل', startTime: string | null) => {
+    const saveWorkOrder = async (status: 'تم الاستلام' | 'قيد العمل', startTime: string | null, skipStep3 = false) => {
         setLoading(true); setError(null);
         try {
             let branchId = null, employeeId = null;
@@ -632,15 +644,46 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
             }
 
             let vehicleId: string | null = null;
-            if (plateNumber && plateNumber.trim() !== "") {
-                const { data: ev } = await supabase.from('vehicles').select('id').eq('plate_number', plateNumber).maybeSingle();
-                if (ev) vehicleId = ev.id;
+            const cleanedPlate = plateNumber ? plateNumber.trim() : "";
+            const cleanedMake = make ? make.trim() : "";
+            const cleanedModel = model ? model.trim() : "";
+            const cleanedEngine = engineSize ? engineSize.trim() : "";
+
+            if (cleanedPlate !== "") {
+                const { data: evs } = await supabase.from('vehicles')
+                    .select('id')
+                    .eq('plate_number', cleanedPlate)
+                    .limit(1);
+                if (evs && evs.length > 0) vehicleId = evs[0].id;
+            } else if (cleanedMake !== "" || cleanedModel !== "") {
+                const { data: evs } = await supabase.from('vehicles')
+                    .select('id')
+                    .eq('client_id', clientId)
+                    .eq('make', cleanedMake)
+                    .eq('model', cleanedModel)
+                    .limit(1);
+                if (evs && evs.length > 0) vehicleId = evs[0].id;
             }
+
             if (vehicleId) {
-                await supabase.from('vehicles').update({ client_id: clientId, make, model, engine_size: engineSize }).eq('id', vehicleId);
+                await supabase.from('vehicles')
+                    .update({ 
+                        client_id: clientId, 
+                        make: cleanedMake, 
+                        model: cleanedModel, 
+                        engine_size: cleanedEngine,
+                        plate_number: cleanedPlate || null
+                    })
+                    .eq('id', vehicleId);
             } else {
                 const { data: nv, error: ve } = await supabase.from('vehicles')
-                    .insert({ client_id: clientId, make, model, engine_size: engineSize, plate_number: plateNumber || null })
+                    .insert({ 
+                        client_id: clientId, 
+                        make: cleanedMake, 
+                        model: cleanedModel, 
+                        engine_size: cleanedEngine, 
+                        plate_number: cleanedPlate || null 
+                    })
                     .select('id').single();
                 if (ve) throw ve;
                 vehicleId = nv!.id;
@@ -720,7 +763,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                     .update({
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
-                        total_price: parseFloat(totalPrice || "0"),
+                        total_price: parseFloat(totalPrice || "0") - parseFloat(discount || "0"),
                         notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
                         estimated_duration: calculatedDuration,
@@ -729,10 +772,16 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 
                 if (re) throw re;
 
+                if (skipStep3) {
+                    showSuccess("تم التعديل", "تم حفظ التعديلات بنجاح.");
+                    router.push('/work-orders');
+                    setLoading(false);
+                    return;
+                }
+
                 const { data: rd } = await supabase.from('inspection_reports').select('report_number').eq('id', editReportId).single();
                 setCreatedWorkOrderId(editReportId);
                 if (rd) setReportNumber(rd.report_number);
-                setStep(3);
                 setLoading(false);
                 return;
             }
@@ -741,7 +790,7 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 .insert({
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
-                    status, total_price: parseFloat(totalPrice || "0"),
+                    status, total_price: parseFloat(totalPrice || "0") - parseFloat(discount || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
                     estimated_duration: calculatedDuration,
@@ -749,6 +798,14 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
                 .select('id, report_number').single();
 
             if (re) throw re;
+
+            if (skipStep3) {
+                showSuccess("تم الحفظ", "تم إنشاء أمر العمل بنجاح.");
+                router.push('/work-orders');
+                setLoading(false);
+                return;
+            }
+
             setCreatedWorkOrderId(rd!.id);
             setReportNumber(rd!.report_number);
         } catch (err: any) {
@@ -1382,14 +1439,18 @@ function ReceptionWizard({ onClose }: { onClose: () => void }) {
 
                         {/* Actions */}
                         <div className="flex flex-col md:flex-row gap-3 justify-center pt-2">
-                            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted transition-colors">
+                            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted transition-colors font-ibm">
                                 رجوع للتعديل
                             </button>
-                            <button onClick={handleSaveDraft} disabled={loading} className="px-6 py-3 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-300 font-bold hover:bg-blue-600/30 flex items-center justify-center gap-2">
+                            <button onClick={handleSaveOnly} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 flex items-center justify-center gap-2 font-ibm">
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                                حفظ فقط
+                            </button>
+                            <button onClick={handleSaveDraft} disabled={loading} className="px-6 py-3 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-300 font-bold hover:bg-blue-600/30 flex items-center justify-center gap-2 font-ibm">
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : <Printer size={20} />}
                                 حفظ وطباعة / مسودة
                             </button>
-                            <button onClick={handleStartWorkOrder} disabled={loading} className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
+                            <button onClick={handleStartWorkOrder} disabled={loading} className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2 font-ibm">
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
                                 تسليم للفني (Start)
                             </button>

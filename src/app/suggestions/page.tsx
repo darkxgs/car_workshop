@@ -87,9 +87,13 @@ const GROUPS = [
         icon: <Filter size={18} />,
         categories: [
             { key: "oilFilterBrands", label: "ماركات فلاتر زيت المحرك", icon: <Filter size={16} />, color: "amber" },
+            { key: "oilFilterCodes", label: "أكواد فلاتر زيت المحرك", icon: <Filter size={16} />, color: "amber" },
             { key: "airFilterBrands", label: "ماركات فلاتر الهواء", icon: <Filter size={16} />, color: "amber" },
+            { key: "airFilterCodes", label: "أكواد فلاتر الهواء", icon: <Filter size={16} />, color: "amber" },
             { key: "acFilterBrands", label: "ماركات فلاتر التبريد", icon: <Filter size={16} />, color: "amber" },
+            { key: "acFilterCodes", label: "أكواد فلاتر التبريد", icon: <Filter size={16} />, color: "amber" },
             { key: "gearboxFilterBrands", label: "ماركات فلاتر الكير", icon: <Filter size={16} />, color: "amber" },
+            { key: "gearboxFilterCodes", label: "أكواد فلاتر الكير", icon: <Filter size={16} />, color: "amber" },
             { key: "batteryFilterBrands", label: "ماركات فلاتر البطارية", icon: <Filter size={16} />, color: "yellow" },
         ]
     },
