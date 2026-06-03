@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Wrench, ShieldAlert, Shield, ArrowLeft, Clock, Car, Activity, Loader2 } from "lucide-react";
+import { Wrench, ShieldAlert, Shield, ArrowLeft, Clock, Car, Activity, Loader2, Gauge } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrderList = {
@@ -13,6 +13,7 @@ type WorkOrderList = {
     bay_number: string | null;
     start_time: string | null;
     elapsed_time: number | null;
+    odometer_reading: number;
     vehicles: { make: string; model: string; plate_number: string; clients?: { name: string } | null };
     technician: { name: string } | null;
     created_at: string;
@@ -66,7 +67,7 @@ export default function WorkOrdersListPage() {
     const fetchOrders = async () => {
         let query = supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
+            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, odometer_reading, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
@@ -162,6 +163,9 @@ export default function WorkOrdersListPage() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Activity className="text-emerald-400" size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Gauge className="text-cyan-400" size={16} /> عداد السيارة: <span className="text-foreground">{order.odometer_reading ? `${order.odometer_reading.toLocaleString()} كم` : 'غير محدد'}</span>
                                         </div>
                                     </div>
 
