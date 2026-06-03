@@ -19,6 +19,7 @@ type WorkOrder = {
     start_time: string | null;
     completed_at?: string | null;
     is_delayed: boolean;
+    total_price: number;
     selected_services: any[];
     receptionist: { name: string } | null;
     branches?: { id: string; name: string } | null;
@@ -114,6 +115,14 @@ export default function WorkOrderDetailPage() {
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
 
+    // Add Dynamic Service States
+    const [selectedCatalogId, setSelectedCatalogId] = useState("");
+    const [dynamicSvcName, setDynamicSvcName] = useState("");
+    const [dynamicSvcPrice, setDynamicSvcPrice] = useState("");
+    const [dynamicSvcDuration, setDynamicSvcDuration] = useState("30");
+    const [dynamicSvcDetails, setDynamicSvcDetails] = useState("");
+    const [dynamicSvcCategory, setDynamicSvcCategory] = useState("إضافة لاحقة");
+
     // Suggestion lists (technicians, supervisors, bay numbers)
     const [suggLists, setSuggLists] = useState<Record<string, string[]>>({
         technicianNames: [], supervisorNames: [], bayNumbers: []
@@ -147,7 +156,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -302,9 +311,15 @@ export default function WorkOrderDetailPage() {
     const handleAddDynamicService = async (svc: any) => {
         if (!order) return;
         const updatedServices = [...(order.selected_services || []), svc];
-        const newEstimated = order.estimated_duration + svc.estimatedMinutes;
+        const newEstimated = order.estimated_duration + (svc.estimatedMinutes || 0);
+        const newTotalPrice = (order.total_price || 0) + (svc.price || 0);
         
-        await supabase.from('inspection_reports').update({ selected_services: updatedServices, estimated_duration: newEstimated }).eq('id', id);
+        await supabase.from('inspection_reports').update({ 
+            selected_services: updatedServices, 
+            estimated_duration: newEstimated,
+            total_price: newTotalPrice
+        }).eq('id', id);
+        
         setIsAddingSvc(false);
         fetchOrder();
     };
@@ -576,19 +591,132 @@ export default function WorkOrderDetailPage() {
                         </div>
 
                         {isAddingSvc && (
-                            <div className="mb-4 p-4 bg-muted/50 rounded-2xl border border-border">
-                                <h3 className="text-sm font-bold text-foreground mb-3">إضافة خدمة يدوية جديدة:</h3>
-                                <div className="flex gap-2">
-                                    <input type="text" id="manualSvcInput" placeholder="اكتب اسم الخدمة..." className="input-field flex-1 bg-card text-sm" />
-                                    <button onClick={async () => {
-                                        const input = document.getElementById('manualSvcInput') as HTMLInputElement;
-                                        if (input && input.value) {
-                                            const newSvc = { name: input.value, category: 'إضافة لاحقة', estimatedMinutes: 30 };
-                                            await handleAddDynamicService(newSvc);
-                                            input.value = '';
-                                        }
-                                    }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-500">إضافة</button>
+                            <div className="mb-4 p-4 bg-muted/50 rounded-2xl border border-border space-y-4 font-ibm text-right" dir="rtl">
+                                <h3 className="text-sm font-bold text-foreground">إضافة خدمة جديدة من الكتالوج أو مخصصة:</h3>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">اختر الخدمة:</label>
+                                        <select
+                                            value={selectedCatalogId}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setSelectedCatalogId(val);
+                                                if (val === "custom") {
+                                                    setDynamicSvcName("");
+                                                    setDynamicSvcPrice("");
+                                                    setDynamicSvcDuration("30");
+                                                    setDynamicSvcCategory("خدمة مخصصة");
+                                                } else {
+                                                    const catalog = [...(catalogRaw.services || []), ...(catalogRaw.inspections || [])];
+                                                    const selected = catalog.find(item => item.id === val);
+                                                    if (selected) {
+                                                        setDynamicSvcName(selected.name);
+                                                        setDynamicSvcPrice(selected.defaultPrice?.toString() || "");
+                                                        setDynamicSvcDuration(selected.estimatedMinutes?.toString() || "30");
+                                                        setDynamicSvcCategory(selected.category || "إضافة لاحقة");
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                        >
+                                            <option value="">-- اختر خدمة --</option>
+                                            <option value="custom">✍️ خدمة مخصصة (كتابة يدوية)</option>
+                                            <optgroup label="الخدمات الرئيسية">
+                                                {(catalogRaw.services || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </optgroup>
+                                            <optgroup label="الفحوصات والتشخيص">
+                                                {(catalogRaw.inspections || []).map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                            </optgroup>
+                                        </select>
+                                    </div>
+
+                                    {selectedCatalogId && (
+                                        <div>
+                                            <label className="text-xs text-muted-foreground block mb-1">اسم الخدمة:</label>
+                                            <input
+                                                type="text"
+                                                value={dynamicSvcName}
+                                                onChange={e => setDynamicSvcName(e.target.value)}
+                                                placeholder="اكتب اسم الخدمة..."
+                                                className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
+
+                                {selectedCatalogId && (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="text-xs text-muted-foreground block mb-1">السعر (د.ع):</label>
+                                                <input
+                                                    type="number"
+                                                    value={dynamicSvcPrice}
+                                                    onChange={e => setDynamicSvcPrice(e.target.value)}
+                                                    placeholder="0"
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted-foreground block mb-1">الوقت المقدر (بالدقائق):</label>
+                                                <input
+                                                    type="number"
+                                                    value={dynamicSvcDuration}
+                                                    onChange={e => setDynamicSvcDuration(e.target.value)}
+                                                    placeholder="30"
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted-foreground block mb-1">التفاصيل/الملاحظة:</label>
+                                                <input
+                                                    type="text"
+                                                    value={dynamicSvcDetails}
+                                                    onChange={e => setDynamicSvcDetails(e.target.value)}
+                                                    placeholder="الشركة المصنعة، الملاحظات..."
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!dynamicSvcName) {
+                                                        showError("تنبيه", "يرجى كتابة اسم الخدمة!");
+                                                        return;
+                                                    }
+                                                    const newSvc = {
+                                                        name: dynamicSvcName,
+                                                        category: dynamicSvcCategory,
+                                                        estimatedMinutes: parseInt(dynamicSvcDuration) || 30,
+                                                        price: parseFloat(dynamicSvcPrice) || 0,
+                                                        details: dynamicSvcDetails
+                                                    };
+                                                    await handleAddDynamicService(newSvc);
+                                                    setSelectedCatalogId("");
+                                                    setDynamicSvcName("");
+                                                    setDynamicSvcPrice("");
+                                                    setDynamicSvcDuration("30");
+                                                    setDynamicSvcDetails("");
+                                                }}
+                                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors font-ibm"
+                                            >
+                                                إضافة الخدمة
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsAddingSvc(false);
+                                                    setSelectedCatalogId("");
+                                                }}
+                                                className="px-5 py-2.5 bg-background border border-border text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-colors font-ibm"
+                                            >
+                                                إلغاء
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -652,10 +780,17 @@ export default function WorkOrderDetailPage() {
                                     <div key={idx} className="flex justify-between items-center p-3 bg-card border border-border rounded-xl shadow-sm hover:border-rose-500/30 transition-colors">
                                         <div>
                                             <p className="font-bold text-foreground text-sm">{svc.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">{svc.category}</p>
+                                            <p className="text-[10px] text-muted-foreground">{svc.category} {svc.details ? `• ${svc.details}` : ''}</p>
                                         </div>
-                                        <div className="text-left font-mono font-bold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-md text-xs">
-                                            {svc.estimatedMinutes || 30}m
+                                        <div className="flex items-center gap-2">
+                                            {(svc as any).price !== undefined && (svc as any).price > 0 && (
+                                                <span className="font-mono text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                                    {Number((svc as any).price).toLocaleString()} د.ع
+                                                </span>
+                                            )}
+                                            <div className="text-left font-mono font-bold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-md text-xs">
+                                                {svc.estimatedMinutes || 30}m
+                                            </div>
                                         </div>
                                     </div>
                                 ));
