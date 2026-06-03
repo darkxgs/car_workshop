@@ -111,6 +111,22 @@ export default function WorkOrderDetailPage() {
     const [bayNum, setBayNum] = useState("");
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+    // Suggestion lists (technicians, supervisors, bay numbers)
+    const [suggLists, setSuggLists] = useState<Record<string, string[]>>({
+        technicianNames: [], supervisorNames: [], bayNumbers: []
+    });
+    useEffect(() => {
+        (supabase as any).from('suggestion_lists').select('key, items')
+            .in('key', ['technicianNames', 'supervisorNames', 'bayNumbers'])
+            .then(({ data }: { data: any[] | null }) => {
+                if (data) {
+                    const m: Record<string, string[]> = {};
+                    data.forEach(r => { m[r.key] = Array.isArray(r.items) ? r.items : []; });
+                    setSuggLists(prev => ({ ...prev, ...m }));
+                }
+            });
+    }, []);
     
     // Fetch
     useEffect(() => {
@@ -451,36 +467,48 @@ export default function WorkOrderDetailPage() {
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">اسم المشرف</label>
                                 <input
                                     type="text"
+                                    list="wo-supervisor-list"
                                     value={supervisorName}
                                     onChange={(e) => setSupervisorName(e.target.value)}
                                     placeholder="أدخل اسم المشرف..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                     disabled={order.status === 'تم الانتهاء'}
                                 />
+                                <datalist id="wo-supervisor-list">
+                                    {suggLists.supervisorNames.map((n, i) => <option key={i} value={n} />)}
+                                </datalist>
                             </div>
                             
                             <div>
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">اسم الفني</label>
                                 <input
                                     type="text"
+                                    list="wo-tech-list"
                                     value={techName}
                                     onChange={(e) => setTechName(e.target.value)}
                                     placeholder="أدخل اسم الفني المسؤول..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                     disabled={order.status === 'تم الانتهاء'}
                                 />
+                                <datalist id="wo-tech-list">
+                                    {suggLists.technicianNames.map((n, i) => <option key={i} value={n} />)}
+                                </datalist>
                             </div>
                             
                             <div>
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">رقم الخانة (Bay Number)</label>
                                 <input
                                     type="text"
+                                    list="wo-bay-list"
                                     value={bayNum}
                                     onChange={(e) => setBayNum(e.target.value)}
                                     placeholder="مثال: الخانة 1..."
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                     disabled={order.status === 'تم الانتهاء'}
                                 />
+                                <datalist id="wo-bay-list">
+                                    {suggLists.bayNumbers.map((n, i) => <option key={i} value={n} />)}
+                                </datalist>
                             </div>
                             
                             <div>

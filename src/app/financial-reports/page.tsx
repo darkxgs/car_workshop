@@ -67,7 +67,7 @@ export default function ReportsPage() {
                 setReportData(mergedRevenue);
 
             } else if (activeTab === 'work-orders') {
-                let query = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, vehicles(make, model, clients(name))');
+                let query = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, odometer_reading, selected_services, vehicles(make, model, plate_number, clients(name))');
                 
                 if (!fetchWithoutDates) {
                     if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
@@ -76,15 +76,49 @@ export default function ReportsPage() {
 
                 const { data } = await query.order('created_at', { ascending: false });
                 if (data) {
-                    setReportData(data.map(r => ({
-                        id: r.report_number,
-                        type: 'أمر عمل',
-                        client: r.vehicles?.clients?.name || 'غير محدد',
-                        details: `${r.vehicles?.make} ${r.vehicles?.model}`,
-                        status: r.status,
-                        total_price: Number(r.total_price || 0),
-                        created_at: r.created_at
-                    })));
+                    const SERVICE_LABELS: Record<string, string> = {
+                        engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك',
+                        airFilter: 'فلتر الهواء', acFilter: 'فلتر التبريد',
+                        brakeFluid: 'زيت المكابح', coolant: 'ماء الراديتر',
+                        battery: 'البطارية', engineBelts: 'قايش المحرك',
+                        brakePads: 'دسكات السيارة', sparkPlugs: 'شمعات الاحتراق',
+                        gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
+                        wipers: 'مساحات زجاج', windshieldFluid: 'سائل غسيل جام',
+                        battery2: 'البطارية فحص دوري', batteryFilter: 'فلتر البطارية',
+                        engineFlash: 'فلاش المحرك', engineCeramic: 'سيراميك محرك',
+                        linerCleaner: 'منظف بطانة (جكجكة)', oilLeakPreventer: 'مانع تسريب زيت',
+                        smokePreventer: 'مانع دخان', gearboxFlash: 'فلاش كير',
+                        gearboxCeramic: 'سيراميك كير', gearboxAntiSlip: 'مانع انزلاق كير',
+                        acCleaner: 'منظف دورة تبريد', injectorCleaner: 'منظف بخاخات',
+                        fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
+                    };
+                    setReportData(data.map(r => {
+                        const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
+                        const services = svc?.services || {};
+                        // Build service details string: "زيت المحرك: لكوي مولي اخضر 5W-30 | فلتر الهواء: Mann | ..."
+                        const serviceDetails = Object.entries(services)
+                            .filter(([, v]: any) => v?.status === 'يحتاج تغيير')
+                            .map(([key, v]: any) => {
+                                const label = SERVICE_LABELS[key] || key;
+                                const parts = [v.brand, v.viscosity, v.size, v.type].filter(Boolean);
+                                return parts.length ? `${label}: ${parts.join(' ')}` : label;
+                            })
+                            .join(' | ');
+                        return {
+                            id: r.report_number,
+                            type: 'أمر عمل',
+                            client: (r.vehicles as any)?.clients?.name || 'غير محدد',
+                            vehicle: `${(r.vehicles as any)?.make || ''} ${(r.vehicles as any)?.model || ''}`.trim(),
+                            plate: (r.vehicles as any)?.plate_number || '',
+                            odometer: r.odometer_reading || 0,
+                            services: serviceDetails || '-',
+                            supervisor: svc?.shiftSupervisor || '',
+                            technician: svc?.technicianName || '',
+                            status: r.status,
+                            total_price: Number(r.total_price || 0),
+                            created_at: r.created_at
+                        };
+                    }));
                 }
             } else if (activeTab === 'inventory') {
                 const { data } = await supabase.from('inventory').select('item_code, name, category, quantity, purchase_price, sell_price');
@@ -111,6 +145,21 @@ export default function ReportsPage() {
                 'سعر البيع الافتراضي': row.sell_price
             }));
             ws = XLSX.utils.json_to_sheet(formattedData);
+        } else if (activeTab === 'work-orders') {
+            const formattedData = reportData.map(row => ({
+                'رقم الأمر': row.id,
+                'العميل': row.client,
+                'السيارة': row.vehicle,
+                'رقم اللوحة': row.plate,
+                'العداد (كم)': row.odometer,
+                'المشرف': row.supervisor,
+                'الفني': row.technician,
+                'الخدمات والتفاصيل': row.services,
+                'الحالة': row.status,
+                'الإجمالي (د.ع)': row.total_price,
+                'التاريخ': new Date(row.created_at).toLocaleDateString('ar-SA')
+            }));
+            ws = XLSX.utils.json_to_sheet(formattedData);
         } else {
             const formattedData = reportData.map(row => ({
                 'المعرف': row.id,
@@ -126,13 +175,9 @@ export default function ReportsPage() {
 
         // Set column widths for better readability in Excel
         ws['!cols'] = [
-            { wch: 20 }, // A
-            { wch: 25 }, // B
-            { wch: 30 }, // C
-            { wch: 20 }, // D
-            { wch: 15 }, // E
-            { wch: 20 }, // F
-            { wch: 15 }  // G
+            { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
+            { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 60 },
+            { wch: 15 }, { wch: 18 }, { wch: 15 }
         ];
 
         // Create workbook and add the worksheet (with Right-to-Left orientation!)
@@ -239,6 +284,17 @@ export default function ReportsPage() {
                                                     <th className="p-4 text-muted-foreground font-bold">سعر الوحدة للشراء</th>
                                                     <th className="p-4 text-muted-foreground font-bold">سعر البيع الافتراضي</th>
                                                 </>
+                                            ) : activeTab === 'work-orders' ? (
+                                                <>
+                                                    <th className="p-3 text-muted-foreground font-bold">#</th>
+                                                    <th className="p-3 text-muted-foreground font-bold">العميل</th>
+                                                    <th className="p-3 text-muted-foreground font-bold">السيارة / اللوحة</th>
+                                                    <th className="p-3 text-muted-foreground font-bold text-center">العداد (كم)</th>
+                                                    <th className="p-3 text-muted-foreground font-bold">المشرف / الفني</th>
+                                                    <th className="p-3 text-muted-foreground font-bold">الخدمات والتفاصيل</th>
+                                                    <th className="p-3 text-muted-foreground font-bold text-center">الحالة</th>
+                                                    <th className="p-3 text-muted-foreground font-bold text-left">الإجمالي</th>
+                                                </>
                                             ) : (
                                                 <>
                                                     <th className="p-4 text-muted-foreground font-bold">المعرف</th>
@@ -261,6 +317,30 @@ export default function ReportsPage() {
                                                         <td className="p-4 text-center font-mono font-bold text-lg">{row.quantity}</td>
                                                         <td className="p-4 font-mono text-muted-foreground">{row.purchase_price} د.ع</td>
                                                         <td className="p-4 font-mono font-bold text-emerald-500">{row.sell_price} د.ع</td>
+                                                    </>
+                                                ) : activeTab === 'work-orders' ? (
+                                                    <>
+                                                        <td className="p-3 font-mono text-xs text-muted-foreground">#{row.id}</td>
+                                                        <td className="p-3 font-bold text-foreground">{row.client}</td>
+                                                        <td className="p-3">
+                                                            <p className="text-foreground font-bold text-sm">{row.vehicle}</p>
+                                                            <p className="text-xs text-muted-foreground font-mono">{row.plate}</p>
+                                                        </td>
+                                                        <td className="p-3 text-center font-mono text-foreground">{row.odometer ? row.odometer.toLocaleString() : '-'}</td>
+                                                        <td className="p-3">
+                                                            {row.supervisor && <p className="text-xs text-rose-400 font-bold">🛡 {row.supervisor}</p>}
+                                                            {row.technician && <p className="text-xs text-blue-400 font-bold">🔧 {row.technician}</p>}
+                                                            {!row.supervisor && !row.technician && <span className="text-xs text-muted-foreground">-</span>}
+                                                        </td>
+                                                        <td className="p-3 text-xs text-muted-foreground max-w-xs">
+                                                            <span className="line-clamp-2">{row.services}</span>
+                                                        </td>
+                                                        <td className="p-3 text-center">
+                                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${row.status === 'تم الانتهاء' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : row.status === 'قيد العمل' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                                                                {row.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 font-mono font-bold text-emerald-500 text-left">{row.total_price.toLocaleString()}</td>
                                                     </>
                                                 ) : (
                                                     <>
@@ -294,9 +374,9 @@ export default function ReportsPage() {
                         {reportData.length > 0 && (
                             <div className="p-4 border-t border-border bg-muted/30 rounded-b-2xl flex justify-between items-center px-6">
                                 <span className="text-muted-foreground text-sm font-bold">إجمالي السجلات المستخرجة: <span className="text-foreground font-mono text-lg">{reportData.length}</span></span>
-                                {activeTab === 'revenue' && (
+                                {(activeTab === 'revenue' || activeTab === 'work-orders') && (
                                     <span className="text-muted-foreground text-sm font-bold flex items-center gap-3">
-                                        مجموع المبالغ المحصلة (Total Revenue):
+                                        مجموع المبالغ:
                                         <span className="text-emerald-500 font-black font-mono text-2xl bg-emerald-500/10 px-4 py-1 rounded-xl border border-emerald-500/20">
                                             {reportData.reduce((acc, row) => acc + (Number(row.total_price) || 0), 0).toLocaleString()} <span className="text-sm">د.ع</span>
                                         </span>
