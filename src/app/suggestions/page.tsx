@@ -167,13 +167,28 @@ const colorClasses: Record<string, { bg: string; border: string; text: string; b
     cyan: { bg: "bg-cyan-500/10", border: "border-cyan-500/30", text: "text-cyan-500", badge: "bg-cyan-500/20 text-cyan-400", ring: "ring-cyan-500/30" },
 };
 
+interface SuggestionItem {
+    name: string;
+    price: string;
+}
+
+const INITIAL_LISTS: Record<string, SuggestionItem[]> = {};
+for (const key of Object.keys(DEFAULT_LISTS)) {
+    INITIAL_LISTS[key] = DEFAULT_LISTS[key].map(name => ({ name, price: "" }));
+}
+
 export default function SuggestionsPage() {
-    const [lists, setLists] = useState<Record<string, string[]>>(DEFAULT_LISTS);
+    const [lists, setLists] = useState<Record<string, SuggestionItem[]>>(INITIAL_LISTS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeGroupId, setActiveGroupId] = useState<string>("engine");
     const [expandedCategory, setExpandedCategory] = useState<string | null>("oilBrands");
-    const [newItemInputs, setNewItemInputs] = useState<Record<string, string>>({});
+    
+    // Suggestion inputs and editing
+    const [newItemNames, setNewItemNames] = useState<Record<string, string>>({});
+    const [newItemPrices, setNewItemPrices] = useState<Record<string, string>>({});
+    const [editingItem, setEditingItem] = useState<{ categoryKey: string; index: number; name: string; price: string } | null>(null);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -206,7 +221,7 @@ export default function SuggestionsPage() {
             
             if (error) throw error;
 
-            const fetchedLists: Record<string, string[]> = {};
+            const fetchedLists: Record<string, any[]> = {};
             if (data && data.length > 0) {
                 data.forEach((row: any) => {
                     fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
@@ -214,9 +229,18 @@ export default function SuggestionsPage() {
             }
 
             // Merge with DEFAULT_LISTS in case some keys are missing in DB
-            const merged: Record<string, string[]> = {};
+            const merged: Record<string, SuggestionItem[]> = {};
             for (const key of Object.keys(DEFAULT_LISTS)) {
-                merged[key] = fetchedLists[key] || DEFAULT_LISTS[key];
+                const rawItems = fetchedLists[key] || DEFAULT_LISTS[key];
+                merged[key] = rawItems.map((item: any) => {
+                    if (typeof item === 'object' && item !== null) {
+                        return {
+                            name: item.name || '',
+                            price: item.price !== undefined && item.price !== null ? String(item.price) : ''
+                        };
+                    }
+                    return { name: String(item || ''), price: '' };
+                });
             }
 
             setLists(merged);
@@ -234,19 +258,25 @@ export default function SuggestionsPage() {
     }, [fetchLists]);
 
     const handleAddItem = useCallback((categoryKey: string) => {
-        const value = (newItemInputs[categoryKey] || "").trim();
-        if (!value) return;
-        if (lists[categoryKey]?.includes(value)) {
-            showError("موجود مسبقاً", `"${value}" موجود بالفعل في القائمة!`);
+        const name = (newItemNames[categoryKey] || "").trim();
+        const price = (newItemPrices[categoryKey] || "").trim();
+        if (!name) return;
+        
+        const exists = lists[categoryKey]?.some(item => item.name.toLowerCase() === name.toLowerCase());
+        if (exists) {
+            showError("موجود مسبقاً", `"${name}" موجود بالفعل في القائمة!`);
             return;
         }
+
         setLists(prev => ({
             ...prev,
-            [categoryKey]: [...(prev[categoryKey] || []), value]
+            [categoryKey]: [...(prev[categoryKey] || []), { name, price }]
         }));
-        setNewItemInputs(prev => ({ ...prev, [categoryKey]: "" }));
+        
+        setNewItemNames(prev => ({ ...prev, [categoryKey]: "" }));
+        setNewItemPrices(prev => ({ ...prev, [categoryKey]: "" }));
         setHasChanges(true);
-    }, [newItemInputs, lists]);
+    }, [newItemNames, newItemPrices, lists]);
 
     const handleRemoveItem = useCallback((categoryKey: string, index: number) => {
         setLists(prev => ({
@@ -286,8 +316,6 @@ export default function SuggestionsPage() {
         }
     }, [lists, selectedBranchId]);
 
-
-
     const totalItems = useMemo(() => {
         return Object.values(lists).reduce((sum, arr) => sum + arr.length, 0);
     }, [lists]);
@@ -310,7 +338,7 @@ export default function SuggestionsPage() {
                         إدارة الاقتراحات (قاعدة البيانات)
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        تحكم بـ 33 قائمة مستقلة للاقتراحات والـ Autocomplete تظهر في شاشة الاستقبال وأوامر العمل.
+                        تحكم بـ 33 قائمة للاقتراحات والأسعار التلقائية تظهر في شاشة الاستقبال وأوامر العمل.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -330,7 +358,7 @@ export default function SuggestionsPage() {
                                         setSelectedBranchId(val);
                                     }
                                 }}
-                                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-rose-500/50"
+                                className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer hover:border-border/80 transition-colors"
                             >
                                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                             </select>
@@ -345,7 +373,7 @@ export default function SuggestionsPage() {
                         disabled={!hasChanges || saving}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
                             hasChanges
-                                ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/20"
+                                ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/20 cursor-pointer"
                                 : "bg-muted text-muted-foreground cursor-not-allowed shadow-none"
                         }`}
                     >
@@ -380,14 +408,13 @@ export default function SuggestionsPage() {
                             key={g.id}
                             onClick={() => {
                                 setActiveGroupId(g.id);
-                                // Expand the first category of this group by default
                                 if (g.categories.length > 0) {
                                     setExpandedCategory(g.categories[0].key);
                                 }
                             }}
                             className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-all ${
                                 activeGroupId === g.id
-                                    ? "border-rose-500 text-rose-500 bg-rose-500/5"
+                                    ? "border-rose-500 text-rose-500 bg-rose-500/5 font-extrabold"
                                     : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             }`}
                         >
@@ -416,19 +443,22 @@ export default function SuggestionsPage() {
                         const items = lists[cat.key] || [];
                         const cc = colorClasses[cat.color] || colorClasses.emerald;
                         const isExpanded = expandedCategory === cat.key || searchQuery;
+                        
                         const filteredItems = searchQuery
-                            ? items.filter(item => item.toLowerCase().includes(searchQuery.toLowerCase()))
+                            ? items.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
                             : items;
 
                         // If searching and no matches in this list, skip
                         if (searchQuery && filteredItems.length === 0) return null;
+
+                        const isStaffCategory = ["technicianNames", "supervisorNames", "bayNumbers"].includes(cat.key);
 
                         return (
                             <div key={cat.key} className={`bg-card border ${isExpanded ? cc.border : 'border-border'} rounded-2xl overflow-hidden transition-all shadow-sm`}>
                                 {/* Category Header */}
                                 <button
                                     onClick={() => setExpandedCategory(isExpanded ? null : cat.key)}
-                                    className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors cursor-pointer"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-xl ${cc.bg} ${cc.border} border flex items-center justify-center`}>
@@ -451,44 +481,135 @@ export default function SuggestionsPage() {
                                 {isExpanded && (
                                     <div className="border-t border-border p-4 space-y-4">
                                         {/* Add new item */}
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col sm:flex-row gap-3">
                                             <input
                                                 type="text"
                                                 placeholder={`أضف عنصر جديد إلى ${cat.label}...`}
-                                                value={newItemInputs[cat.key] || ""}
-                                                onChange={e => setNewItemInputs(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                                                value={newItemNames[cat.key] || ""}
+                                                onChange={e => setNewItemNames(prev => ({ ...prev, [cat.key]: e.target.value }))}
                                                 onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
                                                 className={`flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
                                             />
+                                            {!isStaffCategory && (
+                                                <div className="relative w-full sm:w-[180px]">
+                                                    <input
+                                                        type="number"
+                                                        placeholder="السعر تلقائي (اختياري)"
+                                                        value={newItemPrices[cat.key] || ""}
+                                                        onChange={e => setNewItemPrices(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                                                        onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
+                                                        className={`w-full bg-background border border-border rounded-xl pr-4 pl-12 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm text-left font-mono`}
+                                                        dir="ltr"
+                                                    />
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">د.ع</span>
+                                                </div>
+                                            )}
                                             <button
                                                 onClick={() => handleAddItem(cat.key)}
-                                                className={`px-5 py-2.5 ${cc.bg} ${cc.border} border ${cc.text} font-bold text-sm rounded-xl hover:opacity-80 transition-all flex items-center gap-2`}
+                                                className={`px-6 py-2.5 ${cc.bg} ${cc.border} border ${cc.text} font-bold text-sm rounded-xl hover:opacity-80 transition-all flex items-center justify-center gap-2 cursor-pointer`}
                                             >
                                                 <Plus size={16} /> إضافة
                                             </button>
                                         </div>
 
                                         {/* Items Grid */}
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                             {filteredItems.map((item, idx) => {
-                                                const originalIdx = items.indexOf(item);
+                                                const originalIdx = items.findIndex(original => original.name === item.name);
+                                                const isEditing = editingItem && editingItem.categoryKey === cat.key && editingItem.index === originalIdx;
+
+                                                if (isEditing) {
+                                                    return (
+                                                        <div key={`${item.name}-${idx}`} className="flex items-center gap-2 bg-muted/40 border border-border p-2 rounded-xl">
+                                                            <input
+                                                                type="text"
+                                                                value={editingItem.name}
+                                                                onChange={e => setEditingItem(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                                                className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
+                                                                placeholder="الاسم"
+                                                            />
+                                                            {!isStaffCategory && (
+                                                                <div className="relative w-[100px]">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={editingItem.price}
+                                                                        onChange={e => setEditingItem(prev => prev ? { ...prev, price: e.target.value } : null)}
+                                                                        className="w-full bg-background border border-border rounded-lg pr-2 pl-7 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm text-left font-mono"
+                                                                        placeholder="السعر"
+                                                                        dir="ltr"
+                                                                    />
+                                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">د.ع</span>
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (!editingItem.name.trim()) return;
+                                                                    setLists(prev => {
+                                                                        const updated = [...prev[editingItem.categoryKey]];
+                                                                        updated[editingItem.index] = { 
+                                                                            name: editingItem.name.trim(), 
+                                                                            price: editingItem.price.trim() 
+                                                                        };
+                                                                        return { ...prev, [editingItem.categoryKey]: updated };
+                                                                    });
+                                                                    setEditingItem(null);
+                                                                    setHasChanges(true);
+                                                                }}
+                                                                className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                                                                title="حفظ"
+                                                            >
+                                                                <Check size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingItem(null)}
+                                                                className="p-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg hover:bg-rose-500/20 transition-colors cursor-pointer"
+                                                                title="إلغاء"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                }
+
                                                 return (
                                                     <div
-                                                        key={`${item}-${idx}`}
-                                                        className={`group flex items-center gap-2 px-3 py-2 ${cc.bg} border ${cc.border} rounded-xl text-sm font-medium text-foreground transition-all hover:shadow-sm`}
+                                                        key={`${item.name}-${idx}`}
+                                                        className={`group flex items-center justify-between gap-3 px-3 py-2.5 ${cc.bg} border ${cc.border} rounded-xl text-sm font-medium text-foreground transition-all hover:bg-muted/20 hover:shadow-sm`}
                                                     >
-                                                        <span>{item}</span>
-                                                        <button
-                                                            onClick={() => handleRemoveItem(cat.key, originalIdx)}
-                                                            className="opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-400 transition-all p-0.5 hover:bg-rose-500/10 rounded"
-                                                        >
-                                                            <X size={14} />
-                                                        </button>
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            <span className="truncate font-bold text-foreground/90">{item.name}</span>
+                                                            {item.price && !isStaffCategory && (
+                                                                <span className="shrink-0 bg-background/80 text-muted-foreground border border-border/50 text-[10px] px-2 py-0.5 rounded-lg font-bold font-mono">
+                                                                    {Number(item.price).toLocaleString()} د.ع
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                            <button
+                                                                onClick={() => setEditingItem({
+                                                                    categoryKey: cat.key,
+                                                                    index: originalIdx,
+                                                                    name: item.name,
+                                                                    price: item.price
+                                                                })}
+                                                                className="text-blue-500 hover:text-blue-400 p-1 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
+                                                                title="تعديل"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoveItem(cat.key, originalIdx)}
+                                                                className="text-rose-500 hover:text-rose-400 p-1 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                                                title="حذف"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
                                             {filteredItems.length === 0 && (
-                                                <p className="text-muted-foreground text-sm py-4 w-full text-center">
+                                                <p className="text-muted-foreground text-sm py-4 col-span-full w-full text-center">
                                                     {searchQuery ? "لا توجد نتائج مطابقة" : "لا توجد عناصر. أضف عنصراً جديداً أعلاه."}
                                                 </p>
                                             )}
@@ -507,7 +628,7 @@ export default function SuggestionsPage() {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl shadow-2xl shadow-emerald-500/30 text-sm animate-bounce"
+                        className="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl shadow-2xl shadow-emerald-500/30 text-sm animate-bounce cursor-pointer"
                     >
                         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                         {saving ? "جاري الحفظ..." : "حفظ التغييرات في السيرفر"}
