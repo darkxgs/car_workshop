@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthProvider";
 
 // ─── Default Lists (empty to avoid populating mock data) ───
 const DEFAULT_LISTS: Record<string, string[]> = {
+    materials: [], // Unified list
     oilBrands: [],
     viscosities: [],
     brakeFluids: [],
@@ -51,7 +52,7 @@ const DEFAULT_LISTS: Record<string, string[]> = {
 };
 
 // ─── Visual Groupings ───
-const GROUPS = [
+const ORIGINAL_GROUPS = [
     {
         id: "engine",
         name: "المحرك والسوائل",
@@ -119,23 +120,34 @@ const GROUPS = [
             { key: "sparkPlugsBrands", label: "شمعات الاحتراق/البواجي", icon: <Cog size={16} />, color: "purple" },
             { key: "windshieldFluids", label: "سائل غسيل جام", icon: <Cog size={16} />, color: "cyan" },
         ]
-    },
-    {
-        id: "staff",
-        name: "طاقم العمل والورشة",
-        icon: <Wrench size={18} />,
-        categories: [
-            { key: "technicianNames", label: "أسماء الفنيين", icon: <Wrench size={16} />, color: "blue" },
-            { key: "supervisorNames", label: "أسماء المشرفين", icon: <Shield size={16} />, color: "rose" },
-            { key: "bayNumbers", label: "أرقام الخانات", icon: <Activity size={16} />, color: "emerald" },
-        ]
     }
 ];
 
-// Flat CATEGORY_META for easy lookup
-const CATEGORY_META = GROUPS.reduce((acc, g) => {
-    return [...acc, ...g.categories];
-}, [] as { key: string; label: string; icon: React.ReactNode; color: string }[]);
+const STAFF_GROUP = {
+    id: "staff",
+    name: "طاقم العمل والورشة",
+    icon: <Wrench size={18} />,
+    categories: [
+        { key: "technicianNames", label: "أسماء الفنيين", icon: <Wrench size={16} />, color: "blue" },
+        { key: "supervisorNames", label: "أسماء المشرفين", icon: <Shield size={16} />, color: "rose" },
+        { key: "bayNumbers", label: "أرقام الخانات", icon: <Activity size={16} />, color: "emerald" },
+    ]
+};
+
+const UNIFIED_GROUP = {
+    id: "unified",
+    name: "المواد والقطع",
+    icon: <Droplets size={18} />,
+    categories: [
+        { key: "materials", label: "قائمة المواد والقطع الموحدة", icon: <Droplets size={16} />, color: "emerald" }
+    ]
+};
+
+const CATEGORY_META = [
+    ...ORIGINAL_GROUPS.flatMap(g => g.categories),
+    ...UNIFIED_GROUP.categories,
+    ...STAFF_GROUP.categories
+];
 
 // Color utilities
 const colorClasses: Record<string, { bg: string; border: string; text: string; badge: string; ring: string }> = {
@@ -151,24 +163,24 @@ const colorClasses: Record<string, { bg: string; border: string; text: string; b
 interface SuggestionItem {
     name: string;
     price: string;
+    serial?: string;
 }
 
 const INITIAL_LISTS: Record<string, SuggestionItem[]> = {};
 for (const key of Object.keys(DEFAULT_LISTS)) {
-    INITIAL_LISTS[key] = DEFAULT_LISTS[key].map(name => ({ name, price: "" }));
+    INITIAL_LISTS[key] = DEFAULT_LISTS[key].map(name => ({ name, price: "", serial: "" }));
 }
 
 export default function SuggestionsPage() {
     const [lists, setLists] = useState<Record<string, SuggestionItem[]>>(INITIAL_LISTS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [activeGroupId, setActiveGroupId] = useState<string>("engine");
-    const [expandedCategory, setExpandedCategory] = useState<string | null>("oilBrands");
     
     // Suggestion inputs and editing
     const [newItemNames, setNewItemNames] = useState<Record<string, string>>({});
     const [newItemPrices, setNewItemPrices] = useState<Record<string, string>>({});
-    const [editingItem, setEditingItem] = useState<{ categoryKey: string; index: number; name: string; price: string } | null>(null);
+    const [newItemSerials, setNewItemSerials] = useState<Record<string, string>>({});
+    const [editingItem, setEditingItem] = useState<{ categoryKey: string; index: number; name: string; price: string; serial: string } | null>(null);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
@@ -190,57 +202,102 @@ export default function SuggestionsPage() {
         fetchBranches();
     }, [employeeBranchId]);
 
-    // Fetch from Supabase
-    const fetchLists = useCallback(async () => {
+    // Fetch suggestion lists from Supabase
+    useEffect(() => {
         if (!selectedBranchId) return;
-        setLoading(true);
-        try {
-            const { data, error } = await (supabase as any)
-                .from("suggestion_lists")
-                .select("key, items")
-                .eq("branch_id", selectedBranchId);
-            
-            if (error) throw error;
 
-            const fetchedLists: Record<string, any[]> = {};
-            if (data && data.length > 0) {
-                data.forEach((row: any) => {
-                    fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
-                });
+        const fetchSuggestions = async () => {
+            setLoading(true);
+            try {
+                const { data, error } = await (supabase as any)
+                    .from('suggestion_lists')
+                    .select('key, items')
+                    .eq('branch_id', selectedBranchId);
+
+                if (error) throw error;
+
+                // Create a temporary object with default values
+                const loadedLists: Record<string, SuggestionItem[]> = {};
+                for (const key of Object.keys(DEFAULT_LISTS)) {
+                    loadedLists[key] = [];
+                }
+
+                if (data && data.length > 0) {
+                    data.forEach((row: any) => {
+                        if (row.key && Array.isArray(row.items)) {
+                            // Ensure each item has name, price, and serial
+                            loadedLists[row.key] = row.items.map((item: any) => {
+                                if (typeof item === 'object' && item !== null) {
+                                    return {
+                                        name: item.name || "",
+                                        price: item.price || "",
+                                        serial: item.serial || ""
+                                    };
+                                }
+                                return {
+                                    name: String(item),
+                                    price: "",
+                                    serial: ""
+                                };
+                            });
+                        }
+                    });
+                }
+
+                setLists(loadedLists);
+            } catch (err) {
+                console.error("Error loading suggestion lists from Supabase:", err);
+            } finally {
+                setLoading(false);
             }
+        };
 
-            // Merge with DEFAULT_LISTS in case some keys are missing in DB
-            const merged: Record<string, SuggestionItem[]> = {};
-            for (const key of Object.keys(DEFAULT_LISTS)) {
-                const rawItems = fetchedLists[key] || DEFAULT_LISTS[key];
-                merged[key] = rawItems.map((item: any) => {
-                    if (typeof item === 'object' && item !== null) {
-                        return {
-                            name: item.name || '',
-                            price: item.price !== undefined && item.price !== null ? String(item.price) : ''
-                        };
-                    }
-                    return { name: String(item || ''), price: '' };
-                });
-            }
-
-            setLists(merged);
-            setHasChanges(false);
-        } catch (err) {
-            console.error("Error fetching suggestion lists from Supabase:", err);
-            showError("خطأ في الاتصال", "فشل جلب الاقتراحات من السيرفر. تم استخدام القيم الافتراضية.");
-        } finally {
-            setLoading(false);
-        }
+        fetchSuggestions();
     }, [selectedBranchId]);
 
+    // Active Groups list calculated dynamically
+    const activeGroups = useMemo(() => {
+        const selectedBranch = branches.find(b => b.id === selectedBranchId);
+        const isSector = selectedBranch?.name === "القطاع" || selectedBranch?.name === "فرع القطاع";
+
+        if (isSector) {
+            return [
+                ...ORIGINAL_GROUPS,
+                STAFF_GROUP
+            ];
+        } else {
+            return [
+                UNIFIED_GROUP,
+                STAFF_GROUP
+            ];
+        }
+    }, [branches, selectedBranchId]);
+
+    const activeCategoryMeta = useMemo(() => {
+        return activeGroups.reduce((acc, g) => {
+            return [...acc, ...g.categories];
+        }, [] as { key: string; label: string; icon: React.ReactNode; color: string }[]);
+    }, [activeGroups]);
+
+    // Track active Group ID
+    const [activeGroupId, setActiveGroupId] = useState<string>("engine");
+    const [expandedCategory, setExpandedCategory] = useState<string | null>("oilBrands");
+
+    // Automatically switch active tab if it's no longer available for this branch
     useEffect(() => {
-        fetchLists();
-    }, [fetchLists]);
+        const exists = activeGroups.some(g => g.id === activeGroupId);
+        if (!exists && activeGroups.length > 0) {
+            setActiveGroupId(activeGroups[0].id);
+            if (activeGroups[0].categories.length > 0) {
+                setExpandedCategory(activeGroups[0].categories[0].key);
+            }
+        }
+    }, [activeGroups, activeGroupId]);
 
     const handleAddItem = useCallback((categoryKey: string) => {
         const name = (newItemNames[categoryKey] || "").trim();
         const price = (newItemPrices[categoryKey] || "").trim();
+        const serial = (newItemSerials[categoryKey] || "").trim();
         if (!name) return;
         
         const exists = lists[categoryKey]?.some(item => item.name.toLowerCase() === name.toLowerCase());
@@ -251,13 +308,14 @@ export default function SuggestionsPage() {
 
         setLists(prev => ({
             ...prev,
-            [categoryKey]: [...(prev[categoryKey] || []), { name, price }]
+            [categoryKey]: [...(prev[categoryKey] || []), { name, price, serial }]
         }));
         
         setNewItemNames(prev => ({ ...prev, [categoryKey]: "" }));
         setNewItemPrices(prev => ({ ...prev, [categoryKey]: "" }));
+        setNewItemSerials(prev => ({ ...prev, [categoryKey]: "" }));
         setHasChanges(true);
-    }, [newItemNames, newItemPrices, lists]);
+    }, [newItemNames, newItemPrices, newItemSerials, lists]);
 
     const handleRemoveItem = useCallback((categoryKey: string, index: number) => {
         setLists(prev => ({
@@ -303,9 +361,9 @@ export default function SuggestionsPage() {
 
     // Active Group Category Keys
     const activeGroupKeys = useMemo(() => {
-        const group = GROUPS.find(g => g.id === activeGroupId);
+        const group = activeGroups.find(g => g.id === activeGroupId);
         return group ? group.categories.map(c => c.key) : [];
-    }, [activeGroupId]);
+    }, [activeGroupId, activeGroups]);
 
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6" dir="rtl">
@@ -384,7 +442,7 @@ export default function SuggestionsPage() {
             {/* Tabs for Groupings */}
             {!searchQuery && (
                 <div className="flex border-b border-border overflow-x-auto no-scrollbar gap-2 pb-1">
-                    {GROUPS.map(g => (
+                    {activeGroups.map(g => (
                         <button
                             key={g.id}
                             onClick={() => {
@@ -472,17 +530,27 @@ export default function SuggestionsPage() {
                                                 className={`flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
                                             />
                                             {!isStaffCategory && (
-                                                <div className="relative w-full sm:w-[180px]">
+                                                <div className="flex gap-2 w-full sm:w-auto">
                                                     <input
-                                                        type="number"
-                                                        placeholder="السعر تلقائي (اختياري)"
-                                                        value={newItemPrices[cat.key] || ""}
-                                                        onChange={e => setNewItemPrices(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                                                        type="text"
+                                                        placeholder="التسلسل"
+                                                        value={newItemSerials[cat.key] || ""}
+                                                        onChange={e => setNewItemSerials(prev => ({ ...prev, [cat.key]: e.target.value }))}
                                                         onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
-                                                        className={`w-full bg-background border border-border rounded-xl pr-4 pl-12 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm text-left font-mono`}
-                                                        dir="ltr"
+                                                        className={`w-20 bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
                                                     />
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">د.ع</span>
+                                                    <div className="relative w-full sm:w-[180px]">
+                                                        <input
+                                                            type="number"
+                                                            placeholder="السعر تلقائي (اختياري)"
+                                                            value={newItemPrices[cat.key] || ""}
+                                                            onChange={e => setNewItemPrices(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                                                            onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
+                                                            className={`w-full bg-background border border-border rounded-xl pr-4 pl-12 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm text-left font-mono`}
+                                                            dir="ltr"
+                                                        />
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">د.ع</span>
+                                                    </div>
                                                 </div>
                                             )}
                                             <button
@@ -501,12 +569,21 @@ export default function SuggestionsPage() {
 
                                                 if (isEditing) {
                                                     return (
-                                                        <div key={`${item.name}-${idx}`} className="flex items-center gap-2 bg-muted/40 border border-border p-2 rounded-xl">
+                                                        <div key={`${item.name}-${idx}`} className="flex flex-wrap items-center gap-2 bg-muted/40 border border-border p-2 rounded-xl w-full">
+                                                            {!isStaffCategory && (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingItem.serial || ""}
+                                                                    onChange={e => setEditingItem(prev => prev ? { ...prev, serial: e.target.value } : null)}
+                                                                    className="w-16 bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
+                                                                    placeholder="ت"
+                                                                />
+                                                            )}
                                                             <input
                                                                 type="text"
                                                                 value={editingItem.name}
                                                                 onChange={e => setEditingItem(prev => prev ? { ...prev, name: e.target.value } : null)}
-                                                                className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
+                                                                className="flex-1 min-w-[120px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
                                                                 placeholder="الاسم"
                                                             />
                                                             {!isStaffCategory && (
@@ -529,7 +606,8 @@ export default function SuggestionsPage() {
                                                                         const updated = [...prev[editingItem.categoryKey]];
                                                                         updated[editingItem.index] = { 
                                                                             name: editingItem.name.trim(), 
-                                                                            price: editingItem.price.trim() 
+                                                                            price: editingItem.price.trim(),
+                                                                            serial: (editingItem.serial || "").trim()
                                                                         };
                                                                         return { ...prev, [editingItem.categoryKey]: updated };
                                                                     });
@@ -558,6 +636,11 @@ export default function SuggestionsPage() {
                                                         className={`group flex items-center justify-between gap-3 px-3 py-2.5 ${cc.bg} border ${cc.border} rounded-xl text-sm font-medium text-foreground transition-all hover:bg-muted/20 hover:shadow-sm`}
                                                     >
                                                         <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                            {item.serial && !isStaffCategory && (
+                                                                <span className="shrink-0 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] px-1.5 py-0.5 rounded font-bold font-mono">
+                                                                    {item.serial}
+                                                                </span>
+                                                            )}
                                                             <span className="truncate font-bold text-foreground/90">{item.name}</span>
                                                             {item.price && !isStaffCategory && (
                                                                 <span className="shrink-0 bg-background/80 text-muted-foreground border border-border/50 text-[10px] px-2 py-0.5 rounded-lg font-bold font-mono">
@@ -571,7 +654,8 @@ export default function SuggestionsPage() {
                                                                     categoryKey: cat.key,
                                                                     index: originalIdx,
                                                                     name: item.name,
-                                                                    price: item.price
+                                                                    price: item.price,
+                                                                    serial: item.serial || ""
                                                                 })}
                                                                 className="text-blue-500 hover:text-blue-400 p-1 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
                                                                 title="تعديل"
