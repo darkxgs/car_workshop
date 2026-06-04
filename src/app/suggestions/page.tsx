@@ -48,8 +48,7 @@ const DEFAULT_LISTS: Record<string, string[]> = {
     windshieldFluids: [],
     technicianNames: [],
     supervisorNames: [],
-    bayNumbers: [],
-    customServices: []
+    bayNumbers: []
 };
 
 // ─── Visual Groupings ───
@@ -144,19 +143,9 @@ const UNIFIED_GROUP = {
     ]
 };
 
-const ADDITIONAL_SERVICES_GROUP = {
-    id: "additional_services",
-    name: "أحداث وخدمات الصيانة الإضافية",
-    icon: <Wrench size={18} />,
-    categories: [
-        { key: "customServices", label: "خدمات الصيانة الإضافية", icon: <Wrench size={16} />, color: "amber" }
-    ]
-};
-
 const CATEGORY_META = [
     ...ORIGINAL_GROUPS.flatMap(g => g.categories),
     ...UNIFIED_GROUP.categories,
-    ...ADDITIONAL_SERVICES_GROUP.categories,
     ...STAFF_GROUP.categories
 ];
 
@@ -266,7 +255,6 @@ export default function SuggestionsPage() {
         fetchSuggestions();
     }, [selectedBranchId]);
 
-    // Active Groups list calculated dynamically
     const activeGroups = useMemo(() => {
         const selectedBranch = branches.find(b => b.id === selectedBranchId);
         const isSector = selectedBranch?.name === "القطاع" || selectedBranch?.name === "فرع القطاع";
@@ -274,13 +262,11 @@ export default function SuggestionsPage() {
         if (isSector) {
             return [
                 ...ORIGINAL_GROUPS,
-                ADDITIONAL_SERVICES_GROUP,
                 STAFF_GROUP
             ];
         } else {
             return [
                 UNIFIED_GROUP,
-                ADDITIONAL_SERVICES_GROUP,
                 STAFF_GROUP
             ];
         }

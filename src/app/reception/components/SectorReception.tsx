@@ -308,18 +308,18 @@ export default function SectorReception({
     useEffect(() => {
         // Fetch from Supabase
         async function loadFromDB() {
+            const activeBranchId = selectedBranchId || employeeBranchId;
+            if (!activeBranchId) return;
+
             try {
-                const activeBranchId = selectedBranchId || employeeBranchId;
                 let query = (supabase as any).from('suggestion_lists').select('key, items, branch_id');
-                if (activeBranchId) {
-                    query = query.or(`branch_id.eq.${activeBranchId},key.eq.materials`);
-                }
+                query = query.or(`branch_id.eq.${activeBranchId},key.eq.materials`);
                 const { data, error } = await query;
                 
                 if (error) throw error;
+                
+                const fetchedLists: Record<string, any[]> = {};
                 if (data && data.length > 0) {
-                    const fetchedLists: Record<string, any[]> = {};
-                    
                     // Sort data to ensure the active branch's entries come last and override others
                     const sortedData = [...data].sort((a, b) => {
                         if (a.branch_id === activeBranchId) return 1;
@@ -330,15 +330,15 @@ export default function SectorReception({
                     sortedData.forEach((row: any) => {
                         fetchedLists[row.key] = Array.isArray(row.items) ? row.items : [];
                     });
-
-                    setSuggestionLists(prev => {
-                        const merged: Record<string, any[]> = {};
-                        for (const key of Object.keys(prev)) {
-                            merged[key] = fetchedLists[key] || prev[key];
-                        }
-                        return merged;
-                    });
                 }
+
+                setSuggestionLists(() => {
+                    const merged: Record<string, any[]> = {};
+                    for (const key of Object.keys(DEFAULT_SUGGESTION_LISTS)) {
+                        merged[key] = fetchedLists[key] || DEFAULT_SUGGESTION_LISTS[key];
+                    }
+                    return merged;
+                });
             } catch (err) {
                 console.error("Failed to load suggestion lists from DB:", err);
             }
@@ -540,8 +540,27 @@ export default function SectorReception({
         setCustomServices(prev => [...prev, { id: Date.now().toString(), label: "", status: "", price: "" }]);
     };
     const removeCustomService = (id: string) => setCustomServices(prev => prev.filter(s => s.id !== id));
-    const setCustomSvcField = (id: string, field: string, value: string) =>
-        setCustomServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    const setCustomSvcField = (id: string, field: string, value: string) => {
+        setCustomServices(prev => prev.map(s => {
+            if (s.id === id) {
+                const updated = { ...s, [field]: value };
+                if (field === 'label') {
+                    const list = suggestionLists["materials"];
+                    if (list) {
+                        const matched = list.find((item: any) => {
+                            const itemName = typeof item === 'object' && item !== null ? item.name : String(item);
+                            return itemName.trim().toLowerCase() === value.trim().toLowerCase();
+                        });
+                        if (matched && typeof matched === 'object' && matched !== null && matched.price) {
+                            updated.price = String(matched.price);
+                        }
+                    }
+                }
+                return updated;
+            }
+            return s;
+        }));
+    };
 
     // Phone search
     useEffect(() => {
@@ -1742,14 +1761,22 @@ export default function SectorReception({
 
 
             <datalist id="customServicesList">
-                <option value="فحص شامل (كمبيوتر)" />
-                <option value="تنظيف البخاخات" />
-                <option value="تبديل بواجي (شمعات)" />
-                <option value="ميزانية وتويتر إطارات" />
-                <option value="غسيل راديتر" />
-                <option value="تبديل سفايف (بريكات)" />
-                <option value="شحن غاز تبريد" />
-                <option value="تبديل بطارية" />
+                {suggestionLists["materials"] && suggestionLists["materials"].length > 0 ? (
+                    suggestionLists["materials"].map((item: any, idx: number) => (
+                        <option key={idx} value={item.name} />
+                    ))
+                ) : (
+                    <>
+                        <option value="فحص شامل (كمبيوتر)" />
+                        <option value="تنظيف البخاخات" />
+                        <option value="تبديل بواجي (شمعات)" />
+                        <option value="ميزانية وتويتر إطارات" />
+                        <option value="غسيل راديتر" />
+                        <option value="تبديل سفايف (بريكات)" />
+                        <option value="شحن غاز تبريد" />
+                        <option value="تبديل بطارية" />
+                    </>
+                )}
             </datalist>
 
             {branchChangePending && (
