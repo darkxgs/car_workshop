@@ -164,8 +164,22 @@ export function Sidebar() {
                     <div className={`w-9 h-9 rounded-xl ${LOGO_BG} flex items-center justify-center shadow-lg shadow-rose-500/20`}>
                         <Building2 className="text-white" size={18} />
                     </div>
-                    <div>
-                        <span className="font-display font-bold text-sm text-foreground">هندسة السيارات</span>
+                    <div className="flex flex-col">
+                        <span className="font-display font-bold text-xs text-foreground leading-none">هندسة السيارات</span>
+                        {(employeeRole === 'Owner' || employeeRole === 'Admin') && branches.length > 0 ? (
+                            <select 
+                                className="text-[10px] bg-transparent text-rose-400 font-bold outline-none cursor-pointer w-max mt-0.5"
+                                value={employeeBranchId || ""}
+                                onChange={(e) => setEmployeeBranchId(e.target.value)}
+                            >
+                                <option value="" className="bg-popover text-foreground">كل الفروع</option>
+                                {branches.map(b => (
+                                    <option key={b.id} value={b.id} className="bg-popover text-foreground">{b.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <span className="text-[9px] text-rose-400 mt-0.5">إدارة الورشة المتكامل</span>
+                        )}
                     </div>
                 </div>
                 <button
@@ -191,6 +205,21 @@ export function Sidebar() {
                 }`}
             >
                 <nav className="flex-1 p-3 mt-2 overflow-y-auto overflow-x-hidden">
+                    {(employeeRole === 'Owner' || employeeRole === 'Admin') && branches.length > 0 && (
+                        <div className="mb-4 px-3 py-2 bg-rose-500/5 rounded-xl border border-rose-500/10">
+                            <label className="text-[10px] font-bold text-rose-400 block mb-1">الفرع النشط:</label>
+                            <select
+                                className="w-full bg-transparent text-sm font-bold text-foreground outline-none cursor-pointer"
+                                value={employeeBranchId || ""}
+                                onChange={(e) => setEmployeeBranchId(e.target.value)}
+                            >
+                                <option value="" className="bg-popover text-foreground">كل الفروع</option>
+                                {branches.map(b => (
+                                    <option key={b.id} value={b.id} className="bg-popover text-foreground">{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     {authorizedCategories.map((category, idx) => (
                         <div key={idx} className="mb-6 last:mb-0">
                             <h3 className="px-3 mb-2 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
