@@ -143,6 +143,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     };
 
     const isSectorBranch = report?.branches?.name === 'القطاع' || report?.branches?.name === 'فرع القطاع';
+    const isIndustrialBranch = report?.branches?.name === 'الصناعية' || report?.branches?.name === 'فرع الصناعية';
 
     const flatSectorServices = [
         { key: 'engineFlash', label: 'فلاش محرك', fields: [{ key: 'brand', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
@@ -172,18 +173,18 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     ];
 
     let SERVICES = isSectorBranch ? flatSectorServices : [
-        { key: 'engineOil', label: 'زيت المحرك', fields: [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
-        { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'airFilter', label: 'فلتر الهواء', fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'acFilter', label: 'فلتر التبريد', fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'brakeFluid', label: 'زيت المكابح', fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
+        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'brand', label: 'نوع الزيت' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
+        { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'airFilter', label: 'فلتر الهواء', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'acFilter', label: 'فلتر التبريد', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'brakeFluid', label: 'زيت المكابح', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
         { key: 'coolant', label: 'ماء الراديتر', fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }, { key: 'size', label: 'الحجم' }] },
         { key: 'battery', label: 'البطارية', fields: [{ key: 'type', label: 'النوع والسعة' }] },
         { key: 'engineBelts', label: 'قايش المحرك', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'brakePads', label: 'دسكات السيارة', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
-        { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
-        { key: 'gearboxFilter', label: 'فلتر الكير', fields: [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
+        { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
+        { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
         { key: 'wipers', label: 'الماسحات', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'additives', label: 'المضافات والمحسنات', fields: [] },
     ];
