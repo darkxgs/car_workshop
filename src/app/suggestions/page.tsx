@@ -288,22 +288,30 @@ export default function SuggestionsPage() {
         const exists = activeGroups.some(g => g.id === activeGroupId);
         if (!exists && activeGroups.length > 0) {
             setActiveGroupId(activeGroups[0].id);
-            if (activeGroups[0].categories.length > 0) {
-                setExpandedCategory(activeGroups[0].categories[0].key);
-            }
         }
     }, [activeGroups, activeGroupId]);
 
     const handleAddItem = useCallback((categoryKey: string) => {
         const name = (newItemNames[categoryKey] || "").trim();
         const price = (newItemPrices[categoryKey] || "").trim();
-        const serial = (newItemSerials[categoryKey] || "").trim();
         if (!name) return;
         
         const exists = lists[categoryKey]?.some(item => item.name.toLowerCase() === name.toLowerCase());
         if (exists) {
             showError("موجود مسبقاً", `"${name}" موجود بالفعل في القائمة!`);
             return;
+        }
+
+        // Auto-calculate serial number if it's not a staff category
+        let serial = "";
+        const isStaffCategory = ["technicianNames", "supervisorNames", "bayNumbers"].includes(categoryKey);
+        if (!isStaffCategory) {
+            const currentItems = lists[categoryKey] || [];
+            const serialNums = currentItems
+                .map(item => parseInt(item.serial || ""))
+                .filter(num => !isNaN(num));
+            const maxSerial = serialNums.length > 0 ? Math.max(...serialNums) : 0;
+            serial = String(maxSerial + 1);
         }
 
         setLists(prev => ({
@@ -315,8 +323,7 @@ export default function SuggestionsPage() {
         setNewItemPrices(prev => ({ ...prev, [categoryKey]: "" }));
         setNewItemSerials(prev => ({ ...prev, [categoryKey]: "" }));
         setHasChanges(true);
-    }, [newItemNames, newItemPrices, newItemSerials, lists]);
-
+    }, [newItemNames, newItemPrices, lists]);
     const handleRemoveItem = useCallback((categoryKey: string, index: number) => {
         setLists(prev => ({
             ...prev,
@@ -531,18 +538,10 @@ export default function SuggestionsPage() {
                                             />
                                             {!isStaffCategory && (
                                                 <div className="flex gap-2 w-full sm:w-auto">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="التسلسل"
-                                                        value={newItemSerials[cat.key] || ""}
-                                                        onChange={e => setNewItemSerials(prev => ({ ...prev, [cat.key]: e.target.value }))}
-                                                        onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
-                                                        className={`w-20 bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
-                                                    />
                                                     <div className="relative w-full sm:w-[180px]">
                                                         <input
                                                             type="number"
-                                                            placeholder="السعر تلقائي (اختياري)"
+                                                            placeholder="سعر البيع (اختياري)"
                                                             value={newItemPrices[cat.key] || ""}
                                                             onChange={e => setNewItemPrices(prev => ({ ...prev, [cat.key]: e.target.value }))}
                                                             onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
@@ -570,14 +569,10 @@ export default function SuggestionsPage() {
                                                 if (isEditing) {
                                                     return (
                                                         <div key={`${item.name}-${idx}`} className="flex flex-wrap items-center gap-2 bg-muted/40 border border-border p-2 rounded-xl w-full">
-                                                            {!isStaffCategory && (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editingItem.serial || ""}
-                                                                    onChange={e => setEditingItem(prev => prev ? { ...prev, serial: e.target.value } : null)}
-                                                                    className="w-16 bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
-                                                                    placeholder="ت"
-                                                                />
+                                                            {!isStaffCategory && editingItem.serial && (
+                                                                <span className="shrink-0 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] px-2 py-1 rounded font-bold font-mono">
+                                                                    {editingItem.serial}
+                                                                </span>
                                                             )}
                                                             <input
                                                                 type="text"
@@ -648,7 +643,7 @@ export default function SuggestionsPage() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                        <div className="flex items-center gap-1.5 shrink-0">
                                                             <button
                                                                 onClick={() => setEditingItem({
                                                                     categoryKey: cat.key,

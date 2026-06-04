@@ -1252,7 +1252,7 @@ export default function SectorReception({
                                                                                     }}
                                                                                 />
                                                                                 {focusedListId === resolvedListId && focusedFieldKey === fieldKey && suggestions.length > 0 && (
-                                                                                    <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                                    <div className="suggestion-dropdown scrollbar-thin">
                                                                                         {suggestions.map((item, sidx) => (
                                                                                             <button
                                                                                                 key={sidx}
@@ -1260,15 +1260,15 @@ export default function SectorReception({
                                                                                                 onMouseDown={() => {
                                                                                                     setServiceDetail(svc.key, df.key, item.name);
                                                                                                 }}
-                                                                                                className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                                className="suggestion-item"
                                                                                             >
                                                                                                 <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                                 <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                                     {item.price && (
-                                                                                                        <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                                        <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                                     )}
                                                                                                     {item.serial && (
-                                                                                                        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                                        <span className="suggestion-serial">{item.serial}</span>
                                                                                                     )}
                                                                                                 </div>
                                                                                             </button>
@@ -1357,7 +1357,7 @@ export default function SectorReception({
                                                                                     }}
                                                                                 />
                                                                                 {focusedListId === "materials" && focusedFieldKey === (svc.key + "_" + k) && getFilteredSuggestions().length > 0 && (
-                                                                                    <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                                    <div className="suggestion-dropdown scrollbar-thin">
                                                                                         {getFilteredSuggestions().map((item, sidx) => (
                                                                                             <button
                                                                                                 key={sidx}
@@ -1379,15 +1379,15 @@ export default function SectorReception({
                                                                                                         }, 50);
                                                                                                     }
                                                                                                 }}
-                                                                                                className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                                className="suggestion-item"
                                                                                             >
                                                                                                 <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                                 <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                                     {item.price && (
-                                                                                                        <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                                        <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                                     )}
                                                                                                     {item.serial && (
-                                                                                                        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                                        <span className="suggestion-serial">{item.serial}</span>
                                                                                                     )}
                                                                                                 </div>
                                                                                             </button>
@@ -1486,7 +1486,7 @@ export default function SectorReception({
                                                                         }}
                                                                     />
                                                                     {focusedListId === resolvedListId && focusedFieldKey === fieldKey && suggestions.length > 0 && (
-                                                                        <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                        <div className="suggestion-dropdown scrollbar-thin">
                                                                             {suggestions.map((item, sidx) => (
                                                                                 <button
                                                                                     key={sidx}
@@ -1494,15 +1494,15 @@ export default function SectorReception({
                                                                                     onMouseDown={() => {
                                                                                         setServiceDetail(svc.key, df.key, item.name);
                                                                                     }}
-                                                                                    className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                    className="suggestion-item"
                                                                                 >
                                                                                     <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                     <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                         {item.price && (
-                                                                                            <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                            <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                         )}
                                                                                         {item.serial && (
-                                                                                            <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                            <span className="suggestion-serial">{item.serial}</span>
                                                                                         )}
                                                                                     </div>
                                                                                 </button>

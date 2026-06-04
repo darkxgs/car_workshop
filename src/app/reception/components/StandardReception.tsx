@@ -422,6 +422,46 @@ export default function StandardReception({
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
     const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
+    const isIndustrialBranch = branches.find(b => b.id === selectedBranchId)?.name === 'الصناعية' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع الصناعية';
+
+    const activeServicesList = useMemo(() => {
+        return MAIN_SERVICES.map(svc => {
+            if (!isIndustrialBranch) return svc;
+            
+            let detailFields = [...svc.detailFields];
+            
+            // 1. Remove viscosity grade and filter number
+            detailFields = detailFields.filter(f => f.key !== 'viscosity' && f.key !== 'filterNum');
+            
+            // 2. Liquid/oil services (except coolant/radiator):
+            // engineOil, gearboxHydraulic, brakeFluid.
+            // Convert to container selection (1 Liter / 4 Liter), quantity, unit price.
+            if (svc.key === 'engineOil') {
+                detailFields = [
+                    { key: "brand",     label: "نوع الزيت", listId: "oilBrands" },
+                    { key: "size",      label: "الحجم (4L / 1L)" },
+                    { key: "qty",       label: "العدد" },
+                    { key: "unitPrice", label: "سعر العبوة" },
+                ];
+            } else if (svc.key === 'gearboxHydraulic') {
+                detailFields = [
+                    { key: "type",      label: "نوع الهيدروليك", listId: "gearboxOils" },
+                    { key: "size",      label: "الحجم (4L / 1L)" },
+                    { key: "qty",       label: "العدد" },
+                    { key: "unitPrice", label: "سعر العبوة" },
+                ];
+            } else if (svc.key === 'brakeFluid') {
+                detailFields = [
+                    { key: "type",      label: "نوع الزيت", listId: "brakeFluids" },
+                    { key: "size",      label: "الحجم (4L / 1L)" },
+                    { key: "qty",       label: "العدد" },
+                    { key: "unitPrice", label: "سعر العبوة" },
+                ];
+            }
+            
+            return { ...svc, detailFields };
+        });
+    }, [isIndustrialBranch]);
     // ---------- Print Preview States ----------
     const [previewReportId, setPreviewReportId] = useState<string | null>(null);
     const [previewMode, setPreviewMode] = useState<'full' | 'short'>('full');
@@ -594,7 +634,7 @@ export default function StandardReception({
 
             // Find listId
             let listId: string | undefined = undefined;
-            const mainSvc = MAIN_SERVICES.find(s => s.key === key);
+            const mainSvc = activeServicesList.find(s => s.key === key);
             const mainField = mainSvc?.detailFields.find(f => f.key === field);
             if (mainField?.listId) {
                 listId = mainField.listId;
@@ -643,10 +683,10 @@ export default function StandardReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'engineOil') {
-                const l = parseFloat(newDet.liters || newDet.qty) || 0;
+            if (key === 'engineOil' || (isIndustrialBranch && (key === 'gearboxHydraulic' || key === 'brakeFluid'))) {
+                const q = parseFloat(newDet.qty || newDet.liters) || 0;
                 const up = parseFloat(newDet.unitPrice) || 0;
-                newPrice = (l * up) > 0 ? (l * up).toString() : '';
+                newPrice = (q * up) > 0 ? (q * up).toString() : '';
             } else if (key === 'transOil') {
                 const q = parseFloat(newDet.qty) || 0;
                 const up = parseFloat(newDet.unitPrice) || 0;
@@ -672,7 +712,7 @@ export default function StandardReception({
 
     const handleServiceDetailBlur = (key: string, field: string, value: string) => {
         let listId: string | undefined = undefined;
-        const mainSvc = MAIN_SERVICES.find(s => s.key === key);
+        const mainSvc = activeServicesList.find(s => s.key === key);
         const mainField = mainSvc?.detailFields.find(f => f.key === field);
         if (mainField?.listId) {
             listId = mainField.listId;
@@ -1252,7 +1292,7 @@ export default function StandardReception({
                                                                                     }}
                                                                                 />
                                                                                 {focusedListId === resolvedListId && focusedFieldKey === fieldKey && suggestions.length > 0 && (
-                                                                                    <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                                    <div className="suggestion-dropdown scrollbar-thin">
                                                                                         {suggestions.map((item, sidx) => (
                                                                                             <button
                                                                                                 key={sidx}
@@ -1260,15 +1300,15 @@ export default function StandardReception({
                                                                                                 onMouseDown={() => {
                                                                                                     setServiceDetail(svc.key, df.key, item.name);
                                                                                                 }}
-                                                                                                className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                                className="suggestion-item"
                                                                                             >
                                                                                                 <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                                 <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                                     {item.price && (
-                                                                                                        <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                                        <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                                     )}
                                                                                                     {item.serial && (
-                                                                                                        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                                        <span className="suggestion-serial">{item.serial}</span>
                                                                                                     )}
                                                                                                 </div>
                                                                                             </button>
@@ -1289,7 +1329,7 @@ export default function StandardReception({
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {MAIN_SERVICES.map((svc, idx) => {
+                                    {activeServicesList.map((svc, idx) => {
                                         const entry = services[svc.key];
                                         return (
                                             <div key={svc.key} className={`rounded-xl border transition-colors ${entry.status === 'يحتاج تغيير' ? 'border-rose-500/40 bg-rose-950/10' : entry.status === 'جيد' ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border bg-background/40'}`}>
@@ -1357,7 +1397,7 @@ export default function StandardReception({
                                                                                     }}
                                                                                 />
                                                                                 {focusedListId === "materials" && focusedFieldKey === (svc.key + "_" + k) && getFilteredSuggestions().length > 0 && (
-                                                                                    <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                                    <div className="suggestion-dropdown scrollbar-thin">
                                                                                         {getFilteredSuggestions().map((item, sidx) => (
                                                                                             <button
                                                                                                 key={sidx}
@@ -1375,20 +1415,19 @@ export default function StandardReception({
                                                                                                                     if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
                                                                                                                 });
                                                                                                                 return { ...prev, [svc.key]: { ...svcData, details, price: sum > 0 ? String(sum) : "" } };
-                                                                                                                // Recalculating order totals is automatically handled by standard setServiceDetail/price change flows
                                                                                                             });
                                                                                                         }, 50);
                                                                                                     }
                                                                                                 }}
-                                                                                                className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                                className="suggestion-item"
                                                                                             >
                                                                                                 <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                                 <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                                     {item.price && (
-                                                                                                        <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                                        <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                                     )}
                                                                                                     {item.serial && (
-                                                                                                        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                                        <span className="suggestion-serial">{item.serial}</span>
                                                                                                     )}
                                                                                                 </div>
                                                                                             </button>
@@ -1443,7 +1482,7 @@ export default function StandardReception({
                                                                 </button>
                                                             </div>
                                                         ) : svc.detailFields.map(df => {
-                                                            if (svc.key === 'coolant' && df.key === 'size') {
+                                                            if (df.key === 'size') {
                                                                 return (
                                                                     <select 
                                                                         key={df.key} 
@@ -1487,7 +1526,7 @@ export default function StandardReception({
                                                                         }}
                                                                     />
                                                                     {focusedListId === resolvedListId && focusedFieldKey === fieldKey && suggestions.length > 0 && (
-                                                                        <div className="absolute z-50 right-0 mt-1 max-h-60 overflow-y-auto w-max min-w-full max-w-[90vw] md:max-w-md bg-[#0d1224]/95 backdrop-blur-md border border-rose-500/20 rounded-xl shadow-2xl shadow-rose-950/40 divide-y divide-border/30 scrollbar-thin text-right" dir="rtl">
+                                                                        <div className="suggestion-dropdown scrollbar-thin">
                                                                             {suggestions.map((item, sidx) => (
                                                                                 <button
                                                                                     key={sidx}
@@ -1495,15 +1534,15 @@ export default function StandardReception({
                                                                                     onMouseDown={() => {
                                                                                         setServiceDetail(svc.key, df.key, item.name);
                                                                                     }}
-                                                                                    className="w-full text-right px-4 py-3 md:py-2.5 text-xs md:text-sm hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-foreground flex items-center justify-between font-ibm gap-4"
+                                                                                    className="suggestion-item"
                                                                                 >
                                                                                     <span className="font-bold truncate text-right flex-1">{item.name}</span>
                                                                                     <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
                                                                                         {item.price && (
-                                                                                            <span className="text-[10px] md:text-xs text-rose-400 font-mono font-bold bg-rose-500/5 px-1.5 py-0.5 rounded border border-rose-500/10">{Number(item.price).toLocaleString()} د.ع</span>
+                                                                                            <span className="suggestion-price">{Number(item.price).toLocaleString()} د.ع</span>
                                                                                         )}
                                                                                         {item.serial && (
-                                                                                            <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">{item.serial}</span>
+                                                                                            <span className="suggestion-serial">{item.serial}</span>
                                                                                         )}
                                                                                     </div>
                                                                                 </button>
@@ -1588,6 +1627,18 @@ export default function StandardReception({
                                 </div>
                             )}
                         </div>
+
+                        {isIndustrialBranch && (
+                            <div className="rounded-xl border border-border bg-background/40 p-4 mt-4">
+                                <label className="text-sm font-bold text-rose-400 mb-2 block">ملاحظات الصيانة:</label>
+                                <textarea
+                                    className="input-field h-20 py-3 bg-background w-full text-xs"
+                                    placeholder="اكتب ملاحظات الصيانة هنا..."
+                                    value={notes}
+                                    onChange={e => setNotes(e.target.value)}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-between items-center max-w-5xl mx-auto">
