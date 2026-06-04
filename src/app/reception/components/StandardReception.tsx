@@ -428,34 +428,24 @@ export default function StandardReception({
         return MAIN_SERVICES.map(svc => {
             if (!isIndustrialBranch) return svc;
             
-            let detailFields = [...svc.detailFields];
+            let detailFields: { key: string; label: string; listId?: string }[] = [];
             
-            // 1. Remove viscosity grade and filter number
-            detailFields = detailFields.filter(f => f.key !== 'viscosity' && f.key !== 'filterNum');
-            
-            // 2. Liquid/oil services (except coolant/radiator):
-            // engineOil, gearboxHydraulic, brakeFluid.
-            // Convert to container selection (1 Liter / 4 Liter), quantity, unit price.
-            if (svc.key === 'engineOil') {
+            if (svc.key === 'coolant') {
                 detailFields = [
-                    { key: "brand",     label: "نوع الزيت", listId: "oilBrands" },
+                    { key: "type",      label: "اسم المادة", listId: "coolants" },
                     { key: "size",      label: "الحجم (4L / 1L)" },
                     { key: "qty",       label: "العدد" },
-                    { key: "unitPrice", label: "سعر العبوة" },
+                    { key: "unitPrice", label: "السعر" },
                 ];
-            } else if (svc.key === 'gearboxHydraulic') {
+            } else if (svc.key === 'additives') {
+                detailFields = []; // additives are handled custom
+            } else {
+                const nameKey = svc.key === 'engineOil' ? 'brand' : 'type';
+                const originalField = svc.detailFields.find(f => f.key === nameKey || f.key === 'brand' || f.key === 'type');
                 detailFields = [
-                    { key: "type",      label: "نوع الهيدروليك", listId: "gearboxOils" },
-                    { key: "size",      label: "الحجم (4L / 1L)" },
+                    { key: nameKey,     label: "اسم المادة", listId: originalField?.listId },
                     { key: "qty",       label: "العدد" },
-                    { key: "unitPrice", label: "سعر العبوة" },
-                ];
-            } else if (svc.key === 'brakeFluid') {
-                detailFields = [
-                    { key: "type",      label: "نوع الزيت", listId: "brakeFluids" },
-                    { key: "size",      label: "الحجم (4L / 1L)" },
-                    { key: "qty",       label: "العدد" },
-                    { key: "unitPrice", label: "سعر العبوة" },
+                    { key: "unitPrice", label: "السعر" },
                 ];
             }
             
@@ -683,10 +673,14 @@ export default function StandardReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'engineOil' || (isIndustrialBranch && (key === 'gearboxHydraulic' || key === 'brakeFluid'))) {
+            if (isIndustrialBranch && key !== 'additives') {
                 const q = parseFloat(newDet.qty || newDet.liters) || 0;
                 const up = parseFloat(newDet.unitPrice) || 0;
                 newPrice = (q * up) > 0 ? (q * up).toString() : '';
+            } else if (key === 'engineOil') {
+                const l = parseFloat(newDet.liters || newDet.qty) || 0;
+                const up = parseFloat(newDet.unitPrice) || 0;
+                newPrice = (l * up) > 0 ? (l * up).toString() : '';
             } else if (key === 'transOil') {
                 const q = parseFloat(newDet.qty) || 0;
                 const up = parseFloat(newDet.unitPrice) || 0;
@@ -1596,6 +1590,16 @@ export default function StandardReception({
                                                 onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
                                                 className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
                                             />
+
+                                            {isIndustrialBranch && (
+                                                <input
+                                                    type="text"
+                                                    placeholder="ملاحظات..."
+                                                    value={(cs as any).notes || ""}
+                                                    onChange={e => setCustomSvcField(cs.id, 'notes', e.target.value)}
+                                                    className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
+                                                />
+                                            )}
 
                                             <div className="flex items-center gap-1">
                                                 <input

@@ -173,19 +173,19 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     ];
 
     let SERVICES = isSectorBranch ? flatSectorServices : [
-        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'brand', label: 'نوع الزيت' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
-        { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'airFilter', label: 'فلتر الهواء', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'acFilter', label: 'فلتر التبريد', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'brakeFluid', label: 'زيت المكابح', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
+        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'brand', label: 'نوع الزيت' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
+        { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'airFilter', label: 'فلتر الهواء', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'acFilter', label: 'فلتر التبريد', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'brakeFluid', label: 'زيت المكابح', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
         { key: 'coolant', label: 'ماء الراديتر', fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }, { key: 'size', label: 'الحجم' }] },
-        { key: 'battery', label: 'البطارية', fields: [{ key: 'type', label: 'النوع والسعة' }] },
-        { key: 'engineBelts', label: 'قايش المحرك', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
-        { key: 'brakePads', label: 'دسكات السيارة', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
-        { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
-        { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
-        { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
-        { key: 'wipers', label: 'الماسحات', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'battery', label: 'البطارية', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع والسعة' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع والسعة' }] },
+        { key: 'engineBelts', label: 'قايش المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'brakePads', label: 'دسكات السيارة', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
+        { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
+        { key: 'wipers', label: 'الماسحات', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'additives', label: 'المضافات والمحسنات', fields: [] },
     ];
 
@@ -443,7 +443,9 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                         <td style={{ padding: customPadding, textAlign: 'center', fontWeight: 700, fontSize: customFontSize, color: '#92400e' }}>{SERVICES.length + i + 1}</td>
                                         <td style={{ padding: customPadding, fontWeight: 700, fontSize: customFontSize, color: '#92400e' }}>{c.label}</td>
                                         <td style={{ padding: customPadding }}><StatusBadge status={c.status} /></td>
-                                        <td style={{ padding: customPadding, fontSize: totalItems > 14 ? '10px' : '12px', color: '#6b7280' }}>حدث صيانة</td>
+                                        <td style={{ padding: customPadding, fontSize: totalItems > 14 ? '10px' : '12px', color: '#6b7280' }}>
+                                            {c.notes ? c.notes : 'حدث صيانة'}
+                                        </td>
                                         {/* ↑ was '9px' / '11px' → '10px' / '12px' */}
                                         <td style={{ padding: customPadding, textAlign: 'center', fontWeight: 700 }}>
                                             <Val v={c.price} w={55} />
