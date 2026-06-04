@@ -272,7 +272,8 @@ const DEFAULT_SUGGESTION_LISTS: Record<string, string[]> = {
     windshieldFluids: [],
     technicianNames: [],
     supervisorNames: [],
-    bayNumbers: []
+    bayNumbers: [],
+    customServices: []
 };
 
 export default function StandardReception({
@@ -570,8 +571,27 @@ export default function StandardReception({
         setCustomServices(prev => [...prev, { id: Date.now().toString(), label: "", status: "", price: "" }]);
     };
     const removeCustomService = (id: string) => setCustomServices(prev => prev.filter(s => s.id !== id));
-    const setCustomSvcField = (id: string, field: string, value: string) =>
-        setCustomServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    const setCustomSvcField = (id: string, field: string, value: string) => {
+        setCustomServices(prev => prev.map(s => {
+            if (s.id === id) {
+                const updated = { ...s, [field]: value };
+                if (field === 'label') {
+                    const list = suggestionLists["customServices"];
+                    if (list) {
+                        const matched = list.find((item: any) => {
+                            const itemName = typeof item === 'object' && item !== null ? item.name : String(item);
+                            return itemName.trim().toLowerCase() === value.trim().toLowerCase();
+                        });
+                        if (matched && typeof matched === 'object' && matched !== null && matched.price) {
+                            updated.price = String(matched.price);
+                        }
+                    }
+                }
+                return updated;
+            }
+            return s;
+        }));
+    };
 
     // Phone search
     useEffect(() => {
@@ -1798,14 +1818,22 @@ export default function StandardReception({
 
 
             <datalist id="customServicesList">
-                <option value="فحص شامل (كمبيوتر)" />
-                <option value="تنظيف البخاخات" />
-                <option value="تبديل بواجي (شمعات)" />
-                <option value="ميزانية وتويتر إطارات" />
-                <option value="غسيل راديتر" />
-                <option value="تبديل سفايف (بريكات)" />
-                <option value="شحن غاز تبريد" />
-                <option value="تبديل بطارية" />
+                {suggestionLists["customServices"] && suggestionLists["customServices"].length > 0 ? (
+                    suggestionLists["customServices"].map((item: any, idx: number) => (
+                        <option key={idx} value={item.name} />
+                    ))
+                ) : (
+                    <>
+                        <option value="فحص شامل (كمبيوتر)" />
+                        <option value="تنظيف البخاخات" />
+                        <option value="تبديل بواجي (شمعات)" />
+                        <option value="ميزانية وتويتر إطارات" />
+                        <option value="غسيل راديتر" />
+                        <option value="تبديل سفايف (بريكات)" />
+                        <option value="شحن غاز تبريد" />
+                        <option value="تبديل بطارية" />
+                    </>
+                )}
             </datalist>
 
             {branchChangePending && (
