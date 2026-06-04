@@ -100,7 +100,14 @@ export default function ReportsPage() {
                             .filter(([, v]: any) => v?.status === 'يحتاج تغيير')
                             .map(([key, v]: any) => {
                                 const label = SERVICE_LABELS[key] || key;
-                                const parts = [v.brand, v.viscosity, v.size, v.type].filter(Boolean);
+                                const det = v?.details || {};
+                                const brand = det.brand || v?.brand;
+                                const viscosity = det.viscosity || v?.viscosity;
+                                const size = det.size || v?.size;
+                                const type = det.type || v?.type;
+                                const liters = det.liters || det.qty || v?.liters || v?.qty;
+                                const litersStr = liters ? `${liters} لتر` : '';
+                                const parts = [brand, viscosity, size, type, litersStr].filter(Boolean);
                                 return parts.length ? `${label}: ${parts.join(' ')}` : label;
                             })
                             .join(' | ');
@@ -112,6 +119,7 @@ export default function ReportsPage() {
                             plate: (r.vehicles as any)?.plate_number || '',
                             odometer: r.odometer_reading || 0,
                             services: serviceDetails || '-',
+                            shift: svc?.shiftName || '',
                             supervisor: svc?.shiftSupervisor || '',
                             technician: svc?.technicianName || '',
                             status: r.status,
@@ -152,12 +160,13 @@ export default function ReportsPage() {
                 'السيارة': row.vehicle,
                 'رقم اللوحة': row.plate,
                 'العداد (كم)': row.odometer,
+                'الشفت': row.shift || '-',
                 'المشرف': row.supervisor,
                 'الفني': row.technician,
                 'الخدمات والتفاصيل': row.services,
                 'الحالة': row.status,
                 'الإجمالي (د.ع)': row.total_price,
-                'التاريخ': new Date(row.created_at).toLocaleDateString('ar-SA')
+                'التاريخ': new Date(row.created_at).toLocaleDateString('en-US')
             }));
             ws = XLSX.utils.json_to_sheet(formattedData);
         } else {
@@ -168,17 +177,25 @@ export default function ReportsPage() {
                 'التفاصيل': row.details,
                 'الحالة': row.status,
                 'الإجمالي المحصل (د.ع)': row.total_price,
-                'التاريخ': new Date(row.created_at).toLocaleDateString('ar-SA')
+                'التاريخ': new Date(row.created_at).toLocaleDateString('en-US')
             }));
             ws = XLSX.utils.json_to_sheet(formattedData);
         }
 
-        // Set column widths for better readability in Excel
-        ws['!cols'] = [
-            { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
-            { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 60 },
-            { wch: 15 }, { wch: 18 }, { wch: 15 }
-        ];
+        // Set column widths dynamically for better readability in Excel
+        if (activeTab === 'inventory') {
+            ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 15 }, { wch: 18 }, { wch: 18 }];
+        } else if (activeTab === 'work-orders') {
+            ws['!cols'] = [
+                { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 14 },
+                { wch: 12 }, // الشفت
+                { wch: 18 }, { wch: 18 }, { wch: 60 }, { wch: 15 }, { wch: 18 }, { wch: 15 }
+            ];
+        } else {
+            ws['!cols'] = [
+                { wch: 15 }, { wch: 18 }, { wch: 22 }, { wch: 45 }, { wch: 15 }, { wch: 18 }, { wch: 15 }
+            ];
+        }
 
         // Create workbook and add the worksheet (with Right-to-Left orientation!)
         const wb = XLSX.utils.book_new();

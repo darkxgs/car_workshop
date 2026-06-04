@@ -314,7 +314,7 @@ export default function CustomersPage() {
             const oilSvc  = services.engineOil || {};
             const oilType = oilSvc.details?.brand     || "";
             const oilVisc = oilSvc.details?.viscosity || "";
-            const oilLiters = oilSvc.details?.liters  || "";
+            const oilLiters = oilSvc.details?.liters || oilSvc.details?.qty || "";
 
             const needChange = Object.entries(services as Record<string, any>)
                 .filter(([, v]) => v?.status === "يحتاج تغيير")
@@ -330,6 +330,7 @@ export default function CustomersPage() {
             const receptionistName = r.receptionist?.name || payload?.receptionistName || "";
             const supervisorName = payload?.shiftSupervisor || "";
             const technicianName = payload?.technicianName || "";
+            const shiftName = payload?.shiftName || "";
 
             return {
                 seq: idx + 1,
@@ -339,7 +340,8 @@ export default function CustomersPage() {
                 car_make:  vehicle?.make  || "—",
                 car_model: vehicle?.model || "—",
                 plate: vehicle?.plate_number || "—",
-                created_at: new Date(r.created_at).toLocaleDateString("ar-IQ"),
+                created_at: new Date(r.created_at).toLocaleDateString("en-US"),
+                shift_name: shiftName || "—",
                 receptionist_name: receptionistName || "—",
                 supervisor_name: supervisorName || "—",
                 technician_name: technicianName || "—",
@@ -354,12 +356,12 @@ export default function CustomersPage() {
         });
 
         const wsData = [
-            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ",
+            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ", "الشفت",
              "موظف الاستقبال", "المشرف", "الفني", "العداد (كم)",
              "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
              "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
             ...mapped.map(r => [
-                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate, r.created_at,
+                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate, r.created_at, r.shift_name,
                 r.receptionist_name, r.supervisor_name, r.technician_name, r.odometer,
                 r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
                 r.extra_services, r.booklet, r.total_price, r.status
@@ -368,7 +370,7 @@ export default function CustomersPage() {
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch:5}, {wch:16}, {wch:22}, {wch:16}, {wch:14}, {wch:14}, {wch:14}, {wch:14},
+            {wch:5}, {wch:16}, {wch:22}, {wch:16}, {wch:14}, {wch:14}, {wch:14}, {wch:14}, {wch:12},
             {wch:18}, {wch:18}, {wch:18}, {wch:14},
             {wch:28}, {wch:18}, {wch:14}, {wch:10}, {wch:28}, {wch:14}, {wch:12}, {wch:12},
         ];
