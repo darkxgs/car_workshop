@@ -313,7 +313,7 @@ export default function StandardReception({
 
             try {
                 let query = (supabase as any).from('suggestion_lists').select('key, items, branch_id');
-                query = query.or(`branch_id.eq.${activeBranchId},key.eq.materials`);
+                query = query.eq('branch_id', activeBranchId);
                 const { data, error } = await query;
                 
                 if (error) throw error;
@@ -384,6 +384,7 @@ export default function StandardReception({
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
     const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
     const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
+    const [assignedTechnician, setAssignedTechnician] = useState<string>("");
 
     // ---------- STEP 1: Customer & Vehicle ----------
     const [name, setName] = useState("");
@@ -487,8 +488,9 @@ export default function StandardReception({
     useEffect(() => {
         let empQuery = supabase.from('employees').select('id, name, role, branch_id').order('name');
 
-        if (employeeBranchId) {
-            empQuery = empQuery.eq('branch_id', employeeBranchId);
+        const activeBranchId = selectedBranchId || employeeBranchId;
+        if (activeBranchId) {
+            empQuery = empQuery.eq('branch_id', activeBranchId);
         }
 
         empQuery.then(({ data }) => {
@@ -536,6 +538,7 @@ export default function StandardReception({
                     if (payload.customServices) setCustomServices(payload.customServices);
                     if (payload.shiftName) setShiftName(payload.shiftName);
                     if (payload.shiftSupervisor) setShiftSupervisor(payload.shiftSupervisor);
+                    if (payload.technicianName) setAssignedTechnician(payload.technicianName);
                     if (payload.booklet) {
                         setBookletType(payload.booklet.type || "");
                         setBookletChanges(payload.booklet.changes || "");
@@ -919,6 +922,7 @@ export default function StandardReception({
                 customServices,
                 shiftName,
                 shiftSupervisor,
+                technicianName: assignedTechnician,
                 booklet: { type: bookletType, changes: bookletChanges },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
@@ -993,7 +997,7 @@ export default function StandardReception({
         setBookletType("");
         setBookletChanges("");
         setSelectedBranchId(newBranchId || "");
-        setSelectedReceptionistId(""); setSelectedTechnicianId("");
+        setSelectedReceptionistId(""); setSelectedTechnicianId(""); setAssignedTechnician("");
         setTotalPrice(""); setDiscount(""); setAmountReceived("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);

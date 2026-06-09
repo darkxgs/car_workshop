@@ -80,7 +80,8 @@ export default function CustomerProfilePage() {
                 .from("inspection_reports")
                 .select(`id, report_number, status, total_price, odometer_reading, created_at, completed_at, vehicles (make, model, plate_number)`)
                 .in("vehicle_id", vehicleIds)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .limit(50);
 
             if (reportsData) setReports(reportsData as any);
         }
