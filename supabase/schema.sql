@@ -72,7 +72,17 @@ CREATE TABLE inventory (
     sell_price DECIMAL(10,2) NOT NULL,
     quantity INTEGER DEFAULT 0,
     min_quantity INTEGER DEFAULT 5,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 7.1 Warehouse Notes
+CREATE TABLE warehouse_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    branch_id UUID REFERENCES branches(id),
+    content TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 8. Report Services (The 9 core categories checked)

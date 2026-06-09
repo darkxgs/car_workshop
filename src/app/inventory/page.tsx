@@ -17,8 +17,11 @@ type InventoryItem = {
     purchase_price: number | null;
     sell_price: number | null;
     created_at: string;
+    notes: string | null;
     branches?: { id: string; name: string } | null;
 };
+
+import * as XLSX from 'xlsx';
 
 export default function InventoryPage() {
     const { employeeBranchId, employeeRole, employeeName } = useAuth();
@@ -35,6 +38,10 @@ export default function InventoryPage() {
     const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState("");
 
+    // Warehouse Note
+    const [warehouseNote, setWarehouseNote] = useState("");
+    const [savingNote, setSavingNote] = useState(false);
+
     // Stats
     const [stats, setStats] = useState({ totalItems: 0, lowStock: 0, totalValue: 0 });
 
@@ -50,6 +57,7 @@ export default function InventoryPage() {
     const [formMinQuantity, setFormMinQuantity] = useState("2");
     const [formPurchasePrice, setFormPurchasePrice] = useState("0");
     const [formSellPrice, setFormSellPrice] = useState("0");
+    const [formNotes, setFormNotes] = useState("");
     const [formBranchId, setFormBranchId] = useState("");
 
     useEffect(() => {
@@ -71,11 +79,39 @@ export default function InventoryPage() {
     useEffect(() => {
         if (selectedBranchId) {
             fetchInventory();
+            fetchWarehouseNote();
             if (activeTab === 'transactions') {
                 fetchTransactions();
             }
         }
     }, [selectedBranchId, activeTab]);
+
+    const fetchWarehouseNote = async () => {
+        if (!selectedBranchId) return;
+        const { data } = await supabase
+            .from('warehouse_notes')
+            .select('content')
+            .eq('branch_id', selectedBranchId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        
+        setWarehouseNote(data?.content || "");
+    };
+
+    const saveWarehouseNote = async () => {
+        if (!selectedBranchId) return;
+        setSavingNote(true);
+        const { error } = await supabase.from('warehouse_notes').insert([
+            { branch_id: selectedBranchId, content: warehouseNote }
+        ]);
+        setSavingNote(false);
+        if (error) {
+            showError("خطأ", "فشل حفظ الملاحظات.");
+        } else {
+            showSuccess("تم الحفظ", "تم حفظ الملاحظات بنجاح.");
+        }
+    };
 
     const fetchInventory = async () => {
         if (!selectedBranchId) return;
@@ -129,11 +165,12 @@ export default function InventoryPage() {
             setFormMinQuantity(item.min_quantity.toString());
             setFormPurchasePrice((item.purchase_price || 0).toString());
             setFormSellPrice((item.sell_price || 0).toString());
+            setFormNotes(item.notes || "");
             setFormBranchId(item.branch_id || "");
         } else {
             setEditingItem(null);
             setFormName(""); setFormSku(""); setFormCategory("قطع غيار");
-            setFormQuantity("10"); setFormMinQuantity("2"); setFormPurchasePrice("0"); setFormSellPrice("0");
+            setFormQuantity("10"); setFormMinQuantity("2"); setFormPurchasePrice("0"); setFormSellPrice("0"); setFormNotes("");
             setFormBranchId(selectedBranchId || employeeBranchId || "");
         }
         setIsModalOpen(true);
@@ -156,7 +193,8 @@ export default function InventoryPage() {
             quantity: parseInt(formQuantity), 
             min_quantity: parseInt(formMinQuantity),
             purchase_price: parseFloat(formPurchasePrice), 
-            sell_price: parseFloat(formSellPrice)
+            sell_price: parseFloat(formSellPrice),
+            notes: formNotes || null
         };
 
         let error;
@@ -235,36 +273,105 @@ export default function InventoryPage() {
     };
 
     const handleDelete = async (id: string) => {
-        const itemToDelete = items.find(i => i.id === id);
-        if (!itemToDelete) return;
-
-        const isConfirmed = await showConfirm(
-            "حذف عنصر",
-            `هل أنت متأكد من حذف العنصر "${itemToDelete.name}"؟ لا يمكن التراجع عن هذا الإجراء.`,
-            "نعم، احذف",
-            true
-        );
-        if (isConfirmed) {
+        const confirmed = await showConfirm("تأكيد الحذف", "هل أنت متأكد من حذف هذا المنتج نهائياً؟", "warning");
+        if (confirmed) {
+            const itemToDelete = items.find(i => i.id === id);
             const { error } = await supabase.from('inventory').delete().eq('id', id);
             if (!error) {
                 await supabase.from('inventory_transactions').insert([{
-                    branch_id: itemToDelete.branch_id,
+                    branch_id: selectedBranchId,
                     inventory_id: null,
-                    item_code: itemToDelete.item_code,
-                    item_name: itemToDelete.name,
+                    item_code: itemToDelete?.item_code || null,
+                    item_name: itemToDelete?.name || 'تم حذف منتج',
                     transaction_type: 'حذف منتج',
-                    quantity_changed: -itemToDelete.quantity,
-                    quantity_before: itemToDelete.quantity,
+                    quantity_changed: itemToDelete ? -itemToDelete.quantity : 0,
+                    quantity_before: itemToDelete?.quantity || 0,
                     quantity_after: 0,
                     user_name: employeeName || 'مستخدم النظام'
                 }]);
-                
-                showSuccess("تم الحذف", "تم حذف العنصر بنجاح");
+                showSuccess("تم الحذف", "تم حذف المنتج بنجاح.");
                 fetchInventory();
             } else {
-                showError("خطأ", "حدث خطأ أثناء الحذف");
+                showError("خطأ", "فشل الحذف");
             }
         }
+    };
+
+    const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                if (json.length === 0) {
+                    showError("الملف فارغ", "يرجى رفع ملف يحتوي على بيانات");
+                    return;
+                }
+
+                // Fetch existing SKUs to avoid duplicates
+                const { data: existingItems } = await supabase
+                    .from('inventory')
+                    .select('item_code')
+                    .eq('branch_id', selectedBranchId);
+                const existingSkus = new Set(existingItems?.map(i => i.item_code) || []);
+
+                const validItems = [];
+                let skippedCount = 0;
+                let errorCount = 0;
+
+                for (const row of json as any[]) {
+                    const name = row['اسم المادة'] || row['المنتج'] || row['name'];
+                    let sku = row['الكود'] || row['SKU'] || row['item_code'];
+                    
+                    if (!name) {
+                        errorCount++;
+                        continue; // Invalid row
+                    }
+
+                    if (!sku) {
+                        sku = `SYS-${Math.floor(Math.random() * 1000000)}`;
+                    }
+
+                    if (existingSkus.has(sku)) {
+                        skippedCount++;
+                        continue; // Duplicate
+                    }
+
+                    validItems.push({
+                        branch_id: selectedBranchId,
+                        name: name,
+                        item_code: sku,
+                        category: row['التصنيف'] || row['category'] || 'قطع غيار',
+                        quantity: parseInt(row['الكمية'] || row['quantity'] || '0'),
+                        min_quantity: parseInt(row['الحد الأدنى'] || row['min_quantity'] || '2'),
+                        purchase_price: parseFloat(row['سعر الشراء'] || row['purchase_price'] || '0'),
+                        sell_price: parseFloat(row['سعر البيع'] || row['sell_price'] || '0'),
+                        notes: row['ملاحظات'] || row['notes'] || null
+                    });
+                    
+                    existingSkus.add(sku); // Add to set so we don't insert duplicates within the file itself
+                }
+
+                if (validItems.length > 0) {
+                    const { error } = await supabase.from('inventory').insert(validItems);
+                    if (error) throw error;
+                }
+                
+                showSuccess("اكتمل الرفع", `تم إضافة ${validItems.length} صنف بنجاح. تخطي ${skippedCount} (مكرر)، فشل ${errorCount} (بيانات ناقصة).`);
+                fetchInventory();
+            } catch (err) {
+                console.error(err);
+                showError("خطأ", "فشل معالجة ملف الإكسل. تأكد من صحة البيانات والأعمدة.");
+            }
+        };
+        reader.readAsArrayBuffer(file);
     };
 
     const filteredItems = items.filter(item => 
@@ -307,7 +414,7 @@ export default function InventoryPage() {
                                 </select>
                             </div>
                         )}
-
+                        {/* Search Input */}
                         <div className="relative flex-1 md:w-64">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                             <input 
@@ -317,6 +424,20 @@ export default function InventoryPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full bg-card border border-border rounded-xl py-2.5 pr-10 pl-4 text-foreground placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                             />
+                        </div>
+                        
+                        {/* Excel Upload */}
+                        <div>
+                            <input 
+                                type="file" 
+                                accept=".xlsx, .xls" 
+                                id="excel-upload" 
+                                className="hidden" 
+                                onChange={handleExcelUpload} 
+                            />
+                            <label htmlFor="excel-upload" className="bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 shrink-0 border border-emerald-500/20 cursor-pointer">
+                                <Layers size={18} /> <span>رفع إكسل</span>
+                            </label>
                         </div>
 
                         <button onClick={() => openModal()} className="bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 shrink-0 shadow-lg shadow-purple-600/20">
@@ -359,6 +480,24 @@ export default function InventoryPage() {
 
                 {activeTab === 'inventory' ? (
                     <>
+                        {/* Warehouse Notes Section */}
+                        {selectedBranchId && (
+                            <div className="bg-card border border-border p-5 rounded-2xl animate-fade-in shadow-sm mb-6">
+                                <label className="block text-sm font-bold text-foreground mb-2 flex items-center gap-2">
+                                    <Box size={16} className="text-purple-500" />
+                                    ملاحظات المخزن (تظهر لجميع الموظفين في هذا الفرع):
+                                </label>
+                                <textarea
+                                    value={warehouseNote}
+                                    onChange={e => setWarehouseNote(e.target.value)}
+                                    onBlur={saveWarehouseNote}
+                                    placeholder="أضف ملاحظات هامة حول المخزن هنا..."
+                                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-purple-500 transition-colors min-h-[80px]"
+                                />
+                                {savingNote && <span className="text-xs text-muted-foreground mt-2 block animate-pulse">جاري الحفظ...</span>}
+                            </div>
+                        )}
+
                         {/* Micro Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="glass-card p-5 rounded-2xl border-border flex items-center gap-4">
@@ -585,6 +724,11 @@ export default function InventoryPage() {
                                 <div>
                                     <label className="block text-sm font-medium text-muted-foreground mb-1.5">سعر البيع للعميل <span className="text-rose-500">*</span></label>
                                     <input type="number" required value={formSellPrice} onChange={e => setFormSellPrice(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500 font-bold text-emerald-400" />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-muted-foreground mb-1.5">ملاحظات للمنتج</label>
+                                    <input type="text" value={formNotes} onChange={e => setFormNotes(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
                                 </div>
                                 
                                 {/* Branch Association in Form */}
