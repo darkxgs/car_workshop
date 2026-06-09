@@ -88,7 +88,7 @@ export default function InventoryPage() {
 
     const fetchWarehouseNote = async () => {
         if (!selectedBranchId) return;
-        const { data } = await supabase
+        const { data } = await (supabase as any)
             .from('warehouse_notes')
             .select('content')
             .eq('branch_id', selectedBranchId)
@@ -102,7 +102,7 @@ export default function InventoryPage() {
     const saveWarehouseNote = async () => {
         if (!selectedBranchId) return;
         setSavingNote(true);
-        const { error } = await supabase.from('warehouse_notes').insert([
+        const { error } = await (supabase as any).from('warehouse_notes').insert([
             { branch_id: selectedBranchId, content: warehouseNote }
         ]);
         setSavingNote(false);
