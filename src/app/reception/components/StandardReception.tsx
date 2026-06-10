@@ -401,7 +401,7 @@ export default function StandardReception({
     const [createdWorkOrderId, setCreatedWorkOrderId] = useState<string | null>(null);
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
-    const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
+    const isSectorBranch = false; // Forced false to keep unified layout and services for all branches
     const isIndustrialBranch = branches.find(b => b.id === selectedBranchId)?.name === 'الصناعية' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع الصناعية';
 
     const activeServicesList = useMemo(() => {

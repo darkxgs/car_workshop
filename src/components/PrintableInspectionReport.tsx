@@ -142,7 +142,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         );
     };
 
-    const isSectorBranch = report?.branches?.name === 'القطاع' || report?.branches?.name === 'فرع القطاع';
+    const isSectorBranch = false; // Forced false to unify layouts
     const isIndustrialBranch = report?.branches?.name === 'الصناعية' || report?.branches?.name === 'فرع الصناعية';
 
     const flatSectorServices = [
