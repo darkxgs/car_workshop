@@ -417,13 +417,18 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                                 ))}
                                             </span>
                                         ) : (svc.fields && svc.fields.length > 0 && (
-                                            <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap', fontSize: '11px' }}>
+                                            <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11px' }}>
                                                 {/* ↑ was 10px → 11px */}
                                                 {svc.fields.map(f => (
                                                     <span key={f.key} style={{ whiteSpace: 'nowrap', fontSize: '11px' }}>
                                                         {f.label}: <Val v={(s as any)[svc.key]?.details?.[f.key]} w={42} />
                                                     </span>
                                                 ))}
+                                                {(s as any)[svc.key]?.details?.notes && (
+                                                    <span style={{ whiteSpace: 'normal', fontSize: '11px', color: '#b45309', fontWeight: 'bold' }}>
+                                                        ملاحظات: {(s as any)[svc.key].details.notes}
+                                                    </span>
+                                                )}
                                             </span>
                                         ))}
                                     </td>

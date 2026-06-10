@@ -38,7 +38,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
             { key: "brand",     label: "نوع الزيت", listId: "oilBrands" },
             { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
             { key: "liters",    label: "عدد اللترات" },
-            { key: "unitPrice", label: "سعر اللتر" }, { key: "notes", label: "ملاحظات" }],
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "oilFilter",
@@ -75,7 +75,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
             { key: "type", label: "نوع الماء", listId: "coolants" },
             { key: "size", label: "الحجم (4L / 1L)" },
             { key: "qty",  label: "العدد" },
-            { key: "unitPrice", label: "سعر العبوة" }, { key: "notes", label: "ملاحظات" }],
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "battery",
@@ -116,7 +116,7 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         detailFields: [
             { key: "type", label: "نوع الفلتر", listId: "gearboxFilterBrands" },
             { key: "filterNum", label: "رقم الفلتر", listId: "gearboxFilterCodes" },
-            { key: "unitPrice", label: "السعر" }, { key: "notes", label: "ملاحظات" }],
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "wipers",
@@ -141,14 +141,14 @@ const SECTOR_BRANCH_SERVICES = [
                 { key: "brand", label: "النوع / الماركة", listId: "oilBrands" },
                 { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
                 { key: "qty", label: "عدد اللترات" },
-                { key: "unitPrice", label: "سعر اللتر" }, { key: "notes", label: "ملاحظات" }]},
+                 { key: "notes", label: "ملاحظات" }]},
             { key: "oilFilter", label: "فلتر زيت محرك", guide: "مع تغيير الزيت", detailFields: [
                 { key: "brand",      label: "النوع / الماركة", listId: "oilFilterBrands" },
                 { key: "filterNum", label: "رقم الفلتر", listId: "oilFilterCodes" }, { key: "notes", label: "ملاحظات" }]},
             { key: "coolant", label: "ماء / سائل تبريد", guide: "عند النقص", detailFields: [
                 { key: "brand", label: "النوع / الماركة", listId: "coolants" },
                 { key: "qty",  label: "العدد" },
-                { key: "unitPrice", label: "سعر العبوة" }, { key: "notes", label: "ملاحظات" }]},
+                 { key: "notes", label: "ملاحظات" }]},
             { key: "engineCeramic", label: "سيراميك محرك", guide: "30K - 50K km", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "engineCeramicBrands" }, { key: "qty", label: "الكمية" }, { key: "notes", label: "ملاحظات" }] },
             { key: "linerCleaner", label: "منظف بطانة (جكجكة)", guide: "كل 20K - 30K", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "linerCleanerBrands" }, { key: "qty", label: "الكمية" }, { key: "notes", label: "ملاحظات" }] },
             { key: "oilLeakPreventer", label: "مانع تسريب زيت", guide: "عند نضوح زيت", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "oilLeakPreventerBrands" }, { key: "qty", label: "الكمية" }, { key: "notes", label: "ملاحظات" }] },
@@ -165,7 +165,7 @@ const SECTOR_BRANCH_SERVICES = [
             { key: "gearboxFilter", label: "فلتر كير", guide: "مع زيت الكير", detailFields: [
                 { key: "brand", label: "النوع / الماركة", listId: "gearboxFilterBrands" },
                 { key: "filterNum", label: "رقم الفلتر", listId: "gearboxFilterCodes" },
-                { key: "unitPrice", label: "السعر" }, { key: "notes", label: "ملاحظات" }]},
+                 { key: "notes", label: "ملاحظات" }]},
             { key: "gearboxCeramic", label: "سيراميك كير", guide: "لحماية التروس", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "gearboxCeramicBrands" }, { key: "qty", label: "الكمية" }, { key: "notes", label: "ملاحظات" }] },
             { key: "gearboxAntiSlip", label: "مانع انزلاق الكير", guide: "عند النتعة / التأخير", detailFields: [{ key: "brand", label: "النوع / الماركة", listId: "gearboxAntiSlipBrands" }, { key: "qty", label: "الكمية" }, { key: "notes", label: "ملاحظات" }] },
         ]
@@ -610,8 +610,8 @@ export default function SectorReception({
                 }
             }
 
-            // Override listId for non-sector branches:
-            if (!isSectorBranch) {
+            // Override listId to unify suggestions
+            if (true) {
                 if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "bayNumbers") {
                     listId = "materials";
                 } else if (field.startsWith('prod_')) {
@@ -629,10 +629,7 @@ export default function SectorReception({
                 if (matchedItem && typeof matchedItem === 'object' && matchedItem !== null && matchedItem.price) {
                     const itemPrice = String(matchedItem.price);
                     
-                    const hasUnitPriceField = (mainSvc?.detailFields.some(f => f.key === 'unitPrice')) ||
-                        (SECTOR_BRANCH_SERVICES.find(s => s.items.some(it => it.key === key))?.items.find(it => it.key === key)?.detailFields?.some(f => f.key === 'unitPrice'));
-
-                    if (hasUnitPriceField) {
+                    if (itemPrice) {
                         newDet.unitPrice = itemPrice;
                     } else if (field.startsWith('prod_')) {
                         const priceKey = field.replace('prod_', 'price_');
@@ -688,8 +685,8 @@ export default function SectorReception({
             }
         }
 
-        // Override listId for non-sector branches:
-        if (!isSectorBranch) {
+        // Override listId to unify suggestions
+        if (true) {
             if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "bayNumbers") {
                 listId = "materials";
             } else if (field.startsWith('prod_')) {
@@ -1224,7 +1221,7 @@ export default function SectorReception({
                                                             {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
                                                                     {svc.detailFields.map(df => {
-                                                                        const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
+                                                                        const resolvedListId = df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                                         const fieldKey = svc.key + "_" + df.key;
                                                                         const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
                                                                         return (
@@ -1458,7 +1455,7 @@ export default function SectorReception({
                                                                     </select>
                                                                 );
                                                             }
-                                                            const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
+                                                            const resolvedListId = df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                             const fieldKey = svc.key + "_" + df.key;
                                                             const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
                                                             return (
