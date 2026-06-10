@@ -39,8 +39,7 @@ export default function InventoryPage() {
     const [selectedBranchId, setSelectedBranchId] = useState("");
 
     // Warehouse Note
-    const [warehouseNote, setWarehouseNote] = useState("");
-    const [savingNote, setSavingNote] = useState(false);
+
 
     // Stats
     const [stats, setStats] = useState({ totalItems: 0, lowStock: 0, totalValue: 0 });
@@ -79,39 +78,13 @@ export default function InventoryPage() {
     useEffect(() => {
         if (selectedBranchId) {
             fetchInventory();
-            fetchWarehouseNote();
             if (activeTab === 'transactions') {
                 fetchTransactions();
             }
         }
     }, [selectedBranchId, activeTab]);
 
-    const fetchWarehouseNote = async () => {
-        if (!selectedBranchId) return;
-        const { data } = await (supabase as any)
-            .from('warehouse_notes')
-            .select('content')
-            .eq('branch_id', selectedBranchId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-        
-        setWarehouseNote(data?.content || "");
-    };
 
-    const saveWarehouseNote = async () => {
-        if (!selectedBranchId) return;
-        setSavingNote(true);
-        const { error } = await (supabase as any).from('warehouse_notes').insert([
-            { branch_id: selectedBranchId, content: warehouseNote }
-        ]);
-        setSavingNote(false);
-        if (error) {
-            showError("خطأ", "فشل حفظ الملاحظات.");
-        } else {
-            showSuccess("تم الحفظ", "تم حفظ الملاحظات بنجاح.");
-        }
-    };
 
     const fetchInventory = async () => {
         if (!selectedBranchId) return;
@@ -480,23 +453,7 @@ export default function InventoryPage() {
 
                 {activeTab === 'inventory' ? (
                     <>
-                        {/* Warehouse Notes Section */}
-                        {selectedBranchId && (
-                            <div className="bg-card border border-border p-5 rounded-2xl animate-fade-in shadow-sm mb-6">
-                                <label className="block text-sm font-bold text-foreground mb-2 flex items-center gap-2">
-                                    <Box size={16} className="text-purple-500" />
-                                    ملاحظات المخزن (تظهر لجميع الموظفين في هذا الفرع):
-                                </label>
-                                <textarea
-                                    value={warehouseNote}
-                                    onChange={e => setWarehouseNote(e.target.value)}
-                                    onBlur={saveWarehouseNote}
-                                    placeholder="أضف ملاحظات هامة حول المخزن هنا..."
-                                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-purple-500 transition-colors min-h-[80px]"
-                                />
-                                {savingNote && <span className="text-xs text-muted-foreground mt-2 block animate-pulse">جاري الحفظ...</span>}
-                            </div>
-                        )}
+
 
                         {/* Micro Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
