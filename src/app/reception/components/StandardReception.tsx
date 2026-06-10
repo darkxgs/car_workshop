@@ -35,118 +35,95 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         key: "engineOil",
         label: "زيت المحرك",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "brand",     label: "نوع الزيت", listId: "oilBrands" },
+            { key: "viscosity", label: "درجة اللزوجة", listId: "viscosities" },
+            { key: "liters",    label: "عدد اللترات" },
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "oilFilter",
         label: "فلتر زيت المحرك",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type",      label: "نوع الفلتر", listId: "oilFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "oilFilterCodes" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "airFilter",
         label: "فلتر الهواء",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type",      label: "نوع الفلتر", listId: "airFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "airFilterCodes" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "acFilter",
         label: "فلتر التبريد",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type",      label: "نوع الفلتر", listId: "acFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "acFilterCodes" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "brakeFluid",
         label: "زيت المكابح",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الزيت", listId: "brakeFluids" },
+            { key: "qty",  label: "عدد القطع" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "coolant",
         label: "ماء الراديتر",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
+            { key: "type", label: "نوع الماء", listId: "coolants" },
+            { key: "size", label: "الحجم (4L / 1L)" },
             { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "battery",
         label: "البطارية",
-        detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+        detailFields: [{ key: "type", label: "نوع البطارية والسعة", listId: "batteries" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "engineBelts",
         label: "قايش المحرك",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع القايش", listId: "engineBeltsBrands" },
+            { key: "num",  label: "رقم القايش" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "brakePads",
         label: "دسكات السيارة",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الدسكات", listId: "brakePadsBrands" },
+            { key: "num",  label: "رقم الدسكات" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "sparkPlugs",
         label: "شمعات الاحتراق",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الشمعات", listId: "sparkPlugsBrands" },
+            { key: "num",  label: "رقم البلكات" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "gearboxHydraulic",
         label: "هايدروليك الكير",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الهيدروليك", listId: "gearboxOils" },
+            { key: "qty",  label: "عدد اللترات" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "gearboxFilter",
         label: "فلتر الكير",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الفلتر", listId: "gearboxFilterBrands" },
+            { key: "filterNum", label: "رقم الفلتر", listId: "gearboxFilterCodes" },
+             { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "wipers",
         label: "الماسحات",
         detailFields: [
-            { key: "type", label: "اسم المادة", listId: "materials" },
-            { key: "qty",  label: "العدد" },
-            { key: "notes", label: "ملاحظات" }
-        ],
+            { key: "type", label: "نوع الماسحات", listId: "wiperBrands" },
+            { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }, { key: "notes", label: "ملاحظات" }],
     },
     {
         key: "additives",
@@ -424,7 +401,7 @@ export default function StandardReception({
     const [createdWorkOrderId, setCreatedWorkOrderId] = useState<string | null>(null);
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
-    const isSectorBranch = false; // Forced false to keep unified layout and services for all branches
+    const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
     const isIndustrialBranch = branches.find(b => b.id === selectedBranchId)?.name === 'الصناعية' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع الصناعية';
 
     const activeServicesList = useMemo(() => {

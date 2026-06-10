@@ -142,7 +142,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         );
     };
 
-    const isSectorBranch = false; // Forced false to unify layouts
+    const isSectorBranch = report?.branches?.name === 'القطاع' || report?.branches?.name === 'فرع القطاع';
     const isIndustrialBranch = report?.branches?.name === 'الصناعية' || report?.branches?.name === 'فرع الصناعية';
 
     const flatSectorServices = [
@@ -173,19 +173,19 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     ];
 
     let SERVICES = isSectorBranch ? flatSectorServices : [
-        { key: 'engineOil', label: 'زيت المحرك', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'oilFilter', label: 'فلتر زيت محرك', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'airFilter', label: 'فلتر هواء', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'acFilter', label: 'فلتر تبريد', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'brakeFluid', label: 'زيت بريك', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'coolant', label: 'ماء راديتر', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'battery', label: 'البطارية', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'engineBelts', label: 'قايش محرك', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'brakePads', label: 'دسكات', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'sparkPlugs', label: 'شمعات', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'gearboxHydraulic', label: 'هيدروليك كير', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'gearboxFilter', label: 'فلتر كير', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
-        { key: 'wipers', label: 'مساحات', fields: [{ key: 'type', label: 'اسم المادة' }, { key: 'qty', label: 'العدد' }, { key: 'notes', label: 'ملاحظات' }] },
+        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'brand', label: 'نوع الزيت' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }, { key: 'unitPrice', label: 'س/لتر' }] },
+        { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'airFilter', label: 'فلتر الهواء', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'acFilter', label: 'فلتر التبريد', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
+        { key: 'brakeFluid', label: 'زيت المكابح', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] },
+        { key: 'coolant', label: 'ماء الراديتر', fields: [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'battery', label: 'البطارية', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع والسعة' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع والسعة' }] },
+        { key: 'engineBelts', label: 'قايش المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'brakePads', label: 'دسكات السيارة', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
+        { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
+        { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }, { key: 'unitPrice', label: 'السعر' }] },
+        { key: 'wipers', label: 'الماسحات', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'additives', label: 'المضافات والمحسنات', fields: [] },
     ];
 
