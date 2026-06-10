@@ -723,7 +723,7 @@ export default function WorkOrderDetailPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {(() => {
-                                const svcs: {name: string, category: string, estimatedMinutes?: number, price?: string | number, qty?: string | number, notes?: string}[] = [];
+                                const svcs: {name: string, category: string, estimatedMinutes?: number, price?: string | number, qty?: string | number, notes?: string, details?: string}[] = [];
                                 
                                 order.selected_services?.forEach(svc => {
                                     if (svc.is_paper_v2_format) {
@@ -740,10 +740,31 @@ export default function WorkOrderDetailPage() {
                                             if (!hasStatus && !hasPrice && !hasDetails) return;
 
                                             const statusLabel = hasStatus ? ` - ${value.status}` : "";
+                                            
+                                            let detailsStr = "";
+                                            let notesStr = "";
+                                            if (value.details) {
+                                                const detailsArr: string[] = [];
+                                                Object.entries(value.details).forEach(([k, v]: [string, any]) => {
+                                                    const strVal = String(v ?? "").trim();
+                                                    if (strVal) {
+                                                        if (k === 'notes') {
+                                                            notesStr = strVal;
+                                                        } else {
+                                                            detailsArr.push(strVal);
+                                                        }
+                                                    }
+                                                });
+                                                detailsStr = detailsArr.join(" | ");
+                                            }
+
                                             svcs.push({
                                                 name: `${def.name}${statusLabel}`,
                                                 category: "نموذج الاستقبال",
                                                 estimatedMinutes: def.estimatedMinutes,
+                                                details: detailsStr,
+                                                notes: notesStr,
+                                                price: value.price
                                             });
                                         });
 
