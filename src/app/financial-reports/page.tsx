@@ -91,24 +91,35 @@ export default function ReportsPage() {
                         gearboxCeramic: 'سيراميك كير', gearboxAntiSlip: 'مانع انزلاق كير',
                         acCleaner: 'منظف دورة تبريد', injectorCleaner: 'منظف بخاخات',
                         fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
+                        additives: 'معالجات ومحسنات', cleaners: 'منظفات وأساسيات'
                     };
                     setReportData(data.map(r => {
                         const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
                         const services = svc?.services || {};
-                        // Build service details string: "زيت المحرك: لكوي مولي اخضر 5W-30 | فلتر الهواء: Mann | ..."
                         const serviceDetails = Object.entries(services)
                             .filter(([, v]: any) => v?.status === 'يحتاج تغيير')
                             .map(([key, v]: any) => {
                                 const label = SERVICE_LABELS[key] || key;
                                 const det = v?.details || {};
-                                const brand = det.brand || v?.brand;
-                                const viscosity = det.viscosity || v?.viscosity;
-                                const size = det.size || v?.size;
-                                const type = det.type || v?.type;
-                                const liters = det.liters || det.qty || v?.liters || v?.qty;
-                                const litersStr = liters ? `${liters} لتر` : '';
-                                const parts = [brand, viscosity, size, type, litersStr].filter(Boolean);
-                                return parts.length ? `${label}: ${parts.join(' ')}` : label;
+                                
+                                let parts = [];
+                                if (key === 'additives' || key === 'cleaners') {
+                                    for (let i = 0; i < 10; i++) {
+                                        if (det[`prod_${i}`]) {
+                                            let s = String(det[`prod_${i}`]);
+                                            if (det[`notes_${i}`]) s += ` (ملاحظات: ${det[`notes_${i}`]})`;
+                                            parts.push(s);
+                                        }
+                                    }
+                                } else {
+                                    for (const [k, val] of Object.entries(det)) {
+                                        if (k === 'unitPrice' || !val) continue;
+                                        if (k === 'notes') parts.push(`ملاحظات: ${val}`);
+                                        else if (k === 'qty' || k === 'liters') parts.push(`العدد/اللترات: ${val}`);
+                                        else parts.push(String(val));
+                                    }
+                                }
+                                return parts.length ? `${label}: ${parts.join(' - ')}` : label;
                             })
                             .join(' | ');
                         return {

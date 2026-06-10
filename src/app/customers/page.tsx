@@ -294,12 +294,23 @@ export default function CustomersPage() {
         };
 
         const SERVICE_LABELS: Record<string, string> = {
-            engineOil: "زيت المحرك", oilFilter: "فلتر زيت المحرك", airFilter: "فلتر الهواء",
-            acFilter: "فلتر التبريد", brakeFluid: "زيت المكابح", coolant: "ماء الراديتر",
-            battery: "البطارية", engineBelts: "قايش المحرك", brakePads: "دسكات السيارة",
-            sparkPlugs: "شمعات الاحتراق", transOil: "زيت ناقل الحركة", differentialOil: "زيت الدبل / البكك",
-            gearboxHydraulic: "هايدروليك الكير", wipers: "الماسحات", additives: "المضافات والمحسنات",
-            maintenanceUnits: "حدات الصيانة"
+            engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك',
+            airFilter: 'فلتر الهواء', acFilter: 'فلتر التبريد',
+            brakeFluid: 'زيت المكابح', coolant: 'ماء الراديتر',
+            battery: 'البطارية', engineBelts: 'قايش المحرك',
+            brakePads: 'دسكات السيارة', sparkPlugs: 'شمعات الاحتراق',
+            gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
+            wipers: 'مساحات زجاج', windshieldFluid: 'سائل غسيل جام',
+            battery2: 'البطارية فحص دوري', batteryFilter: 'فلتر البطارية',
+            engineFlash: 'فلاش المحرك', engineCeramic: 'سيراميك محرك',
+            linerCleaner: 'منظف بطانة (جكجكة)', oilLeakPreventer: 'مانع تسريب زيت',
+            smokePreventer: 'مانع دخان', gearboxFlash: 'فلاش كير',
+            gearboxCeramic: 'سيراميك كير', gearboxAntiSlip: 'مانع انزلاق كير',
+            acCleaner: 'منظف دورة تبريد', injectorCleaner: 'منظف بخاخات',
+            fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
+            additives: 'معالجات ومحسنات', cleaners: 'منظفات وأساسيات',
+            transOil: 'زيت ناقل الحركة', differentialOil: 'زيت الدبل / البكك',
+            maintenanceUnits: 'وحدات الصيانة'
         };
 
         const mapped = filteredReports.map((r: any, idx: number) => {
@@ -318,7 +329,28 @@ export default function CustomersPage() {
 
             const needChange = Object.entries(services as Record<string, any>)
                 .filter(([, v]) => v?.status === "يحتاج تغيير")
-                .map(([k]) => SERVICE_LABELS[k] || k);
+                .map(([k, v]) => {
+                    const label = SERVICE_LABELS[k] || k;
+                    const det = v?.details || {};
+                    let parts = [];
+                    if (k === 'additives' || k === 'cleaners') {
+                        for (let i = 0; i < 10; i++) {
+                            if (det[`prod_${i}`]) {
+                                let s = String(det[`prod_${i}`]);
+                                if (det[`notes_${i}`]) s += ` (ملاحظات: ${det[`notes_${i}`]})`;
+                                parts.push(s);
+                            }
+                        }
+                    } else if (k !== 'engineOil') {
+                        for (const [dk, dval] of Object.entries(det)) {
+                            if (dk === 'unitPrice' || !dval) continue;
+                            if (dk === 'notes') parts.push(`ملاحظات: ${dval}`);
+                            else if (dk === 'qty' || dk === 'liters') parts.push(`العدد/اللترات: ${dval}`);
+                            else parts.push(String(dval));
+                        }
+                    }
+                    return parts.length ? `${label}: ${parts.join(' - ')}` : label;
+                });
 
             const customLabels = customs.filter((c: any) => c.label).map((c: any) => c.label);
             const bookletStr   = bookletObj.type
