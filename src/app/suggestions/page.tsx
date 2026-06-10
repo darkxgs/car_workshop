@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { showSuccess, showError, showConfirm } from "@/lib/alerts";
 import { useAuth } from "@/lib/AuthProvider";
 import * as XLSX from "xlsx";
+import Swal from "sweetalert2";
 // ─── Default Lists (empty to avoid populating mock data) ───
 const DEFAULT_LISTS: Record<string, string[]> = {
     materials: [], // Unified list
@@ -356,7 +357,7 @@ export default function SuggestionsPage() {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             try {
                 const bstr = evt.target?.result;
                 const wb = XLSX.read(bstr, { type: "binary" });
@@ -364,40 +365,71 @@ export default function SuggestionsPage() {
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
 
-                let newItemsCount = 0;
+                const newItems: {name: string, price: string}[] = [];
+                for (let i = 8; i < data.length; i++) {
+                    const row = data[i];
+                    if (!row || !row[8]) continue; // Name missing
+                    
+                    const name = String(row[8]).trim();
+                    if (!name) continue;
+
+                    let priceStr = row[1] ? String(row[1]) : "";
+                    priceStr = priceStr.replace(/[^\d]/g, "");
+
+                    newItems.push({ name, price: priceStr });
+                }
+
+                if (newItems.length === 0) {
+                    showError("لم يتم العثور على عناصر جديدة لإضافتها.");
+                    return;
+                }
+
+                // Ask user how to proceed
+                const result = await Swal.fire({
+                    background: '#0a0f1c', color: '#f8fafc',
+                    title: 'خيارات الاستيراد',
+                    text: `تم العثور على ${newItems.length} عنصر في الإكسيل. كيف تريد إضافتها للقائمة الحالية؟`,
+                    icon: 'question',
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: 'إضافة فوق القديم',
+                    denyButtonText: 'مسح القديم واستبدال',
+                    cancelButtonText: 'إلغاء العملية',
+                    customClass: {
+                        popup: 'border border-cyan-900/30 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.1)]',
+                        confirmButton: 'bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl px-4 py-2.5 font-bold outline-none m-1',
+                        denyButton: 'bg-rose-600 hover:bg-rose-500 text-white rounded-xl px-4 py-2.5 font-bold outline-none m-1',
+                        cancelButton: 'bg-muted text-foreground rounded-xl px-4 py-2.5 font-bold outline-none m-1 border border-border'
+                    },
+                    buttonsStyling: false
+                });
+
+                if (result.isDismissed) {
+                    e.target.value = '';
+                    return; // Cancelled
+                }
+
+                const replaceAll = result.isDenied;
+
+                let addedCount = 0;
                 setLists(prev => {
-                    const currentList = [...(prev[categoryKey] || [])];
+                    const currentList = replaceAll ? [] : [...(prev[categoryKey] || [])];
                     
-                    // Template 66 - Copy.xls: data starts from index 9
-                    // Index 1: Price (e.g. "31,000 د.ع")
-                    // Index 8: Name
-                    
-                    for (let i = 8; i < data.length; i++) {
-                        const row = data[i];
-                        if (!row || !row[8]) continue; // Name missing
-                        
-                        const name = String(row[8]).trim();
-                        if (!name) continue;
-
-                        let priceStr = row[1] ? String(row[1]) : "";
-                        // extract digits from price string
-                        priceStr = priceStr.replace(/[^\d]/g, "");
-
-                        // check if name already exists
-                        if (!currentList.some(item => item.name === name)) {
-                            currentList.push({ name, price: priceStr });
-                            newItemsCount++;
+                    newItems.forEach(newItem => {
+                        if (!currentList.some(item => item.name === newItem.name)) {
+                            currentList.push(newItem);
+                            addedCount++;
                         }
-                    }
+                    });
 
                     return { ...prev, [categoryKey]: currentList };
                 });
 
-                if (newItemsCount > 0) {
+                if (addedCount > 0 || replaceAll) {
                     setHasChanges(true);
-                    showSuccess(`تم استيراد ${newItemsCount} عنصر بنجاح! لا تنس حفظ التغييرات.`);
+                    showSuccess(`تمت العملية بنجاح! لا تنس الضغط على زر "حفظ التغييرات في السيرفر".`);
                 } else {
-                    showSuccess("لم يتم العثور على عناصر جديدة لإضافتها.");
+                    showSuccess("لم يتم إضافة عناصر جديدة (جميعها مكررة).");
                 }
             } catch (err) {
                 console.error("Excel import error:", err);
