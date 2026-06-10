@@ -1619,7 +1619,7 @@ export default function StandardReception({
                                                 placeholder="الكمية"
                                                 value={(cs as any).qty || ""}
                                                 onChange={e => setCustomSvcField(cs.id, 'qty', e.target.value)}
-                                                className="input-field text-xs py-1.5 w-16 text-center"
+                                                className="input-field text-xs py-1.5 w-24 text-center"
                                                 min="1"
                                             />
 
