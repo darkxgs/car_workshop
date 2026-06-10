@@ -673,28 +673,20 @@ export default function StandardReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (isIndustrialBranch && key !== 'additives') {
-                const q = parseFloat(newDet.qty || newDet.liters) || 0;
-                const up = parseFloat(newDet.unitPrice) || 0;
-                newPrice = (q * up) > 0 ? (q * up).toString() : '';
-            } else if (key === 'engineOil') {
-                const l = parseFloat(newDet.liters || newDet.qty) || 0;
-                const up = parseFloat(newDet.unitPrice) || 0;
-                newPrice = (l * up) > 0 ? (l * up).toString() : '';
-            } else if (key === 'transOil') {
-                const q = parseFloat(newDet.qty) || 0;
-                const up = parseFloat(newDet.unitPrice) || 0;
-                newPrice = (q * up) > 0 ? (q * up).toString() : '';
-            } else if (key === 'coolant') {
-                const q = parseFloat(newDet.qty) || 0;
-                const up = parseFloat(newDet.unitPrice) || 0;
-                newPrice = (q * up) > 0 ? (q * up).toString() : '';
-            } else if (key === 'additives' || key === 'cleaners') {
+            if (key === 'additives' || key === 'cleaners') {
                 let sum = 0;
                 Object.keys(newDet).forEach(dk => {
                     if (dk.startsWith('price_')) sum += Number(newDet[dk] || 0);
                 });
                 newPrice = sum > 0 ? String(sum) : '';
+            } else {
+                const q = parseFloat(newDet.qty || newDet.liters);
+                const up = parseFloat(newDet.unitPrice);
+                if (!isNaN(q) && !isNaN(up) && q > 0 && up > 0) {
+                    newPrice = (q * up).toString();
+                } else if (!isNaN(up) && up > 0) {
+                    newPrice = up.toString();
+                }
             }
 
             return {
@@ -1294,9 +1286,6 @@ export default function StandardReception({
                                                                                                 type="button"
                                                                                                 onMouseDown={() => {
                                                                                                     setServiceDetail(svc.key, df.key, item.name);
-                                                                                                    if (item.price) {
-                                                                                                        setServicePrice(svc.key, item.price);
-                                                                                                    }
                                                                                                 }}
                                                                                                 className="suggestion-item"
                                                                                             >
@@ -1540,9 +1529,6 @@ export default function StandardReception({
                                                                                     type="button"
                                                                                     onMouseDown={() => {
                                                                                         setServiceDetail(svc.key, df.key, item.name);
-                                                                                        if (item.price) {
-                                                                                            setServicePrice(svc.key, item.price);
-                                                                                        }
                                                                                     }}
                                                                                     className="suggestion-item"
                                                                                 >
