@@ -256,20 +256,10 @@ export default function SuggestionsPage() {
     }, [selectedBranchId]);
 
     const activeGroups = useMemo(() => {
-        const selectedBranch = branches.find(b => b.id === selectedBranchId);
-        const isSector = selectedBranch?.name === "القطاع" || selectedBranch?.name === "فرع القطاع";
-
-        if (isSector) {
-            return [
-                ...ORIGINAL_GROUPS,
-                STAFF_GROUP
-            ];
-        } else {
-            return [
-                UNIFIED_GROUP,
-                STAFF_GROUP
-            ];
-        }
+        return [
+            UNIFIED_GROUP,
+            STAFF_GROUP
+        ];
     }, [branches, selectedBranchId]);
 
     const activeCategoryMeta = useMemo(() => {
