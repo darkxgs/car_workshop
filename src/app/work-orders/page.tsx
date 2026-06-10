@@ -28,8 +28,6 @@ export default function WorkOrdersListPage() {
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
     const [now, setNow] = useState(Date.now());
-    const [workshopNote, setWorkshopNote] = useState("");
-    const [savingNote, setSavingNote] = useState(false);
 
     if (authLoading) {
         return (
@@ -57,7 +55,6 @@ export default function WorkOrdersListPage() {
 
     useEffect(() => {
         fetchOrders();
-        fetchWorkshopNote();
 
         const channel = supabase.channel('work_orders_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
@@ -68,32 +65,7 @@ export default function WorkOrdersListPage() {
         return () => { supabase.removeChannel(channel); };
     }, [employeeBranchId, employeeRole]);
 
-    const fetchWorkshopNote = async () => {
-        if (!employeeBranchId) return;
-        const { data } = await (supabase as any)
-            .from('warehouse_notes')
-            .select('content')
-            .eq('branch_id', employeeBranchId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-        
-        setWorkshopNote(data?.content || "");
-    };
 
-    const saveWorkshopNote = async () => {
-        if (!employeeBranchId) return;
-        setSavingNote(true);
-        const { error } = await (supabase as any).from('warehouse_notes').insert([
-            { branch_id: employeeBranchId, content: workshopNote }
-        ]);
-        setSavingNote(false);
-        if (error) {
-            showError("خطأ", "فشل حفظ الملاحظات.");
-        } else {
-            showSuccess("تم الحفظ", "تم حفظ الملاحظات بنجاح.");
-        }
-    };
 
     const fetchOrders = async () => {
         let query = supabase
@@ -132,21 +104,7 @@ export default function WorkOrdersListPage() {
                     </Link>
                 </div>
 
-                {/* Workshop Notes Section */}
-                <div className="bg-card border border-border p-5 rounded-2xl animate-fade-in shadow-sm">
-                    <label className="block text-sm font-bold text-foreground mb-2 flex items-center gap-2">
-                        <FileText size={16} className="text-blue-500" />
-                        ملاحظات ساحة الورشة (تظهر لجميع الموظفين في هذا الفرع):
-                    </label>
-                    <textarea
-                        value={workshopNote}
-                        onChange={e => setWorkshopNote(e.target.value)}
-                        onBlur={saveWorkshopNote}
-                        placeholder="أضف ملاحظات هامة حول الورشة أو العمليات هنا..."
-                        className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-blue-500 transition-colors min-h-[80px]"
-                    />
-                    {savingNote && <span className="text-xs text-muted-foreground mt-2 block animate-pulse">جاري الحفظ...</span>}
-                </div>
+
 
                 {loading ? (
                     <div className="flex justify-center p-20"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
