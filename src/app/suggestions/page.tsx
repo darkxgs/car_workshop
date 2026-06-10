@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { showSuccess, showError, showConfirm } from "@/lib/alerts";
 import { useAuth } from "@/lib/AuthProvider";
-
+import * as XLSX from "xlsx";
 // ─── Default Lists (empty to avoid populating mock data) ───
 const DEFAULT_LISTS: Record<string, string[]> = {
     materials: [], // Unified list
@@ -351,6 +351,64 @@ export default function SuggestionsPage() {
         }
     }, [lists, selectedBranchId]);
 
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>, categoryKey: string) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const bstr = evt.target?.result;
+                const wb = XLSX.read(bstr, { type: "binary" });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+
+                let newItemsCount = 0;
+                setLists(prev => {
+                    const currentList = [...(prev[categoryKey] || [])];
+                    
+                    // Template 66 - Copy.xls: data starts from index 9
+                    // Index 1: Price (e.g. "31,000 د.ع")
+                    // Index 8: Name
+                    
+                    for (let i = 8; i < data.length; i++) {
+                        const row = data[i];
+                        if (!row || !row[8]) continue; // Name missing
+                        
+                        const name = String(row[8]).trim();
+                        if (!name) continue;
+
+                        let priceStr = row[1] ? String(row[1]) : "";
+                        // extract digits from price string
+                        priceStr = priceStr.replace(/[^\d]/g, "");
+
+                        // check if name already exists
+                        if (!currentList.some(item => item.name === name)) {
+                            currentList.push({ name, price: priceStr });
+                            newItemsCount++;
+                        }
+                    }
+
+                    return { ...prev, [categoryKey]: currentList };
+                });
+
+                if (newItemsCount > 0) {
+                    setHasChanges(true);
+                    showSuccess(`تم استيراد ${newItemsCount} عنصر بنجاح! لا تنس حفظ التغييرات.`);
+                } else {
+                    showSuccess("لم يتم العثور على عناصر جديدة لإضافتها.");
+                }
+            } catch (err) {
+                console.error("Excel import error:", err);
+                showError("فشل في قراءة ملف الإكسيل. تأكد من أن الملف بصيغة صحيحة.");
+            }
+            // reset file input
+            e.target.value = '';
+        };
+        reader.readAsBinaryString(file);
+    };
+
     const totalItems = useMemo(() => {
         return Object.values(lists).reduce((sum, arr) => sum + arr.length, 0);
     }, [lists]);
@@ -547,6 +605,17 @@ export default function SuggestionsPage() {
                                             >
                                                 <Plus size={16} /> إضافة
                                             </button>
+                                            {!isStaffCategory && (
+                                                <label className={`px-4 py-2.5 bg-emerald-500/10 border-emerald-500/30 border text-emerald-500 font-bold text-sm rounded-xl hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}>
+                                                    <FileSpreadsheet size={16} /> استيراد إكسيل
+                                                    <input
+                                                        type="file"
+                                                        accept=".xls,.xlsx,.csv"
+                                                        className="hidden"
+                                                        onChange={(e) => handleImportExcel(e, cat.key)}
+                                                    />
+                                                </label>
+                                            )}
                                         </div>
 
                                         {/* Items Grid */}
