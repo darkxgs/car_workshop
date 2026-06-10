@@ -158,17 +158,7 @@ function ReceptionContainer() {
     const isSectorBranch = selectedBranch?.name === 'القطاع' || selectedBranch?.name === 'فرع القطاع';
 
     if (isWizardOpen) {
-        return isSectorBranch ? (
-            <SectorReception
-                branches={branches}
-                selectedBranchId={selectedBranchId}
-                setSelectedBranchId={setSelectedBranchId}
-                onClose={() => {
-                    setIsWizardOpen(false);
-                    router.replace('/reception');
-                }}
-            />
-        ) : (
+        return (
             <StandardReception
                 branches={branches}
                 selectedBranchId={selectedBranchId}

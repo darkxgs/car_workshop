@@ -323,9 +323,9 @@ export default function CustomersPage() {
             const bookletObj = payload?.booklet   || {};
 
             const oilSvc  = services.engineOil || {};
-            const oilType = oilSvc.details?.brand     || "";
+            const oilType = oilSvc.details?.type || oilSvc.details?.brand || "";
             const oilVisc = oilSvc.details?.viscosity || "";
-            const oilLiters = oilSvc.details?.liters || oilSvc.details?.qty || "";
+            const oilLiters = oilSvc.details?.qty || oilSvc.details?.liters || "";
 
             const needChange = Object.entries(services as Record<string, any>)
                 .filter(([, v]) => v?.status === "يحتاج تغيير")
