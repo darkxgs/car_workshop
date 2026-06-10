@@ -1294,6 +1294,9 @@ export default function StandardReception({
                                                                                                 type="button"
                                                                                                 onMouseDown={() => {
                                                                                                     setServiceDetail(svc.key, df.key, item.name);
+                                                                                                    if (item.price) {
+                                                                                                        setServicePrice(svc.key, item.price);
+                                                                                                    }
                                                                                                 }}
                                                                                                 className="suggestion-item"
                                                                                             >
@@ -1537,6 +1540,9 @@ export default function StandardReception({
                                                                                     type="button"
                                                                                     onMouseDown={() => {
                                                                                         setServiceDetail(svc.key, df.key, item.name);
+                                                                                        if (item.price) {
+                                                                                            setServicePrice(svc.key, item.price);
+                                                                                        }
                                                                                     }}
                                                                                     className="suggestion-item"
                                                                                 >

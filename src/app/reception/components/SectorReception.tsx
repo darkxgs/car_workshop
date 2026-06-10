@@ -1236,6 +1236,9 @@ export default function SectorReception({
                                                                                                 type="button"
                                                                                                 onMouseDown={() => {
                                                                                                     setServiceDetail(svc.key, df.key, item.name);
+                                                                                                    if (item.price) {
+                                                                                                        setServicePrice(svc.key, item.price);
+                                                                                                    }
                                                                                                 }}
                                                                                                 className="suggestion-item"
                                                                                             >
@@ -1470,6 +1473,9 @@ export default function SectorReception({
                                                                                     type="button"
                                                                                     onMouseDown={() => {
                                                                                         setServiceDetail(svc.key, df.key, item.name);
+                                                                                        if (item.price) {
+                                                                                            setServicePrice(svc.key, item.price);
+                                                                                        }
                                                                                     }}
                                                                                     className="suggestion-item"
                                                                                 >
