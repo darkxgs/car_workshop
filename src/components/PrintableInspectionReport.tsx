@@ -173,7 +173,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     ];
 
     let SERVICES = isSectorBranch ? flatSectorServices : [
-        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }] },
+        { key: 'engineOil', label: 'زيت المحرك', fields: isIndustrialBranch ? [{ key: 'brand', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'brand', label: 'نوع الزيت' }, { key: 'viscosity', label: 'اللزوجة' }, { key: 'liters', label: 'اللترات' }] },
         { key: 'oilFilter', label: 'فلتر زيت المحرك', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
         { key: 'airFilter', label: 'فلتر الهواء', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
         { key: 'acFilter', label: 'فلتر التبريد', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
