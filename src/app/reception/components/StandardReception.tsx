@@ -1607,22 +1607,29 @@ export default function StandardReception({
                                         <div key={cs.id} className="flex flex-wrap items-center gap-3">
                                             <input
                                                 type="text"
-                                                placeholder="وصف حدث الصيانة..."
+                                                placeholder="النوع / الصنف..."
                                                 list="customServicesList"
                                                 value={cs.label}
                                                 onChange={e => setCustomSvcField(cs.id, 'label', e.target.value)}
-                                                className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
+                                                className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
                                             />
 
-                                            {isIndustrialBranch && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="ملاحظات..."
-                                                    value={(cs as any).notes || ""}
-                                                    onChange={e => setCustomSvcField(cs.id, 'notes', e.target.value)}
-                                                    className="input-field text-xs py-1.5 flex-1 min-w-[150px]"
-                                                />
-                                            )}
+                                            <input
+                                                type="number"
+                                                placeholder="الكمية"
+                                                value={(cs as any).qty || ""}
+                                                onChange={e => setCustomSvcField(cs.id, 'qty', e.target.value)}
+                                                className="input-field text-xs py-1.5 w-16 text-center"
+                                                min="1"
+                                            />
+
+                                            <input
+                                                type="text"
+                                                placeholder="ملاحظات..."
+                                                value={(cs as any).notes || ""}
+                                                onChange={e => setCustomSvcField(cs.id, 'notes', e.target.value)}
+                                                className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                            />
 
                                             <div className="flex items-center gap-1">
                                                 <input

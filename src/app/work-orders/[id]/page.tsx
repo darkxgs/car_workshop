@@ -723,7 +723,7 @@ export default function WorkOrderDetailPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {(() => {
-                                const svcs: {name: string, category: string, estimatedMinutes?: number}[] = [];
+                                const svcs: {name: string, category: string, estimatedMinutes?: number, price?: string | number, qty?: string | number, notes?: string}[] = [];
                                 
                                 order.selected_services?.forEach(svc => {
                                     if (svc.is_paper_v2_format) {
@@ -757,6 +757,18 @@ export default function WorkOrderDetailPage() {
                                                 });
                                             }
                                         });
+
+                                        const customServices = svc.customServices || [];
+                                        customServices.forEach((cs: any) => {
+                                            svcs.push({
+                                                name: cs.label,
+                                                category: "حدث صيانة إضافي",
+                                                estimatedMinutes: 30,
+                                                price: cs.price,
+                                                qty: cs.qty,
+                                                notes: cs.notes
+                                            });
+                                        });
                                     } else if (svc.is_paper_format) {
                                         if (svc.services?.engineOil) svcs.push({ name: 'تغيير زيت المحرك', category: 'صيانة ورقية', estimatedMinutes: 30 });
                                         if (svc.services?.transOil) svcs.push({ name: 'تغيير زيت ناقل الحركة', category: 'صيانة ورقية', estimatedMinutes: 45 });
@@ -787,6 +799,16 @@ export default function WorkOrderDetailPage() {
                                             {(svc as any).price !== undefined && (svc as any).price > 0 && (
                                                 <span className="font-mono text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                                                     {Number((svc as any).price).toLocaleString()} د.ع
+                                                </span>
+                                            )}
+                                            {(svc as any).qty && (
+                                                <span className="font-mono text-xs font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                                                    الكمية: {(svc as any).qty}
+                                                </span>
+                                            )}
+                                            {(svc as any).notes && (
+                                                <span className="font-mono text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 max-w-[150px] truncate" title={(svc as any).notes}>
+                                                    ملاحظات: {(svc as any).notes}
                                                 </span>
                                             )}
                                             <div className="text-left font-mono font-bold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-md text-xs">
