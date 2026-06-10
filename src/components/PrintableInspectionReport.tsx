@@ -465,15 +465,15 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 {/* ══ TOTALS ══ */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: p.discount ? 'repeat(4,1fr)' : 'repeat(3,1fr)',
+                    gridTemplateColumns: 'repeat(4,1fr)',
                     gap: '5px',                                    // ↓ was 6px
                     marginBottom: mb('4px', '9px'),                // ↓ was 6px/12px
                 }}>
                     {[
-                        { label: 'المجموع الكلي', val: p.totalPrice, color: '#1a1a2e' },
-                        ...(p.discount ? [{ label: 'الخصم', val: p.discount, color: '#d97706' }] : []),
-                        { label: 'المبلغ الواصل', val: p.amountReceived, color: '#15803d' },
-                        { label: 'الباقي', val: p.amountOwedByClient, color: '#dc2626' },
+                        { label: 'المجموع الكلي', val: p.totalPrice || 0, color: '#1a1a2e' },
+                        { label: 'الخصم', val: p.discount || 0, color: '#d97706' },
+                        { label: 'المبلغ الواصل', val: p.amountReceived || 0, color: '#15803d' },
+                        { label: 'الباقي', val: p.amountOwedByClient || 0, color: '#dc2626' },
                     ].map(item => (
                         <div key={item.label} style={{
                             border: `1.5px solid ${item.color}22`, borderRadius: '8px',
