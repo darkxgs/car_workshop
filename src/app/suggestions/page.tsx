@@ -550,7 +550,7 @@ export default function SuggestionsPage() {
                                         </div>
 
                                         {/* Items Grid */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                        <div className="flex flex-col gap-2.5">
                                             {filteredItems.map((item, idx) => {
                                                 const originalIdx = items.findIndex(original => original.name === item.name);
                                                 const isEditing = editingItem && editingItem.categoryKey === cat.key && editingItem.index === originalIdx;
