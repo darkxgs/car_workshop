@@ -547,30 +547,6 @@ export default function SuggestionsPage() {
                         {saving ? <Loader2 size={16} className="animate-spin" /> : hasChanges ? <Save size={16} /> : <Check size={16} />}
                         {saving ? "جاري الحفظ..." : hasChanges ? "حفظ التغييرات في السيرفر" : "محفوظ في السيرفر"}
                     </button>
-
-                    {/* Clear All Button */}
-                    <button
-                        onClick={async () => {
-                            const confirmed = await showConfirm(
-                                "تفريغ الفرع",
-                                "هل أنت متأكد أنك تريد مسح جميع الاقتراحات في هذا الفرع بشكل كامل؟ (لن يتم مسحها من السيرفر إلا بعد الضغط على حفظ)",
-                                "نعم، افرغ جميع القوائم",
-                                true
-                            );
-                            if (confirmed) {
-                                const emptyLists: Record<string, SuggestionItem[]> = {};
-                                for (const key of Object.keys(DEFAULT_LISTS)) {
-                                    emptyLists[key] = [];
-                                }
-                                setLists(emptyLists);
-                                setHasChanges(true);
-                                showSuccess("تم تصفير جميع القوائم. اضغط على حفظ لتأكيد المسح في السيرفر.");
-                            }
-                        }}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
-                    >
-                        <Trash2 size={16} /> مسح الكل
-                    </button>
                 </div>
             </div>
 
