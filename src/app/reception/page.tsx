@@ -59,28 +59,36 @@ function ReceptionContainer() {
             }
         });
     }, [employeeBranchId]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     // Fetch orders
     useEffect(() => {
         if (isWizardOpen) return;
         const fetchOrders = async () => {
-            setLoading(true);
+            if (page === 1) setLoading(true);
             let query = supabase
                 .from('inspection_reports')
                 .select(`id, report_number, status, created_at, total_price, vehicles (make, model, plate_number, clients (name, phone))`)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .range((page - 1) * 50, page * 50 - 1);
             
             if (employeeBranchId) {
                 query = query.eq('branch_id', employeeBranchId);
             }
             
             const { data } = await query;
-            if (data) setOrders(data);
+            if (data) {
+                if (data.length < 50) setHasMore(false);
+                else setHasMore(true);
+
+                if (page === 1) setOrders(data);
+                else setOrders(prev => [...prev, ...data]);
+            }
             setLoading(false);
         };
         fetchOrders();
-    }, [isWizardOpen, employeeBranchId]);
+    }, [isWizardOpen, employeeBranchId, page]);
 
     // Fetch preview details
     useEffect(() => {
@@ -208,7 +216,7 @@ function ReceptionContainer() {
                 {/* Orders table */}
                 <div className="glass-card rounded-3xl border border-border/50 overflow-hidden">
                     <div className="p-6 border-b border-border/50 bg-card/30 flex justify-between items-center">
-                        <h2 className="font-bold text-lg text-foreground">آخر 50 أمر عمل</h2>
+                        <h2 className="font-bold text-lg text-foreground">سجل أوامر العمل</h2>
                     </div>
                     
                     {loading ? (
@@ -300,6 +308,18 @@ function ReceptionContainer() {
                                     })}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+                    
+                    {/* Load More Button */}
+                    {!loading && orders.length > 0 && hasMore && (
+                        <div className="p-6 text-center border-t border-border/50">
+                            <button
+                                onClick={() => setPage(p => p + 1)}
+                                className="px-6 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-bold rounded-xl transition-all"
+                            >
+                                تحميل المزيد (أقدم) ...
+                            </button>
                         </div>
                     )}
                 </div>
