@@ -471,7 +471,7 @@ export default function SuggestionsPage() {
             {/* Category Cards */}
             {!loading && (
                 <div className="space-y-4">
-                    {CATEGORY_META.map(cat => {
+                    {activeCategoryMeta.map(cat => {
                         // If not searching, only show categories in active group
                         if (!searchQuery && !activeGroupKeys.includes(cat.key)) return null;
 
@@ -627,7 +627,7 @@ export default function SuggestionsPage() {
                                                             )}
                                                             <span className="truncate font-bold text-foreground/90">{item.name}</span>
                                                             {item.price && !isStaffCategory && (
-                                                                <span className="shrink-0 bg-background/80 text-muted-foreground border border-border/50 text-[10px] px-2 py-0.5 rounded-lg font-bold font-mono">
+                                                                <span className="shrink-0 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm px-3 py-1 rounded-lg font-bold font-mono shadow-sm">
                                                                     {Number(item.price).toLocaleString()} د.ع
                                                                 </span>
                                                             )}
@@ -641,17 +641,17 @@ export default function SuggestionsPage() {
                                                                     price: item.price,
                                                                     serial: item.serial || ""
                                                                 })}
-                                                                className="text-blue-500 hover:text-blue-400 p-1 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
+                                                                className="text-blue-500 hover:text-blue-400 p-2 hover:bg-blue-500/10 rounded-xl transition-colors cursor-pointer"
                                                                 title="تعديل"
                                                             >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                                             </button>
                                                             <button
                                                                 onClick={() => handleRemoveItem(cat.key, originalIdx)}
-                                                                className="text-rose-500 hover:text-rose-400 p-1 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                                                className="text-rose-500 hover:text-rose-400 p-2 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
                                                                 title="حذف"
                                                             >
-                                                                <Trash2 size={14} />
+                                                                <Trash2 size={18} />
                                                             </button>
                                                         </div>
                                                     </div>
