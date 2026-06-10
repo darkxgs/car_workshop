@@ -409,6 +409,48 @@ export default function SuggestionsPage() {
         reader.readAsBinaryString(file);
     };
 
+    const handleExportExcel = (categoryKey: string, categoryLabel: string) => {
+        try {
+            const currentList = lists[categoryKey] || [];
+            if (currentList.length === 0) {
+                showError("لا يوجد عناصر لتصديرها في هذه القائمة.");
+                return;
+            }
+
+            const exportData: any[][] = [];
+            // Create 8 empty rows to match the required template format
+            for (let i = 0; i < 8; i++) exportData.push([]);
+            
+            // Row 9 is headers
+            const headerRow: any[] = [];
+            headerRow[1] = "سعر البيع";
+            headerRow[4] = "العدد";
+            headerRow[8] = "المادة";
+            headerRow[13] = "تـ";
+            exportData.push(headerRow);
+
+            // Add data rows
+            currentList.forEach((item, idx) => {
+                const row: any[] = [];
+                row[1] = item.price ? `${Number(item.price).toLocaleString()} د.ع` : "";
+                row[4] = "1";
+                row[8] = item.name;
+                row[13] = String(idx + 1);
+                exportData.push(row);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "الاقتراحات");
+            XLSX.writeFile(wb, `تصدير_${categoryLabel.replace(/\s+/g, '_')}.xlsx`);
+            
+            showSuccess(`تم تصدير ${currentList.length} عنصر بنجاح!`);
+        } catch (err) {
+            console.error("Excel export error:", err);
+            showError("حدث خطأ أثناء تصدير الملف.");
+        }
+    };
+
     const totalItems = useMemo(() => {
         return Object.values(lists).reduce((sum, arr) => sum + arr.length, 0);
     }, [lists]);
@@ -606,15 +648,23 @@ export default function SuggestionsPage() {
                                                 <Plus size={16} /> إضافة
                                             </button>
                                             {!isStaffCategory && (
-                                                <label className={`px-4 py-2.5 bg-emerald-500/10 border-emerald-500/30 border text-emerald-500 font-bold text-sm rounded-xl hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}>
-                                                    <FileSpreadsheet size={16} /> استيراد إكسيل
-                                                    <input
-                                                        type="file"
-                                                        accept=".xls,.xlsx,.csv"
-                                                        className="hidden"
-                                                        onChange={(e) => handleImportExcel(e, cat.key)}
-                                                    />
-                                                </label>
+                                                <div className="flex gap-2">
+                                                    <label className={`px-4 py-2.5 bg-emerald-500/10 border-emerald-500/30 border text-emerald-500 font-bold text-sm rounded-xl hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}>
+                                                        <FileSpreadsheet size={16} /> استيراد
+                                                        <input
+                                                            type="file"
+                                                            accept=".xls,.xlsx,.csv"
+                                                            className="hidden"
+                                                            onChange={(e) => handleImportExcel(e, cat.key)}
+                                                        />
+                                                    </label>
+                                                    <button
+                                                        onClick={() => handleExportExcel(cat.key, cat.label)}
+                                                        className={`px-4 py-2.5 bg-blue-500/10 border-blue-500/30 border text-blue-500 font-bold text-sm rounded-xl hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}
+                                                    >
+                                                        <FileSpreadsheet size={16} /> تصدير
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
 
