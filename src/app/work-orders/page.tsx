@@ -28,6 +28,9 @@ export default function WorkOrdersListPage() {
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
     const [now, setNow] = useState(Date.now());
+    
+    const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState("");
 
     if (authLoading) {
         return (
@@ -54,6 +57,19 @@ export default function WorkOrdersListPage() {
     }, []);
 
     useEffect(() => {
+        const fetchBranches = async () => {
+            const { data } = await supabase.from('branches').select('id, name');
+            if (data && data.length > 0) {
+                setBranches(data);
+                setSelectedBranchId(employeeBranchId || data[0].id);
+            }
+        };
+        fetchBranches();
+    }, [employeeBranchId]);
+
+    useEffect(() => {
+        if (branches.length > 0 && !selectedBranchId) return; // Wait until branch is selected
+        
         fetchOrders();
 
         const channel = supabase.channel('work_orders_realtime')
@@ -63,7 +79,7 @@ export default function WorkOrdersListPage() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [employeeBranchId, employeeRole]);
+    }, [employeeBranchId, employeeRole, selectedBranchId]);
 
 
 
@@ -75,7 +91,9 @@ export default function WorkOrdersListPage() {
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
 
-        if (employeeBranchId) {
+        if (selectedBranchId) {
+            query = query.eq('branch_id', selectedBranchId);
+        } else if (employeeBranchId) {
             query = query.eq('branch_id', employeeBranchId);
         }
 
@@ -99,9 +117,24 @@ export default function WorkOrdersListPage() {
                             إدارة العمليات، مراقبة الوقت، وتوجيه السيارات للفنيين
                         </p>
                     </div>
-                    <Link href="/reception" className="btn-primary flex items-center gap-2 whitespace-nowrap px-6 py-2">
-                        <span>+</span> أمر عمل جديد
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        {/* Branch Dropdown Select */}
+                        {branches.length > 0 && (employeeRole === 'Owner' || employeeRole === 'Admin' || !employeeBranchId) && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground">الفرع:</span>
+                                <select
+                                    value={selectedBranchId}
+                                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                                    className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500/50 cursor-pointer hover:border-border/80 transition-colors"
+                                >
+                                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                            </div>
+                        )}
+                        <Link href="/reception" className="btn-primary flex items-center gap-2 whitespace-nowrap px-6 py-2">
+                            <span>+</span> أمر عمل جديد
+                        </Link>
+                    </div>
                 </div>
 
 
