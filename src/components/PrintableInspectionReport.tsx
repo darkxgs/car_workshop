@@ -100,6 +100,13 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         );
     };
 
+    const formatNum = (val: any) => {
+        if (!val) return val;
+        const num = Number(String(val).replace(/,/g, ''));
+        if (!isNaN(num) && num > 0) return num.toLocaleString();
+        return val;
+    };
+
     const SvcRow = ({
         num, label, svcKey, fields,
     }: {
@@ -136,7 +143,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                     ))}
                 </td>
                 <td style={{ padding: '3px 5px', textAlign: 'center', fontWeight: 700, fontSize: '11px', width: '58px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                    <Val v={svc.price} w={48} />
+                    <Val v={formatNum(svc.price)} w={48} />
                 </td>
             </tr>
         );
@@ -453,7 +460,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                         </td>
                                         {/* ↑ was '9px' / '11px' → '10px' / '12px' */}
                                         <td style={{ padding: customPadding, textAlign: 'center', fontWeight: 700 }}>
-                                            <Val v={c.price} w={55} />
+                                            <Val v={formatNum(c.price)} w={55} />
                                         </td>
                                     </tr>
                                 );
@@ -470,10 +477,10 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                     marginBottom: mb('4px', '9px'),                // ↓ was 6px/12px
                 }}>
                     {[
-                        { label: 'المجموع الكلي', val: p.totalPrice || 0, color: '#1a1a2e' },
-                        { label: 'الخصم', val: p.discount || 0, color: '#d97706' },
-                        { label: 'المبلغ الواصل', val: p.amountReceived || 0, color: '#15803d' },
-                        { label: 'الباقي', val: p.amountOwedByClient || 0, color: '#dc2626' },
+                        { label: 'المجموع الكلي', val: formatNum(p.totalPrice || 0), color: '#1a1a2e' },
+                        { label: 'الخصم', val: formatNum(p.discount || 0), color: '#d97706' },
+                        { label: 'المبلغ الواصل', val: formatNum(p.amountReceived || 0), color: '#15803d' },
+                        { label: 'الباقي', val: formatNum(p.amountOwedByClient || 0), color: '#dc2626' },
                     ].map(item => (
                         <div key={item.label} style={{
                             border: `1.5px solid ${item.color}22`, borderRadius: '8px',
