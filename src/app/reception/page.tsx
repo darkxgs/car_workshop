@@ -73,7 +73,9 @@ function ReceptionContainer() {
                 .order('created_at', { ascending: false })
                 .range((page - 1) * 50, page * 50 - 1);
             
-            if (employeeBranchId) {
+            if (selectedBranchId) {
+                query = query.eq('branch_id', selectedBranchId);
+            } else if (employeeBranchId) {
                 query = query.eq('branch_id', employeeBranchId);
             }
             
@@ -88,7 +90,7 @@ function ReceptionContainer() {
             setLoading(false);
         };
         fetchOrders();
-    }, [isWizardOpen, employeeBranchId, page]);
+    }, [isWizardOpen, employeeBranchId, page, selectedBranchId]);
 
     // Fetch preview details
     useEffect(() => {
@@ -196,7 +198,7 @@ function ReceptionContainer() {
                         {branches.length > 1 && (employeeRole === 'Owner' || employeeRole === 'Admin') && (
                             <select
                                 value={selectedBranchId}
-                                onChange={e => setSelectedBranchId(e.target.value)}
+                                onChange={e => { setSelectedBranchId(e.target.value); setPage(1); }}
                                 className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
                             >
                                 {branches.map(b => (
