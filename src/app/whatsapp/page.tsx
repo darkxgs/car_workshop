@@ -947,7 +947,7 @@ WHERE
                                 <div className="flex-1 p-3 overflow-y-auto space-y-3 flex flex-col bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-contain">
                                     <div className="flex-1" />
                                     {/* Date separator */}
-                                    <div className="self-center bg-[#182229] text-slate-400 text-[9px] px-2 py-0.5 rounded-md shadow-sm border border-slate-800">
+                                    <div className="self-center bg-[#182229] text-slate-400 text-[9px] px-2 py-0.5 rounded-md shadow-sm border border-slate-800 flex-shrink-0">
                                         اليوم
                                     </div>
 
@@ -955,7 +955,7 @@ WHERE
                                     {chatMessages.map(msg => (
                                         <div
                                             key={msg.id}
-                                            className={`max-w-[85%] rounded-2xl p-0.5 shadow-md relative text-right flex flex-col overflow-hidden ${
+                                            className={`max-w-[85%] rounded-2xl p-0.5 shadow-md relative text-right flex flex-col overflow-hidden flex-shrink-0 ${
                                                 msg.sender === "workshop"
                                                     ? "bg-[#005c4b] text-[#e9edef] self-start rounded-tr-none animate-fadeIn"
                                                     : "bg-[#202c33] text-[#e9edef] self-end rounded-tl-none border border-slate-800 animate-fadeIn"
@@ -1013,7 +1013,7 @@ WHERE
 
                                     {/* Typing status simulation */}
                                     {typingStatus && (
-                                        <div className="bg-[#005c4b] text-[#e9edef] self-start rounded-2xl rounded-tr-none p-3 shadow-md text-xs flex items-center gap-1.5">
+                                        <div className="bg-[#005c4b] text-[#e9edef] self-start rounded-2xl rounded-tr-none p-3 shadow-md text-xs flex items-center gap-1.5 flex-shrink-0">
                                             <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce"></span>
                                             <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                                             <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce [animation-delay:0.4s]"></span>
