@@ -38,6 +38,7 @@ import {
     Bell,
     FolderOpen,
     FileSpreadsheet,
+    MessageSquare,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
@@ -105,6 +106,7 @@ export function Sidebar() {
         {
             title: "النظام والإدارة",
             items: [
+                { href: "/whatsapp", label: "ربط الواتساب والجدوى", icon: <MessageSquare size={20} /> },
                 { href: "/settings", label: t.common.settings || "الإعدادات", icon: <Settings size={20} /> },
             ]
         },
