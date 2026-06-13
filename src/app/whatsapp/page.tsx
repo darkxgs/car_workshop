@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     MessageCircle,
     Send,
@@ -46,6 +46,8 @@ interface ApiLog {
 }
 
 export default function WhatsAppIntegrationPage() {
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
     // Tab State
     const [activeTab, setActiveTab] = useState<"simulator" | "feasibility" | "developer">("simulator");
 
@@ -86,6 +88,11 @@ export default function WhatsAppIntegrationPage() {
         }
     ]);
     const [apiLogs, setApiLogs] = useState<ApiLog[]>([]);
+
+    // Auto-scroll to bottom of chat when messages or typing status updates
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chatMessages, typingStatus]);
 
     // ROI Calculator States
     const [roiBranches, setRoiBranches] = useState<number>(3);
@@ -937,7 +944,8 @@ WHERE
                                 </div>
 
                                 {/* Chat Wallpaper Area */}
-                                <div className="flex-1 p-3 overflow-y-auto space-y-3 flex flex-col justify-end bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-contain">
+                                <div className="flex-1 p-3 overflow-y-auto space-y-3 flex flex-col bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-contain">
+                                    <div className="flex-1" />
                                     {/* Date separator */}
                                     <div className="self-center bg-[#182229] text-slate-400 text-[9px] px-2 py-0.5 rounded-md shadow-sm border border-slate-800">
                                         اليوم
@@ -1012,6 +1020,7 @@ WHERE
                                             <span className="text-[9px] text-emerald-200">يكتب الآن...</span>
                                         </div>
                                     )}
+                                    <div ref={chatEndRef} />
                                 </div>
 
                                 {/* Chat Input Box */}
