@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     MessageCircle,
     Send,
@@ -14,7 +14,11 @@ import {
     Activity,
     TrendingUp,
     FileCode,
-    Copy
+    Copy,
+    Sparkles,
+    Check,
+    Eye,
+    Image as ImageIcon
 } from "lucide-react";
 
 type TemplateType = "welcome" | "maintenance" | "oil" | "offers";
@@ -27,6 +31,7 @@ interface ChatMessage {
     time: string;
     status?: "sent" | "delivered" | "read";
     buttons?: string[];
+    hasImage?: boolean;
 }
 
 interface ApiLog {
@@ -36,6 +41,7 @@ interface ApiLog {
     method: string;
     url: string;
     status: number;
+    headers: Record<string, string>;
     payload: string;
 }
 
@@ -43,16 +49,29 @@ export default function WhatsAppIntegrationPage() {
     // Tab State
     const [activeTab, setActiveTab] = useState<"simulator" | "feasibility" | "developer">("simulator");
 
-    // Form / Configuration States
+    // BSP Connection States
     const [bsp, setBsp] = useState<"unifonic" | "infobip">("unifonic");
+    const [unifonicHost, setUnifonicHost] = useState("apis.unifonic.com");
+    const [infobipSubdomain, setInfobipSubdomain] = useState("w1m2y3");
     const [apiKey, setApiKey] = useState("uni_live_iraq_workshop_772x88b");
     const [senderId] = useState("AUTO_ENG_IQ");
+
+    // Client/Car variables
     const [clientName, setClientName] = useState("أبو حيدر الأسدي");
     const [clientPhone, setClientPhone] = useState("+964 770 123 4567");
     const [carModel, setCarModel] = useState("تويوتا لاندكروزر 2023");
     const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("welcome");
     const [maintenanceKm, setMaintenanceKm] = useState("10,000 كم");
     const [oilChangeDate, setOilChangeDate] = useState("2026-07-20");
+    const [includeImage, setIncludeImage] = useState(false);
+
+    // Dynamic Templates Text (Pre-loaded with official messages we have ready)
+    const [templates, setTemplates] = useState({
+        welcome: `مرحباً أستاذ {name}، يسعدنا جداً انضمامك لمركز هندسة السيارات. 🚗✨\nتم تسجيل سيارتك {car} بنجاح في نظامنا لخدمات ما بعد البيع والمتابعة الدورية. سنكون معك دائماً لتذكيرك بمواعيد الصيانة للحفاظ على أداء سيارتك.\n\nتفضل بزيارة فرعنا دائماً أو تواصل معنا هنا لأي استفسار.`,
+        maintenance: `عزيزي أستاذ {name}، نود تذكيرك بأن سيارتك {car} قد اقتربت من موعد صيانة الـ {param}.\n\nالالتزام بالصيانة الدورية يحمي سيارتك ويحافظ على الضمان. ننتظرك لزيارة أقرب فرع لنا في بغداد/البصرة.\n\nيمكنك تأكيد موعدك بالضغط على الزر أدناه:`,
+        oil: `تذكير صيانة 🛢️\nأستاذ {name}، حسب بياناتنا، موعد تغيير زيت المحرك لسيارتك {car} مستحق بتاريخ {param} (أو عند الوصول للمسافة المحددة).\n\nتغيير الزيت في وقته يضمن سلامة محرك سيارتك. تفضل بزيارة الورشة وسنقوم بالخدمة فوراً.`,
+        offers: `عروض حصرية من هندسة السيارات! 🎉\nأستاذ {name}، بمناسبة الصيف، احصل على فحص كومبيوتر مجاني وتصفية محرك بخصم 15% لسيارتك {car}!\n\nيسري هذا العرض في جميع فروعنا في العراق حتى نهاية الشهر الحالي.\nاحجز الآن بالضغط على الزر بالأسفل.`
+    });
 
     // Simulator Interaction States
     const [isSending, setIsSending] = useState(false);
@@ -78,18 +97,23 @@ export default function WhatsAppIntegrationPage() {
     // Copy Notification State
     const [copiedText, setCopiedText] = useState<string | null>(null);
 
-    // Auto-update sample message body when parameters change
-    const getMessageBody = (template: TemplateType): string => {
-        switch (template) {
-            case "welcome":
-                return `مرحباً أستاذ ${clientName}، يسعدنا جداً انضمامك لمركز هندسة السيارات. 🚗✨\nتم تسجيل سيارتك ${carModel} بنجاح في نظامنا لخدمات ما بعد البيع والمتابعة الدورية. سنكون معك دائماً لتذكيرك بمواعيد الصيانة للحفاظ على أداء سيارتك.\n\nتفضل بزيارة فرعنا دائماً أو تواصل معنا هنا لأي استفسار.`;
-            case "maintenance":
-                return `عزيزي أستاذ ${clientName}، نود تذكيرك بأن سيارتك ${carModel} قد اقتربت من موعد صيانة الـ ${maintenanceKm}.\n\nالالتزام بالصيانة الدورية يحمي سيارتك ويحافظ على الضمان. ننتظرك لزيارة أقرب فرع لنا في بغداد/البصرة.\n\nيمكنك تأكيد موعدك بالضغط على الزر أدناه:`;
-            case "oil":
-                return `تذكير صيانة 🛢️\nأستاذ ${clientName}، حسب بياناتنا، موعد تغيير زيت المحرك لسيارتك ${carModel} مستحق بتاريخ ${oilChangeDate} (أو عند الوصول للمسافة المحددة).\n\nتغيير الزيت في وقته يضمن سلامة محرك سيارتك. تفضل بزيارة الورشة وسنقوم بالخدمة فوراً.`;
-            case "offers":
-                return `عروض حصرية من هندسة السيارات! 🎉\nأستاذ ${clientName}، بمناسبة الصيف، احصل على فحص كومبيوتر مجاني وتصفية محرك بخصم 15% لسيارتك ${carModel}!\n\nيسري هذا العرض في جميع فروعنا في العراق حتى نهاية الشهر الحالي.\nاحجز الآن بالضغط على الزر بالأسفل.`;
+    // Resolve API Host based on selected BSP and user input
+    const getApiUrl = (): string => {
+        if (bsp === "unifonic") {
+            return `https://${unifonicHost}/v1/messages`;
+        } else {
+            return `https://${infobipSubdomain}.api.infobip.com/whatsapp/1/message/template`;
         }
+    };
+
+    // Replace template variables dynamically for display
+    const getFormattedMessageText = (templateKey: TemplateType): string => {
+        const rawText = templates[templateKey];
+        const paramValue = templateKey === "maintenance" ? maintenanceKm : oilChangeDate;
+        return rawText
+            .replace(/{name}/g, clientName)
+            .replace(/{car}/g, carModel)
+            .replace(/{param}/g, paramValue);
     };
 
     // Simulate sending message through BSP API
@@ -98,12 +122,24 @@ export default function WhatsAppIntegrationPage() {
 
         setIsSending(true);
 
-        const currentMsgText = getMessageBody(selectedTemplate);
+        const currentMsgText = getFormattedMessageText(selectedTemplate);
         const timeStr = new Date().toLocaleTimeString("ar-IQ", {
             hour: "numeric",
             minute: "2-digit",
             hour12: true
         });
+
+        // Set Headers based on BSP standards
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json"
+        };
+        if (bsp === "unifonic") {
+            headers["Authorization"] = `Bearer ${apiKey}`;
+        } else {
+            headers["Authorization"] = `App ${apiKey}`;
+        }
+
+        const paramValue = selectedTemplate === "maintenance" ? maintenanceKm : oilChangeDate;
 
         // Step 1: Add API Request Log
         const reqLog: ApiLog = {
@@ -111,22 +147,47 @@ export default function WhatsAppIntegrationPage() {
             timestamp: new Date().toISOString(),
             type: "request",
             method: "POST",
-            url: bsp === "unifonic" 
-                ? "https://api.unifonic.com/v1/messages" 
-                : "https://api.infobip.com/whatsapp/1/message/template",
+            url: getApiUrl(),
             status: 202,
-            payload: JSON.stringify({
-                recipient: clientPhone.replace(/\s+/g, ""),
-                sender_id: senderId,
-                message_type: "template",
-                template_name: `workshop_${selectedTemplate}`,
-                language: "ar",
-                parameters: {
-                    client_name: clientName,
-                    car_model: carModel,
-                    variable_param: selectedTemplate === "maintenance" ? maintenanceKm : oilChangeDate
-                }
-            }, null, 2)
+            headers: headers,
+            payload: bsp === "unifonic" 
+                ? JSON.stringify({
+                    recipient: clientPhone.replace(/\s+/g, ""),
+                    sender_id: senderId,
+                    message_type: "template",
+                    template_name: `workshop_${selectedTemplate}`,
+                    language: "ar",
+                    parameters: {
+                        client_name: clientName,
+                        car_model: carModel,
+                        variable_param: paramValue,
+                        ...(includeImage ? { header_image_url: "https://yourworkshop.com/assets/banner.jpg" } : {})
+                    }
+                }, null, 2)
+                : JSON.stringify({
+                    messages: [
+                        {
+                            from: senderId,
+                            to: clientPhone.replace(/\s+/g, ""),
+                            messageId: `msg-${Math.floor(Math.random() * 100000)}`,
+                            content: {
+                                templateName: `workshop_${selectedTemplate}`,
+                                templateData: {
+                                    body: {
+                                        placeholders: [clientName, carModel, paramValue]
+                                    },
+                                    ...(includeImage ? {
+                                        header: {
+                                            type: "IMAGE",
+                                            mediaUrl: "https://yourworkshop.com/assets/banner.jpg"
+                                        }
+                                    } : {})
+                                },
+                                language: "ar"
+                            }
+                        }
+                    ]
+                }, null, 2)
         };
 
         setTimeout(() => {
@@ -140,18 +201,38 @@ export default function WhatsAppIntegrationPage() {
                 method: "POST",
                 url: reqLog.url,
                 status: 200,
-                payload: JSON.stringify({
-                    success: true,
-                    message_id: `msg_wa_${Math.floor(Math.random() * 10000000)}`,
-                    status: "Queued",
-                    provider: bsp,
-                    timestamp: new Date().toISOString()
-                }, null, 2)
+                headers: {
+                    "Content-Type": "application/json",
+                    "Server": bsp === "unifonic" ? "Unifonic API Gateway" : "Infobip API Gateway"
+                },
+                payload: bsp === "unifonic"
+                    ? JSON.stringify({
+                        success: true,
+                        message_id: `msg_wa_${Math.floor(Math.random() * 10000000)}`,
+                        status: "Queued",
+                        provider: "unifonic",
+                        timestamp: new Date().toISOString()
+                    }, null, 2)
+                    : JSON.stringify({
+                        messages: [
+                            {
+                                to: clientPhone.replace(/\s+/g, ""),
+                                messageId: `msg-ib-${Math.floor(Math.random() * 1000000)}`,
+                                status: {
+                                    groupId: 1,
+                                    groupName: "PENDING",
+                                    id: 7,
+                                    name: "PENDING_ENROUTE",
+                                    description: "Message is sent to the operator."
+                                }
+                            }
+                        ]
+                    }, null, 2)
             };
             setApiLogs(prev => [respLog, ...prev]);
             setIsSending(false);
             
-            // Step 3: Trigger typing on the phone
+            // Step 3: Trigger typing status on phone
             setTypingStatus(true);
 
             setTimeout(() => {
@@ -163,6 +244,7 @@ export default function WhatsAppIntegrationPage() {
                     sender: "workshop",
                     time: timeStr,
                     status: "sent",
+                    hasImage: includeImage,
                     buttons: selectedTemplate === "maintenance" || selectedTemplate === "offers" 
                         ? ["تأكيد حجز موعد", "موقع الورشة"] 
                         : undefined
@@ -217,6 +299,10 @@ export default function WhatsAppIntegrationPage() {
             method: "POST",
             url: "https://yourworkshop.com/api/webhooks/whatsapp",
             status: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "X-Webhook-Signature": "sha256=d394b9fdf9..."
+            },
             payload: JSON.stringify({
                 event: "message_received",
                 from: clientPhone.replace(/\s+/g, ""),
@@ -304,7 +390,12 @@ export default function WhatsAppIntegrationPage() {
         setTimeout(() => setCopiedText(null), 3000);
     };
 
-    // Code snippets
+    // Handle template text editing by user
+    const handleTemplateTextChange = (key: TemplateType, value: string) => {
+        setTemplates(prev => ({ ...prev, [key]: value }));
+    };
+
+    // Code snippets updated with correct APIs and Hosts
     const codeCSharp = `using System;
 using System.Net.Http;
 using System.Text;
@@ -314,8 +405,15 @@ using System.Threading.Tasks;
 public class WhatsAppNotificationService
 {
     private readonly HttpClient _httpClient;
-    private readonly string _apiKey = "uni_live_iraq_workshop_772x88b";
-    private readonly string _apiUrl = "https://api.unifonic.com/v1/messages";
+    
+    // إعدادات الاتصال بمزود الخدمة المختار (Unifonic / Infobip)
+    private readonly bool _useUnifonic = true; 
+    
+    // المضيف ونقاط الاتصال الرسمية
+    private readonly string _unifonicApiUrl = "https://${unifonicHost}/v1/messages";
+    private readonly string _infobipApiUrl = "https://${infobipSubdomain}.api.infobip.com/whatsapp/1/message/template";
+    private readonly string _apiKey = "${apiKey}";
+    private readonly string _senderId = "AUTO_ENG_IQ";
 
     public WhatsAppNotificationService()
     {
@@ -327,35 +425,66 @@ public class WhatsAppNotificationService
     /// </summary>
     public async Task<bool> SendMaintenanceReminderAsync(string phoneNumber, string clientName, string carModel, string kmLimit)
     {
-        var payload = new
+        phoneNumber = phoneNumber.Replace(" ", "").Replace("+", ""); // مثال: 9647701234567
+
+        if (_useUnifonic)
         {
-            recipient = phoneNumber.Replace(" ", "").Replace("+", ""), // مثال: 9647701234567
-            sender_id = "AUTO_ENG_IQ",
-            message_type = "template",
-            template_name = "workshop_maintenance",
-            language = "ar",
-            parameters = new
+            var payload = new
             {
-                client_name = clientName,
-                car_model = carModel,
-                maintenance_km = kmLimit
-            }
-        };
+                recipient = phoneNumber,
+                sender_id = _senderId,
+                message_type = "template",
+                template_name = "workshop_maintenance",
+                language = "ar",
+                parameters = new
+                {
+                    client_name = clientName,
+                    car_model = carModel,
+                    variable_param = kmLimit
+                }
+            };
 
-        var request = new HttpRequestMessage(HttpMethod.Post, _apiUrl);
-        request.Headers.Add("Authorization", $"Bearer {_apiKey}");
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, _unifonicApiUrl);
+            request.Headers.Add("Authorization", $"Bearer {_apiKey}");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.SendAsync(request);
-        if (response.IsSuccessStatusCode)
-        {
-            var responseString = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"WhatsApp message sent. ID: {responseString}");
-            return true;
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
         }
+        else
+        {
+            // الربط عبر Infobip API
+            var payload = new
+            {
+                messages = new[]
+                {
+                    new
+                    {
+                        from = _senderId,
+                        to = phoneNumber,
+                        content = new
+                        {
+                            templateName = "workshop_maintenance",
+                            templateData = new
+                            {
+                                body = new
+                                {
+                                    placeholders = new[] { clientName, carModel, kmLimit }
+                                }
+                            },
+                            language = "ar"
+                        }
+                    }
+                }
+            };
 
-        Console.WriteLine($"Error sending WhatsApp. Status: {response.StatusCode}");
-        return false;
+            var request = new HttpRequestMessage(HttpMethod.Post, _infobipApiUrl);
+            request.Headers.Add("Authorization", $"App {_apiKey}");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
     }
 }`;
 
@@ -408,7 +537,7 @@ WHERE
                             ربط خدمة الواتساب وإرسال الإشعارات التلقائية
                         </h1>
                     </div>
-                    <p className="text-muted-foreground text-sm max-w-2xl">
+                    <p className="text-muted-foreground text-sm max-w-2xl font-sans">
                         شاهد محاكاة حية وتفاعلية لخدمة الـ WhatsApp API الرسمية، واقرأ دراسة الجدوى التشغيلية لكيفية استرجاع العملاء وزيادة المبيعات لجميع الفروع في العراق.
                     </p>
                 </div>
@@ -455,9 +584,9 @@ WHERE
                         {/* BSP Configuration Panel */}
                         <div className="bg-card/40 border border-border p-6 rounded-2xl shadow-md space-y-5">
                             <div className="flex items-center justify-between border-b border-border pb-3">
-                                <h3 className="font-bold text-foreground flex items-center gap-2">
+                                <h3 className="font-bold text-foreground flex items-center gap-2 font-sans">
                                     <Settings size={18} className="text-rose-500" />
-                                    إعدادات مزود الـ API (BSP)
+                                    إعدادات مزود الـ API ومضيف الاتصال (Host)
                                 </h3>
                                 <span className="bg-green-500/10 text-green-500 text-xs px-2.5 py-1 rounded-full border border-green-500/20 font-bold flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
@@ -465,10 +594,10 @@ WHERE
                                 </span>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-4 text-right">
                                 <div>
                                     <label className="block text-xs font-semibold text-muted-foreground mb-2">
-                                        مزود الخدمة المختار (العراق والخليج)
+                                        مزود الخدمة المختار
                                     </label>
                                     <div className="grid grid-cols-2 gap-3">
                                         <button
@@ -476,30 +605,68 @@ WHERE
                                             onClick={() => setBsp("unifonic")}
                                             className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
                                                 bsp === "unifonic"
-                                                    ? "bg-slate-800 border-rose-500/50 text-rose-400"
+                                                    ? "bg-slate-800 border-rose-500/50 text-rose-400 font-bold"
                                                     : "border-border text-muted-foreground hover:bg-slate-800/20"
                                             }`}
                                         >
-                                            Unifonic (يونيفونك)
+                                            Unifonic
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setBsp("infobip")}
                                             className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
                                                 bsp === "infobip"
-                                                    ? "bg-slate-800 border-rose-500/50 text-rose-400"
+                                                    ? "bg-slate-800 border-rose-500/50 text-rose-400 font-bold"
                                                     : "border-border text-muted-foreground hover:bg-slate-800/20"
                                             }`}
                                         >
-                                            Infobip (إنفوبيب)
+                                            Infobip
                                         </button>
                                     </div>
+                                </div>
+
+                                {/* Custom API Host configuration */}
+                                <div className="space-y-3 p-3.5 bg-slate-900/40 border border-slate-800 rounded-xl animate-fadeIn">
+                                    {bsp === "unifonic" ? (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                                مضيف الاتصال لـ Unifonic (API Host)
+                                            </label>
+                                            <select
+                                                value={unifonicHost}
+                                                onChange={(e) => setUnifonicHost(e.target.value)}
+                                                className="w-full text-xs font-mono bg-slate-950 border border-border rounded-lg px-2.5 py-2 text-foreground focus:outline-none"
+                                            >
+                                                <option value="apis.unifonic.com">apis.unifonic.com (المضيف الرسمي الافتراضي)</option>
+                                                <option value="el.cloud.unifonic.com/rest/whatsapp">el.cloud.unifonic.com (مضيف كلاود التفاعلي)</option>
+                                            </select>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                                معرف مضيف الحساب الفريد لـ Infobip (Subdomain)
+                                            </label>
+                                            <div className="flex items-center gap-1.5" dir="ltr">
+                                                <input
+                                                    type="text"
+                                                    value={infobipSubdomain}
+                                                    onChange={(e) => setInfobipSubdomain(e.target.value)}
+                                                    className="w-24 text-center text-xs font-mono bg-slate-950 border border-border rounded-lg px-2 py-2 text-foreground focus:outline-none"
+                                                    placeholder="w1m2y3"
+                                                />
+                                                <span className="text-xs text-muted-foreground font-mono">.api.infobip.com</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground mt-1 block">
+                                                💡 توفر لك Infobip مضيفاً فريداً لكل حساب عند التسجيل لتأمين المكالمات.
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            رمز الترخيص API Key (محاكاة)
+                                            رمز الترخيص API Key
                                         </label>
                                         <input
                                             type="password"
@@ -510,7 +677,7 @@ WHERE
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            معرف الإرسال الموثق Sender ID
+                                            معرف الإرسال Sender ID
                                         </label>
                                         <input
                                             type="text"
@@ -523,18 +690,18 @@ WHERE
                             </div>
                         </div>
 
-                        {/* Message variables & trigger Panel */}
+                        {/* Message variables & template editor */}
                         <div className="bg-card/40 border border-border p-6 rounded-2xl shadow-md space-y-4">
                             <h3 className="font-bold text-foreground border-b border-border pb-3 flex items-center gap-2">
                                 <Activity size={18} className="text-yellow-500" />
-                                محاكاة إرسال رسالة لعميل
+                                تخصيص وتعديل قوالب الرسائل الجاهزة (Live)
                             </h3>
 
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            اسم العميل (ثنائي أو ثلاثي)
+                                            اسم العميل المستلم
                                         </label>
                                         <input
                                             type="text"
@@ -545,7 +712,7 @@ WHERE
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            رقم الهاتف (العراق)
+                                            رقم هاتف العميل (العراق)
                                         </label>
                                         <input
                                             type="text"
@@ -577,46 +744,81 @@ WHERE
                                             onChange={(e) => setSelectedTemplate(e.target.value as TemplateType)}
                                             className="w-full text-sm bg-slate-900/40 border border-border rounded-lg px-2.5 py-2 text-foreground focus:border-rose-500 focus:outline-none"
                                         >
-                                            <option value="welcome">رسالة ترحيب عميل جديد</option>
-                                            <option value="maintenance">تذكير صيانة دورية (عداد كم)</option>
-                                            <option value="oil">تذكير موعد تغيير الزيت</option>
-                                            <option value="offers">إرسال عرض ترويجي/تسويقي</option>
+                                            <option value="welcome">قالب الترحيب بالعملاء الجدد</option>
+                                            <option value="maintenance">قالب تذكير صيانة العداد</option>
+                                            <option value="oil">قالب موعد تغيير الزيت</option>
+                                            <option value="offers">قالب العروض الخاصة</option>
                                         </select>
                                     </div>
                                 </div>
 
-                                {/* Conditional inputs based on template */}
-                                {selectedTemplate === "maintenance" && (
-                                    <div className="bg-slate-900/30 p-3 rounded-lg border border-border/50 animate-fadeIn">
-                                        <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            تحديد صيانة الكيلومترات
-                                        </label>
-                                        <select
-                                            value={maintenanceKm}
-                                            onChange={(e) => setMaintenanceKm(e.target.value)}
-                                            className="w-full text-xs bg-slate-900/60 border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none"
-                                        >
-                                            <option value="5,000 كم">صيانة الـ 5,000 كم (الأولى)</option>
-                                            <option value="10,000 كم">صيانة الـ 10,000 كم (رئيسية)</option>
-                                            <option value="20,000 كم">صيانة الـ 20,000 كم (كاملة)</option>
-                                            <option value="40,000 كم">صيانة الـ 40,000 كم (شاملة)</option>
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Dynamic values configuration */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {selectedTemplate === "maintenance" && (
+                                        <div className="bg-slate-900/30 p-2.5 rounded-lg border border-border/50 animate-fadeIn col-span-2">
+                                            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                                تحديد صيانة الكيلومترات
+                                            </label>
+                                            <select
+                                                value={maintenanceKm}
+                                                onChange={(e) => setMaintenanceKm(e.target.value)}
+                                                className="w-full text-xs bg-slate-900/60 border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none"
+                                            >
+                                                <option value="5,000 كم">صيانة الـ 5,000 كم (الأولى)</option>
+                                                <option value="10,000 كم">صيانة الـ 10,000 كم (رئيسية)</option>
+                                                <option value="20,000 كم">صيانة الـ 20,000 كم (كاملة)</option>
+                                                <option value="40,000 كم">صيانة الـ 40,000 كم (شاملة)</option>
+                                            </select>
+                                        </div>
+                                    )}
 
-                                {selectedTemplate === "oil" && (
-                                    <div className="bg-slate-900/30 p-3 rounded-lg border border-border/50 animate-fadeIn">
-                                        <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                                            موعد تغيير الزيت المتوقع
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={oilChangeDate}
-                                            onChange={(e) => setOilChangeDate(e.target.value)}
-                                            className="w-full text-xs bg-slate-900/60 border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none text-left"
-                                        />
+                                    {selectedTemplate === "oil" && (
+                                        <div className="bg-slate-900/30 p-2.5 rounded-lg border border-border/50 animate-fadeIn col-span-2">
+                                            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                                موعد تغيير الزيت المتوقع
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={oilChangeDate}
+                                                onChange={(e) => setOilChangeDate(e.target.value)}
+                                                className="w-full text-xs bg-slate-900/60 border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none text-left"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Live Template Body Text Editor */}
+                                <div className="space-y-1 p-3 bg-slate-900/20 border border-border/50 rounded-xl">
+                                    <div className="flex justify-between text-xs font-semibold mb-1">
+                                        <span className="text-muted-foreground">نص القالب المعتمد (قابل للتعديل)</span>
+                                        <span className="text-green-500 text-[10px] bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/25">قالب معتمد في ميتا ✅</span>
                                     </div>
-                                )}
+                                    <textarea
+                                        value={templates[selectedTemplate]}
+                                        onChange={(e) => handleTemplateTextChange(selectedTemplate, e.target.value)}
+                                        rows={4}
+                                        className="w-full text-xs bg-slate-950 border border-border rounded-lg p-2.5 text-foreground focus:border-rose-500 focus:outline-none leading-relaxed"
+                                        placeholder="اكتب نص الرسالة هنا... استخدم {name} لاسم العميل، {car} لنوع السيارة، {param} للمتغير الآخر"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                                        💡 المتغيرات: <strong>{"{name}"}</strong> (اسم العميل)، <strong>{"{car}"}</strong> (السيارة)، <strong>{"{param}"}</strong> (العداد/التاريخ).
+                                    </span>
+                                </div>
+
+                                {/* Media Header Attachment Option */}
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="include_image"
+                                        checked={includeImage}
+                                        onChange={(e) => setIncludeImage(e.target.checked)}
+                                        className="w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                                    />
+                                    <label htmlFor="include_image" className="text-xs font-medium text-muted-foreground cursor-pointer flex items-center gap-1">
+                                        <ImageIcon size={14} className="text-blue-400" />
+                                        إرفاق صورة ترويجية/فنية في رأس الرسالة (Rich Media Template)
+                                    </label>
+                                </div>
 
                                 <button
                                     type="button"
@@ -627,7 +829,7 @@ WHERE
                                     {isSending ? (
                                         <>
                                             <RefreshCw className="animate-spin" size={18} />
-                                            جاري إرسال الطلب للـ API...
+                                            جاري إرسال التنبيه عبر الـ API المعتمد...
                                         </>
                                     ) : (
                                         <>
@@ -642,7 +844,7 @@ WHERE
                         {/* API Console Logger (Bottom Left) */}
                         <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
                             <div className="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-                                <span className="text-xs font-mono text-slate-400">سجل طلبات الـ API الحيّة (HTTP Logs)</span>
+                                <span className="text-xs font-mono text-slate-400">سجل استدعاء الـ API ومطابقة الـ Payload (HTTP Console)</span>
                                 <div className="flex gap-1.5">
                                     <span className="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
                                     <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
@@ -668,9 +870,18 @@ WHERE
                                             <div className="text-slate-300 font-bold mb-1">
                                                 {log.method} {log.url} - <span className={log.status === 200 ? "text-green-400" : "text-yellow-400"}>{log.status}</span>
                                             </div>
-                                            <pre className="bg-slate-900 p-2 rounded text-slate-400 overflow-x-auto whitespace-pre-wrap max-h-24">
-                                                {log.payload}
-                                            </pre>
+                                            <div className="mb-2">
+                                                <span className="text-slate-500 block text-[9px]">Headers:</span>
+                                                <pre className="bg-slate-900/60 p-1.5 rounded text-slate-400 text-[9px] overflow-x-auto">
+                                                    {Object.entries(log.headers).map(([k, v]) => `${k}: ${v}`).join("\n")}
+                                                </pre>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-500 block text-[9px]">JSON Body Payload:</span>
+                                                <pre className="bg-slate-900 p-2 rounded text-slate-400 overflow-x-auto whitespace-pre-wrap max-h-28">
+                                                    {log.payload}
+                                                </pre>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -736,36 +947,52 @@ WHERE
                                     {chatMessages.map(msg => (
                                         <div
                                             key={msg.id}
-                                            className={`max-w-[85%] rounded-2xl p-3 shadow-md relative text-right flex flex-col gap-1.5 ${
+                                            className={`max-w-[85%] rounded-2xl p-0.5 shadow-md relative text-right flex flex-col overflow-hidden ${
                                                 msg.sender === "workshop"
                                                     ? "bg-[#005c4b] text-[#e9edef] self-start rounded-tr-none animate-fadeIn"
                                                     : "bg-[#202c33] text-[#e9edef] self-end rounded-tl-none border border-slate-800 animate-fadeIn"
                                             }`}
                                         >
-                                            <p className="text-[11.5px] leading-relaxed whitespace-pre-wrap">
-                                                {msg.text}
-                                            </p>
-                                            
-                                            <div className="flex items-center justify-end gap-1 self-end">
-                                                <span className="text-[8px] text-slate-300 opacity-70">{msg.time}</span>
-                                                {msg.sender === "workshop" && (
-                                                    <span className="text-[10px]">
-                                                        {msg.status === "sent" && <span className="text-slate-400">✓</span>}
-                                                        {msg.status === "delivered" && <span className="text-slate-400">✓✓</span>}
-                                                        {msg.status === "read" && <span className="text-blue-400">✓✓</span>}
-                                                    </span>
-                                                )}
+                                            {/* Header Image if template includes image */}
+                                            {msg.hasImage && msg.sender === "workshop" && (
+                                                <div className="w-full h-28 bg-slate-900/60 relative flex items-center justify-center border-b border-emerald-800/40">
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 bg-gradient-to-t from-slate-950/80 to-transparent">
+                                                        <span className="text-[11px] font-bold text-white tracking-wide">⚙️ مركز هندسة السيارات</span>
+                                                        <span className="text-[8px] text-slate-300 mt-0.5">الصيانة الموثقة والأداء المتكامل</span>
+                                                    </div>
+                                                    {/* Styled graphic to mimic image placeholder banner */}
+                                                    <div className="w-full h-full bg-gradient-to-r from-rose-950/40 via-emerald-950/30 to-rose-950/40 flex items-center justify-center">
+                                                        <span className="text-[22px]">🚗🔧</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="p-3 flex flex-col gap-1.5">
+                                                <p className="text-[11.5px] leading-relaxed whitespace-pre-wrap">
+                                                    {msg.text}
+                                                </p>
+                                                
+                                                <div className="flex items-center justify-end gap-1 self-end">
+                                                    <span className="text-[8px] text-slate-300 opacity-70">{msg.time}</span>
+                                                    {msg.sender === "workshop" && (
+                                                        <span className="text-[10px]">
+                                                            {msg.status === "sent" && <span className="text-slate-400">✓</span>}
+                                                            {msg.status === "delivered" && <span className="text-slate-400">✓✓</span>}
+                                                            {msg.status === "read" && <span className="text-blue-400">✓✓</span>}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Render Quick Reply Template Buttons */}
                                             {msg.buttons && (
-                                                <div className="border-t border-emerald-800/40 pt-2 mt-1.5 flex flex-col gap-1.5">
+                                                <div className="border-t border-emerald-800/40 bg-emerald-900/20 flex flex-col divide-y divide-emerald-800/40">
                                                     {msg.buttons.map((btn, idx) => (
                                                         <button
                                                             key={idx}
                                                             type="button"
                                                             onClick={() => handleQuickReply(btn, msg.id)}
-                                                            className="w-full bg-[#027561] hover:bg-[#038b73] text-[10.5px] font-bold text-white py-1.5 px-3 rounded-lg border border-emerald-700/50 shadow-sm transition-all flex items-center justify-center gap-1"
+                                                            className="w-full bg-transparent hover:bg-emerald-800/40 text-[10.5px] font-bold text-[#38e54d] py-2 px-3 transition-all flex items-center justify-center gap-1.5"
                                                         >
                                                             <span>📲</span>
                                                             {btn}
@@ -805,7 +1032,7 @@ WHERE
 
                         {/* Interactive UI Mockup Legend */}
                         <div className="mt-4 max-w-md text-center bg-slate-900/30 p-3 rounded-xl border border-border/40">
-                            <span className="text-[11px] text-muted-foreground leading-relaxed">
+                            <span className="text-[11px] text-muted-foreground leading-relaxed font-sans">
                                 💡 <strong>تنبيه تفاعلي:</strong> هاد هاتف ذكي افتراضي يوريك كيف توصل الرسالة للعميل. غير محتوى الرسالة من القائمة اليمين واضغط إرسال، أو انقر الأزرار التفاعلية على شاشة الموبايل للرد التلقائي!
                             </span>
                         </div>
@@ -817,7 +1044,7 @@ WHERE
             {activeTab === "feasibility" && (
                 <div className="space-y-8 animate-fadeIn">
                     {/* Visual Highlights Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 font-sans">
                         <div className="bg-card/50 border border-border p-5 rounded-2xl flex items-center gap-4 shadow-sm">
                             <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center">
                                 <TrendingUp size={24} />
@@ -870,7 +1097,7 @@ WHERE
                                     دراسة الجدوى التنفيذية والآلية الرسمية للمشروع
                                 </h2>
 
-                                <div className="space-y-5 text-sm leading-relaxed text-muted-foreground">
+                                <div className="space-y-5 text-sm leading-relaxed text-muted-foreground font-sans">
                                     <div>
                                         <h4 className="font-bold text-foreground text-base mb-1.5">1. حل تخطي الـ Meta Business Verification المعقد</h4>
                                         <p>
@@ -907,19 +1134,19 @@ WHERE
                                                     <tr>
                                                         <td className="p-2 border border-border font-bold text-foreground">Unifonic (يونيفونك)</td>
                                                         <td className="p-2 border border-border">دعم عربي متكامل وخبرة واسعة بالعراق والخليج</td>
-                                                        <td className="p-2 border border-border">تعتمد على الفروع وحجم الاستخدام (100$-250$ شهرياً)</td>
+                                                        <td className="p-2 border border-border font-mono">apis.unifonic.com</td>
                                                         <td className="p-2 border border-border">سريع (3-5 أيام عمل)</td>
                                                     </tr>
                                                     <tr className="bg-slate-900/20">
                                                         <td className="p-2 border border-border font-bold text-foreground">Infobip (إنفوبيب)</td>
                                                         <td className="p-2 border border-border">قوي ومناسب جداً للرسائل الدولية والمحلية</td>
-                                                        <td className="p-2 border border-border">دفع مرن حسب الاستهلاك وحجم محادثات واتساب</td>
+                                                        <td className="p-2 border border-border font-mono">*.api.infobip.com</td>
                                                         <td className="p-2 border border-border">4-7 أيام عمل</td>
                                                     </tr>
                                                     <tr>
                                                         <td className="p-2 border border-border">Twilio (تويليو)</td>
                                                         <td className="p-2 border border-border">دعم دولي ممتاز لكن الدعم العربي محدود</td>
-                                                        <td className="p-2 border border-border">ثابت بالدولار ومناسب للمطورين الكبار</td>
+                                                        <td className="p-2 border border-border font-mono">api.twilio.com</td>
                                                         <td className="p-2 border border-border">10-14 يوم عمل</td>
                                                     </tr>
                                                 </tbody>
@@ -933,14 +1160,14 @@ WHERE
                         {/* Left: Dynamic ROI Calculator */}
                         <div className="lg:col-span-5 space-y-6">
                             <div className="bg-card/45 border border-border p-6 rounded-2xl shadow-lg space-y-5">
-                                <h3 className="font-bold text-foreground border-b border-border pb-3 flex items-center gap-2">
+                                <h3 className="font-bold text-foreground border-b border-border pb-3 flex items-center gap-2 font-sans">
                                     <Calculator className="text-green-500" size={18} />
                                     حاسبة العائد الاستثماري التفاعلية (ROI Calculator)
                                 </h3>
 
                                 <div className="space-y-4">
                                     {/* Currency Toggle */}
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between font-sans">
                                         <span className="text-xs font-bold text-muted-foreground">العملة المستخدمة للحساب</span>
                                         <div className="flex bg-slate-900/40 p-1 rounded-lg border border-slate-800">
                                             <button
@@ -965,10 +1192,10 @@ WHERE
                                     </div>
 
                                     {/* Parameter Sliders */}
-                                    <div className="space-y-3">
+                                    <div className="space-y-3 font-sans">
                                         <div>
                                             <div className="flex justify-between text-xs font-semibold mb-1">
-                                                <span className="text-muted-foreground">عدد فروع المركز</span>
+                                                <span className="text-muted-foreground">الملف التعريفي: عدد الفروع</span>
                                                 <span className="text-foreground font-bold">{roiBranches} فروع</span>
                                             </div>
                                             <input
@@ -1017,7 +1244,7 @@ WHERE
 
                                         <div>
                                             <div className="flex justify-between text-xs font-semibold mb-1">
-                                                <span className="text-muted-foreground">نسبة استجابة العملاء المستهدفة للعودة</span>
+                                                <span className="text-muted-foreground">معدل تحسن العودة للورشة</span>
                                                 <span className="text-green-400 font-bold">+{roiReturnRate}%</span>
                                             </div>
                                             <input
@@ -1033,13 +1260,13 @@ WHERE
                                     </div>
 
                                     {/* Calculations Result Output */}
-                                    <div className="bg-slate-900/60 p-4 rounded-xl border border-border/80 space-y-3.5 mt-2">
+                                    <div className="bg-slate-900/60 p-4 rounded-xl border border-border/80 space-y-3.5 mt-2 font-sans">
                                         <div className="flex justify-between text-xs pb-2 border-b border-slate-800/80">
                                             <span className="text-muted-foreground">إجمالي عملاء المركز (شهرياً):</span>
                                             <span className="text-foreground font-bold">{roi.totalCustomers.toLocaleString()} عميل</span>
                                         </div>
                                         <div className="flex justify-between text-xs pb-2 border-b border-slate-800/80">
-                                            <span className="text-muted-foreground">حجم الرسائل المطلوب شهرياً:</span>
+                                            <span className="text-foreground font-bold">حجم الرسائل المطلوب شهرياً:</span>
                                             <span className="text-foreground font-bold">{roi.messagesPerMonth.toLocaleString()} رسالة</span>
                                         </div>
                                         <div className="flex justify-between text-xs pb-2 border-b border-slate-800/80">
@@ -1077,10 +1304,10 @@ WHERE
             {activeTab === "developer" && (
                 <div className="space-y-6 animate-fadeIn">
                     <div className="bg-card/40 border border-border p-6 rounded-2xl shadow-md space-y-4">
-                        <div className="flex items-center justify-between border-b border-border pb-3">
+                        <div className="flex items-center justify-between border-b border-border pb-3 text-right">
                             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                                 <FileCode className="text-rose-500" size={20} />
-                                أكواد ومرجع المطورين لتفعيل الربط بالمركز
+                                أكواد ومرجع المطورين لتفعيل الربط بالمركز مع تحديد الـ Host والـ Header
                             </h2>
                             {copiedText && (
                                 <span className="bg-green-500/10 text-green-400 text-xs px-3 py-1 rounded-full border border-green-500/20">
@@ -1088,8 +1315,8 @@ WHERE
                                 </span>
                             )}
                         </div>
-                        <p className="text-muted-foreground text-xs leading-relaxed">
-                            تكامل نظام الورشة مع واتساب يتطلب إضافة خدمة إرسال الرسائل HTTP وتفعيل SQL Cron Job للتحقق من صيانة المركبة بشكل مجدول. كود الربط جاهز بالأسفل:
+                        <p className="text-muted-foreground text-xs leading-relaxed font-sans">
+                            تكامل نظام الورشة مع واتساب يتطلب إضافة خدمة إرسال الرسائل HTTP وتفعيل SQL Cron Job للتحقق من صيانة المركبة بشكل مجدول. الأكواد التالية تستخدم المضيف (Host) المختار وإعدادات الـ Header الصحيحة للمزود:
                         </p>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-2">
