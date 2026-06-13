@@ -144,12 +144,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 
                 if (error) {
                     if (error.message?.includes("Refresh Token") || error.message?.includes("not found") || error.status === 400) {
-                        console.warn("Outdated session detected. Resetting local auth state.");
+                        console.warn("Outdated session detected. Resetting local auth state and clearing cookies.");
                         try {
                             await supabase.auth.signOut({ scope: 'local' });
                         } catch {}
                         localStorage.clear();
                         sessionStorage.clear();
+                        if (typeof document !== "undefined") {
+                            document.cookie.split(";").forEach(c => {
+                                const name = c.trim().split("=")[0];
+                                if (name.includes("auth-token") || name.startsWith("sb-")) {
+                                    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                                }
+                            });
+                        }
                         if (isMounted) {
                             setSession(null);
                             setUser(null);
@@ -254,6 +262,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await supabase.auth.signOut({ scope: 'local' });
             localStorage.clear();
             sessionStorage.clear();
+            if (typeof document !== "undefined") {
+                document.cookie.split(";").forEach(c => {
+                    const name = c.trim().split("=")[0];
+                    if (name.includes("auth-token") || name.startsWith("sb-")) {
+                        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                    }
+                });
+            }
         } catch (e) {
             console.error("Emergency clear failed", e);
         } finally {
