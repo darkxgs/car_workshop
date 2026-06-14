@@ -322,7 +322,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                         </span>
                     )}
 
-                    {v.booklet_serial && (
+                    {false && v.booklet_serial && (
                         <div style={{
                             marginRight: 'auto',
                             display: 'flex',

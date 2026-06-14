@@ -760,7 +760,7 @@ export default function CustomersPage() {
                                                                 <span>{v.make} {v.model}</span>
                                                                 <span className="text-[10px] text-muted-foreground font-mono px-1.5 py-0.5 bg-muted rounded">{v.plate_number}</span>
                                                             </div>
-                                                            {v.booklet_serial && (
+                                                            {false && v.booklet_serial && (
                                                                 <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 w-full text-center font-mono">
                                                                     دفتر: {v.booklet_serial}
                                                                 </span>
@@ -1025,7 +1025,7 @@ export default function CustomersPage() {
                                                                 <h4 className="font-bold text-sm">{v.make} {v.model} <span className="text-[10px] text-muted-foreground">({v.engine_size || "—"})</span></h4>
                                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                                                     <span className="text-[11px] font-mono text-muted-foreground">اللوحة: <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-sans">{v.plate_number || "—"}</span></span>
-                                                                    {v.booklet_serial && (
+                                                                    {false && v.booklet_serial && (
                                                                         <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 font-mono">
                                                                             دفتر: {v.booklet_serial}
                                                                         </span>
