@@ -387,6 +387,7 @@ export default function StandardReception({
     // ---------- دفتر الخدمة ----------
     const [bookletType, setBookletType] = useState<"جديد" | "قديم" | "لا يوجد" | "">("");
     const [bookletChanges, setBookletChanges] = useState("");
+    const [bookletSerial, setBookletSerial] = useState("");
 
     // ---------- STEP 3: Pricing & Notes ----------
     const [notes, setNotes] = useState("");
@@ -492,7 +493,7 @@ export default function StandardReception({
         const loadReport = async () => {
             const { data } = await supabase.from('inspection_reports')
                 .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id, bay_number,
-                         vehicles(id, make, model, engine_size, plate_number, clients(id, name, phone))`)
+                         vehicles(id, make, model, engine_size, plate_number, booklet_serial, clients(id, name, phone))`)
                 .eq('id', editId).single();
             
             if (data) {
@@ -506,6 +507,7 @@ export default function StandardReception({
                 if (vehicle) {
                     setMake(vehicle.make || ""); setModel(vehicle.model || "");
                     setEngineSize(vehicle.engine_size || ""); setPlateNumber(vehicle.plate_number || "");
+                    setBookletSerial(vehicle.booklet_serial || "");
                 }
                 setOdometer(data.odometer_reading?.toString() || "");
                 setNotes(data.notes || "");
@@ -576,18 +578,41 @@ export default function StandardReception({
         }));
     };
 
-    // Phone search
+    // Phone or Booklet Serial search
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const searchVal = params.get("search");
+            if (searchVal && !phone) {
+                setPhone(searchVal);
+            }
+        }
+    }, []);
+
     useEffect(() => {
         if (!phone || phone.length < 3) { setClientSuggestions([]); return; }
         if (selectedClientId) return;
         const searchClient = async () => {
             setIsSearchingClient(true);
-            const { data } = await supabase
-                .from('clients')
-                .select('id, name, phone, vehicles(make, model, engine_size, plate_number)')
-                .ilike('phone', `%${phone}%`)
-                .limit(5);
-            setClientSuggestions(data || []);
+            const trimmed = phone.trim();
+            if (trimmed.toUpperCase().startsWith("BK")) {
+                // Query by booklet serial number
+                const { data } = await supabase
+                    .from('clients')
+                    .select('id, name, phone, vehicles(make, model, engine_size, plate_number, booklet_serial)')
+                    .eq('vehicles.booklet_serial', trimmed.toUpperCase());
+                
+                const filtered = data?.filter(c => c.vehicles?.some(v => v.booklet_serial?.toUpperCase() === trimmed.toUpperCase())) || [];
+                setClientSuggestions(filtered);
+            } else {
+                // Query by phone
+                const { data } = await supabase
+                    .from('clients')
+                    .select('id, name, phone, vehicles(make, model, engine_size, plate_number, booklet_serial)')
+                    .ilike('phone', `%${phone}%`)
+                    .limit(5);
+                setClientSuggestions(data || []);
+            }
             setIsSearchingClient(false);
         };
         const timeout = setTimeout(searchClient, 500);
@@ -603,6 +628,7 @@ export default function StandardReception({
             const v = client.vehicles[0];
             setMake(v.make || ""); setModel(v.model || "");
             setEngineSize(v.engine_size || ""); setPlateNumber(v.plate_number || "");
+            setBookletSerial(v.booklet_serial || "");
         }
     };
 
@@ -610,7 +636,7 @@ export default function StandardReception({
         setPhone(e.target.value);
         if (selectedClientId) {
             setSelectedClientId(null);
-            setName(""); setMake(""); setModel(""); setPlateNumber("");
+            setName(""); setMake(""); setModel(""); setPlateNumber(""); setBookletSerial("");
         }
     };
 
@@ -806,6 +832,26 @@ export default function StandardReception({
                 if (evs && evs.length > 0) vehicleId = evs[0].id;
             }
 
+            let finalBookletSerial = bookletSerial ? bookletSerial.trim() : "";
+            if (bookletType === 'جديد' && !finalBookletSerial) {
+                const { data: lastVeh } = await supabase
+                    .from('vehicles')
+                    .select('booklet_serial')
+                    .not('booklet_serial', 'is', null)
+                    .order('booklet_serial', { ascending: false })
+                    .limit(1);
+                
+                let nextNum = 10001;
+                if (lastVeh && lastVeh.length > 0 && lastVeh[0].booklet_serial) {
+                    const match = lastVeh[0].booklet_serial.match(/BK-(\d+)/);
+                    if (match) {
+                        nextNum = parseInt(match[1]) + 1;
+                    }
+                }
+                finalBookletSerial = `BK-${nextNum}`;
+                setBookletSerial(finalBookletSerial);
+            }
+
             if (vehicleId) {
                 await supabase.from('vehicles')
                     .update({ 
@@ -813,7 +859,8 @@ export default function StandardReception({
                         make: cleanedMake, 
                         model: cleanedModel, 
                         engine_size: cleanedEngine,
-                        plate_number: cleanedPlate || null
+                        plate_number: cleanedPlate || null,
+                        booklet_serial: finalBookletSerial || null
                     })
                     .eq('id', vehicleId);
             } else {
@@ -823,7 +870,8 @@ export default function StandardReception({
                         make: cleanedMake, 
                         model: cleanedModel, 
                         engine_size: cleanedEngine, 
-                        plate_number: cleanedPlate || null 
+                        plate_number: cleanedPlate || null,
+                        booklet_serial: finalBookletSerial || null
                     })
                     .select('id').single();
                 if (ve) throw ve;
@@ -893,7 +941,7 @@ export default function StandardReception({
                 shiftName,
                 shiftSupervisor,
                 technicianName: assignedTechnician,
-                booklet: { type: bookletType, changes: bookletChanges },
+                booklet: { type: bookletType, changes: bookletChanges, serial: finalBookletSerial },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
             };
@@ -1144,18 +1192,31 @@ export default function StandardReception({
                                 </label>
                             ))}
                             {bookletType !== 'لا يوجد' && bookletType !== '' && (
-                                <div className="flex items-center gap-3 flex-1 min-w-[220px]">
-                                    <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">عدد التبديلات داخل الدفتر:</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        placeholder="0"
-                                        value={bookletChanges}
-                                        onChange={e => setBookletChanges(e.target.value)}
-                                        className="input-field w-24 text-center"
-                                        dir="ltr"
-                                    />
-                                </div>
+                                <>
+                                    <div className="flex items-center gap-3 flex-1 min-w-[220px]">
+                                        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">عدد التبديلات داخل الدفتر:</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            placeholder="0"
+                                            value={bookletChanges}
+                                            onChange={e => setBookletChanges(e.target.value)}
+                                            className="input-field w-24 text-center"
+                                            dir="ltr"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-1 min-w-[220px]">
+                                        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">رقم الدفتر التسلسلي:</label>
+                                        <input
+                                            type="text"
+                                            placeholder={bookletType === 'جديد' ? "توليد تلقائي..." : "مثال: BK-10001"}
+                                            value={bookletSerial}
+                                            onChange={e => setBookletSerial(e.target.value)}
+                                            className="input-field w-40 text-center font-bold text-amber-400 font-mono"
+                                            dir="ltr"
+                                        />
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -1910,6 +1971,14 @@ export default function StandardReception({
                                     >
                                         <Printer size={16} /> إرسال للطباعة 🖨️
                                     </button>
+                                    {(bookletSerial || (previewReport?.vehicles ? (Array.isArray(previewReport.vehicles) ? previewReport.vehicles[0]?.booklet_serial : previewReport.vehicles.booklet_serial) : null)) && (
+                                        <button
+                                            onClick={() => window.open(`/print/${previewReportId}?mode=sticker`, '_blank')}
+                                            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 text-xs"
+                                        >
+                                            🏷️ ملصق الدفتر
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setPreviewReportId(null)}
                                         className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"

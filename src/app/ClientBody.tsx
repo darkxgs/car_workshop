@@ -30,6 +30,19 @@ export default function ClientBody({
         );
     }
 
+    const isPublicBookletPage = pathname.startsWith("/b/");
+    if (isPublicBookletPage) {
+        return (
+            <LanguageProvider>
+                <CurrencyProvider>
+                    <div className="min-h-screen bg-[#08080d] text-foreground font-ibm">
+                        {children}
+                    </div>
+                </CurrencyProvider>
+            </LanguageProvider>
+        );
+    }
+
     return (
         <LanguageProvider>
             <CurrencyProvider>
