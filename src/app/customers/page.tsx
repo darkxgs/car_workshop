@@ -239,19 +239,26 @@ export default function CustomersPage() {
 
     // Filter Logic
     const filteredClients = clients.filter(c => {
-        const matchSearch = c.name.includes(searchTerm) || 
-                            c.phone.includes(searchTerm) || 
-                            (c.vehicles?.some(v => v.plate_number.includes(searchTerm) || v.make.includes(searchTerm)));
+        const term = (searchTerm || "").toLowerCase().trim();
+        const matchSearch = !term ? true : (
+            (c.name || "").toLowerCase().includes(term) ||
+            (c.phone || "").toLowerCase().includes(term) ||
+            (c.vehicles?.some(v => 
+                (v.plate_number || "").toLowerCase().includes(term) || 
+                (v.make || "").toLowerCase().includes(term)
+            ) || false)
+        );
         const matchBranch = branchFilter ? c.branchIds?.includes(branchFilter) : true;
         
         let matchDate = true;
         if (dateFrom || dateTo) {
-            const hasValidReport = c.allReports.some(r => {
+            const hasValidReport = c.allReports?.some(r => {
+                if (!r.created_at) return false;
                 const rDate = new Date(r.created_at).toISOString().split('T')[0];
                 if (dateFrom && rDate < dateFrom) return false;
                 if (dateTo && rDate > dateTo) return false;
                 return true;
-            });
+            }) || false;
             matchDate = hasValidReport;
         }
 
@@ -261,7 +268,7 @@ export default function CustomersPage() {
     const exportExcel = async () => {
         const { data, error } = await supabase
             .from("inspection_reports")
-            .select(`id, report_number, created_at, total_price, status, selected_services, odometer_reading,
+            .select(`id, report_number, created_at, total_price, status, selected_services, odometer_reading, branch_id,
                      receptionist:receptionist_id(name),
                      vehicles(make, model, plate_number, clients(name, phone)), branches(name)`)
             .order("created_at", { ascending: false });
@@ -270,19 +277,40 @@ export default function CustomersPage() {
 
         let filteredReports = data;
         
+        // 1. Apply employee branch restriction if set
+        if (employeeBranchId) {
+            filteredReports = filteredReports.filter((r: any) => r.branch_id === employeeBranchId);
+        }
+
+        // 2. Apply branchFilter selected in UI
         if (branchFilter) {
-            const selectedBranch = branches.find(b => b.id === branchFilter)?.name;
-            if (selectedBranch) {
-                filteredReports = filteredReports.filter((r: any) => r.branches?.name === selectedBranch);
-            }
+            filteredReports = filteredReports.filter((r: any) => r.branch_id === branchFilter);
         }
         
+        // 3. Apply dateFrom and dateTo selected in UI
         if (dateFrom || dateTo) {
             filteredReports = filteredReports.filter((r: any) => {
+                if (!r.created_at) return false;
                 const rDate = new Date(r.created_at).toISOString().split('T')[0];
                 if (dateFrom && rDate < dateFrom) return false;
                 if (dateTo && rDate > dateTo) return false;
                 return true;
+            });
+        }
+
+        // 4. Apply searchTerm selected in UI
+        const term = (searchTerm || "").toLowerCase().trim();
+        if (term) {
+            filteredReports = filteredReports.filter((r: any) => {
+                const vehicle = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
+                const client  = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+                
+                const clientNameMatch = client?.name ? client.name.toLowerCase().includes(term) : false;
+                const clientPhoneMatch = client?.phone ? client.phone.toLowerCase().includes(term) : false;
+                const carMakeMatch = vehicle?.make ? vehicle.make.toLowerCase().includes(term) : false;
+                const plateMatch = vehicle?.plate_number ? vehicle.plate_number.toLowerCase().includes(term) : false;
+                
+                return clientNameMatch || clientPhoneMatch || carMakeMatch || plateMatch;
             });
         }
 
