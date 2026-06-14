@@ -1685,7 +1685,7 @@ export default function SectorReception({
                                 />
                                 <datalist id="bay-number-list">
                                     {(suggestionLists.bayNumbers || []).map((b, i) => (
-                                        <option key={i} value={b} />
+                                        <option key={i} value={typeof b === 'object' && b !== null ? b.name : b} />
                                     ))}
                                 </datalist>
                             </div>
@@ -1714,7 +1714,7 @@ export default function SectorReception({
                                 />
                                 <datalist id="supervisor-names-list">
                                     {(suggestionLists.supervisorNames || []).map((s, i) => (
-                                        <option key={i} value={s} />
+                                        <option key={i} value={typeof s === 'object' && s !== null ? s.name : s} />
                                     ))}
                                 </datalist>
                             </div>
@@ -1796,7 +1796,7 @@ export default function SectorReception({
             <datalist id="customServicesList">
                 {suggestionLists["materials"] && suggestionLists["materials"].length > 0 ? (
                     suggestionLists["materials"].map((item: any, idx: number) => (
-                        <option key={idx} value={item.name} />
+                        <option key={idx} value={typeof item === 'object' && item !== null ? item.name : item} />
                     ))
                 ) : (
                     <>

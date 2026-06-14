@@ -503,7 +503,7 @@ export default function WorkOrderDetailPage() {
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                 />
                                 <datalist id="wo-supervisor-list">
-                                    {suggLists.supervisorNames.map((n, i) => <option key={i} value={n} />)}
+                                    {suggLists.supervisorNames.map((n, i) => <option key={i} value={typeof n === 'object' && n !== null ? (n as any).name : n} />)}
                                 </datalist>
                             </div>
                             
@@ -518,7 +518,7 @@ export default function WorkOrderDetailPage() {
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                 />
                                 <datalist id="wo-tech-list">
-                                    {suggLists.technicianNames.map((n, i) => <option key={i} value={n} />)}
+                                    {suggLists.technicianNames.map((n, i) => <option key={i} value={typeof n === 'object' && n !== null ? (n as any).name : n} />)}
                                 </datalist>
                             </div>
                             
@@ -533,7 +533,7 @@ export default function WorkOrderDetailPage() {
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
                                 />
                                 <datalist id="wo-bay-list">
-                                    {suggLists.bayNumbers.map((n, i) => <option key={i} value={n} />)}
+                                    {suggLists.bayNumbers.map((n, i) => <option key={i} value={typeof n === 'object' && n !== null ? (n as any).name : n} />)}
                                 </datalist>
                             </div>
 
