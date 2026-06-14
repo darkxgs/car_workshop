@@ -1205,17 +1205,19 @@ export default function StandardReception({
                                             dir="ltr"
                                         />
                                     </div>
-                                    <div className="flex items-center gap-3 flex-1 min-w-[220px]">
-                                        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">رقم الدفتر التسلسلي:</label>
-                                        <input
-                                            type="text"
-                                            placeholder={bookletType === 'جديد' ? "توليد تلقائي..." : "مثال: BK-10001"}
-                                            value={bookletSerial}
-                                            onChange={e => setBookletSerial(e.target.value)}
-                                            className="input-field w-40 text-center font-bold text-amber-400 font-mono"
-                                            dir="ltr"
-                                        />
-                                    </div>
+                                    {false && (
+                                        <div className="flex items-center gap-3 flex-1 min-w-[220px]">
+                                            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">رقم الدفتر التسلسلي:</label>
+                                            <input
+                                                type="text"
+                                                placeholder={bookletType === 'جديد' ? "توليد تلقائي..." : "مثال: BK-10001"}
+                                                value={bookletSerial}
+                                                onChange={e => setBookletSerial(e.target.value)}
+                                                className="input-field w-40 text-center font-bold text-amber-400 font-mono"
+                                                dir="ltr"
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
