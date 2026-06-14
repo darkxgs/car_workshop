@@ -1897,7 +1897,7 @@ export default function SectorReception({
                                     >
                                         <Printer size={16} /> إرسال للطباعة 🖨️
                                     </button>
-                                    {(bookletSerial || (previewReport?.vehicles ? (Array.isArray(previewReport.vehicles) ? previewReport.vehicles[0]?.booklet_serial : previewReport.vehicles.booklet_serial) : null)) && (
+                                    {false && (bookletSerial || (previewReport?.vehicles ? (Array.isArray(previewReport.vehicles) ? previewReport.vehicles[0]?.booklet_serial : previewReport.vehicles.booklet_serial) : null)) && (
                                         <button
                                             onClick={() => window.open(`/print/${previewReportId}?mode=sticker`, '_blank')}
                                             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 text-xs"

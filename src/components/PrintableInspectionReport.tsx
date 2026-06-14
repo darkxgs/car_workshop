@@ -337,15 +337,6 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                 <span style={{ fontSize: '11px', color: '#78350f', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
                                 <strong style={{ color: '#b45309', fontFamily: 'monospace', fontSize: '14px' }}>{v.booklet_serial}</strong>
                             </div>
-                            {typeof window !== 'undefined' && (
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                                        window.location.origin + '/b/' + v.booklet_serial
-                                    )}`}
-                                    alt="Booklet QR Code"
-                                    style={{ width: '75px', height: '75px', border: '1px solid #d97706', padding: '2px', background: '#fff' }}
-                                />
-                            )}
                         </div>
                     )}
                 </div>
