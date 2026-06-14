@@ -118,6 +118,7 @@ export interface Database {
           model: string
           engine_size: string | null
           plate_number: string | null
+          booklet_serial: string | null
           created_at: string
         }
         Insert: {
@@ -127,6 +128,7 @@ export interface Database {
           model: string
           engine_size?: string | null
           plate_number?: string | null
+          booklet_serial?: string | null
           created_at?: string
         }
         Update: {
@@ -136,6 +138,7 @@ export interface Database {
           model?: string
           engine_size?: string | null
           plate_number?: string | null
+          booklet_serial?: string | null
           created_at?: string
         }
         Relationships: [

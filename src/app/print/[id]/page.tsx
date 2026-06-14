@@ -25,7 +25,7 @@ export default function PrintPage() {
                     id, report_number, status, created_at, completed_at, odometer_reading,
                     estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
                     branches(id, name),
-                    vehicles (make, model, plate_number, engine_size, clients (name, phone)),
+                    vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)),
                     receptionist:receptionist_id(name)
                 `)
                 .eq("id", id)
@@ -75,6 +75,78 @@ export default function PrintPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Arial", direction: "rtl" }}>
                 <p>لم يتم العثور على التقرير.</p>
             </div>
+        );
+    }
+
+    if (mode === 'sticker') {
+        const v = Array.isArray(report.vehicles) ? (report.vehicles[0] || {}) : (report.vehicles || {});
+        const serialNum = v.booklet_serial || "BK-00000";
+        
+        return (
+            <>
+                <style>{`
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    html, body { background: white; color: black; }
+                    @media screen {
+                        body { padding: 40px; background: #f5f5f5; display: flex; justify-content: center; }
+                        .sticker-card {
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                            border-radius: 12px;
+                        }
+                    }
+                    @media print {
+                        html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+                        @page { size: 58mm 60mm; margin: 0; }
+                    }
+                    .no-print-btn {
+                        position: fixed; bottom: 20px; right: 20px;
+                        background: #dc2626; color: white; border: none;
+                        padding: 12px 24px; border-radius: 8px; font-size: 16px;
+                        cursor: pointer; font-family: Arial; z-index: 999;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    }
+                    @media print { .no-print-btn { display: none !important; } }
+                `}</style>
+
+                <div className="no-print-btn flex flex-col gap-3 fixed bottom-5 right-5 z-[999]">
+                    <button 
+                        onClick={() => router.back()}
+                        className="bg-slate-800 text-white border-none py-3 px-6 rounded-xl text-base cursor-pointer font-bold shadow-lg flex items-center gap-2 justify-center"
+                    >
+                        <ArrowRight size={20} /> رجوع
+                    </button>
+                    <button 
+                        onClick={() => window.print()}
+                        className="bg-rose-600 text-white border-none py-3 px-6 rounded-xl text-base cursor-pointer font-bold shadow-lg"
+                    >
+                        🖨️ طباعة الملصق
+                    </button>
+                </div>
+
+                <div className="sticker-card bg-white p-4 flex flex-col items-center justify-center text-center select-none" style={{
+                    width: '58mm',
+                    height: '60mm',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    direction: 'rtl',
+                    border: '1px solid #ddd'
+                }}>
+                    <h3 style={{ fontSize: '11px', fontWeight: 800, margin: '0 0 2px 0', color: '#000' }}>مجمع هندسة السيارات</h3>
+                    <span style={{ fontSize: '9px', color: '#444', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
+                    
+                    {typeof window !== 'undefined' && (
+                        <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                                window.location.origin + '/b/' + serialNum
+                            )}`}
+                            alt="Booklet QR"
+                            style={{ width: '85px', height: '85px', margin: '4px 0', padding: '1px', border: '1.5px solid #000', background: '#fff' }}
+                        />
+                    )}
+                    
+                    <strong style={{ fontSize: '15px', fontFamily: 'monospace', color: '#000', letterSpacing: '0.5px', marginTop: '1px' }}>{serialNum}</strong>
+                    <span style={{ fontSize: '8px', color: '#666', marginTop: '2px', lineHeight: '1' }}>امسح لعرض سجل الصيانة والزيارات</span>
+                </div>
+            </>
         );
     }
 

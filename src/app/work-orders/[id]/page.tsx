@@ -23,7 +23,7 @@ type WorkOrder = {
     selected_services: any[];
     receptionist: { name: string } | null;
     branches?: { id: string; name: string } | null;
-    vehicles: { make: string; model: string; plate_number: string, clients?: { name: string; phone: string } };
+    vehicles: { make: string; model: string; plate_number: string; booklet_serial?: string | null; clients?: { name: string; phone: string } };
     bay_number: string | null;
     odometer_reading: number;
     technician_id: string | null;
@@ -145,7 +145,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -431,6 +431,14 @@ export default function WorkOrderDetailPage() {
                             <Printer size={16} /> طباعة كامل (للعميل)
                         </button>
                     </div>
+                    {order.vehicles?.booklet_serial && (
+                        <button 
+                            onClick={() => window.open(`/print/${id}?mode=sticker`, '_blank')}
+                            className="px-4 py-2.5 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 text-amber-400 font-bold transition-all flex items-center gap-2 rounded-xl text-xs md:text-sm shadow-sm"
+                        >
+                            🏷️ ملصق الدفتر (Sticker)
+                        </button>
+                    )}
                     {order.status === 'تم الاستلام' && (
                         <button onClick={handleStart} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20">
                             <Play size={18} /> بدء التشغيل (Start Check)
@@ -950,6 +958,14 @@ export default function WorkOrderDetailPage() {
                                 >
                                     <Printer size={16} /> إرسال للطباعة 🖨️
                                 </button>
+                                {order?.vehicles?.booklet_serial && (
+                                    <button
+                                        onClick={() => window.open(`/print/${id}?mode=sticker`, '_blank')}
+                                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 text-xs"
+                                    >
+                                        🏷️ ملصق الدفتر
+                                    </button>
+                                )}
 
                                 {/* Close Button */}
                                 <button
