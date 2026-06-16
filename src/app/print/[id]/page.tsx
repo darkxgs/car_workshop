@@ -133,7 +133,7 @@ export default function PrintPage() {
                     <h3 style={{ fontSize: '11px', fontWeight: 800, margin: '0 0 2px 0', color: '#000' }}>مجمع هندسة السيارات</h3>
                     <span style={{ fontSize: '9px', color: '#444', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
                     
-                    {typeof window !== 'undefined' && (
+                    {false && typeof window !== 'undefined' && (
                         <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
                                 window.location.origin + '/b/' + serialNum
