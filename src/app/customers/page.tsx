@@ -503,12 +503,12 @@ export default function CustomersPage() {
         });
 
         const wsData = [
-            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "الرقم التسلسلي للدفتر", "التاريخ", "الشفت",
+            ["#", "الفرع", "اسم الزبون", "رقم الهاتف", "السيارة", "الموديل", "رقم اللوحة", "التاريخ", "الشفت",
              "موظف الاستقبال", "المشرف", "الفني", "العداد (كم)",
              "نوع الخدمة", "نوع الزيت", "درجة اللزوجة", "عدد اللترات",
              "الخدمات الإضافية", "دفتر الزيت", "السعر (د.ع)", "الحالة"],
             ...mapped.map(r => [
-                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate, r.booklet_serial, r.created_at, r.shift_name,
+                r.seq, r.branch_name, r.client_name, r.client_phone, r.car_make, r.car_model, r.plate, r.created_at, r.shift_name,
                 r.receptionist_name, r.supervisor_name, r.technician_name, r.odometer,
                 r.service_type, r.oil_type, r.oil_viscosity, r.oil_liters,
                 r.extra_services, r.booklet, r.total_price, r.status
@@ -517,7 +517,7 @@ export default function CustomersPage() {
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws["!cols"] = [
-            {wch:5}, {wch:16}, {wch:22}, {wch:16}, {wch:14}, {wch:14}, {wch:14}, {wch:20}, {wch:14}, {wch:12},
+            {wch:5}, {wch:16}, {wch:22}, {wch:16}, {wch:14}, {wch:14}, {wch:14}, {wch:14}, {wch:12},
             {wch:18}, {wch:18}, {wch:18}, {wch:14},
             {wch:28}, {wch:18}, {wch:14}, {wch:10}, {wch:28}, {wch:14}, {wch:12}, {wch:12},
         ];
