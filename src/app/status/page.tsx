@@ -112,8 +112,11 @@ export default function KanbanStatusPage() {
         if (newStatus === 'تم الانتهاء') {
             updateData.completed_at = new Date().toISOString();
             updateData.end_time = new Date().toISOString();
-        } else if (newStatus === 'قيد العمل') {
-            updateData.start_time = new Date().toISOString();
+        } else {
+            updateData.completed_at = null;
+            if (newStatus === 'قيد العمل') {
+                updateData.start_time = new Date().toISOString();
+            }
         }
 
         const { error } = await supabase.from('inspection_reports').update(updateData).eq('id', orderId);

@@ -27,23 +27,11 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 async function run() {
-    console.log("Fetching suggestion_lists from DB...");
-    const { data, error } = await supabaseAdmin
-        .from('suggestion_lists')
-        .select('key, items, branch_id');
-        
-    if (error) {
-        console.error("Error:", error);
-        return;
-    }
-    
-    data.forEach(row => {
-        if (row.key === 'technicianNames' || row.key === 'supervisorNames' || row.key === 'bayNumbers') {
-            console.log(`Key: ${row.key}, Branch: ${row.branch_id}`);
-            console.log(JSON.stringify(row.items, null, 2));
-            console.log("---------------------------------------");
-        }
-    });
+    console.log("Checking DB counts...");
+    const { count: clientsCount } = await supabaseAdmin.from('clients').select('*', { count: 'exact', head: true });
+    const { count: vehiclesCount } = await supabaseAdmin.from('vehicles').select('*', { count: 'exact', head: true });
+    const { count: reportsCount } = await supabaseAdmin.from('inspection_reports').select('*', { count: 'exact', head: true });
+    console.log({ clientsCount, vehiclesCount, reportsCount });
 }
 
 run();

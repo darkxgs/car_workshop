@@ -26,24 +26,18 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     }
 });
 
-async function run() {
-    console.log("Fetching suggestion_lists from DB...");
-    const { data, error } = await supabaseAdmin
-        .from('suggestion_lists')
-        .select('key, items, branch_id');
-        
+async function checkPolicies() {
+    const sql = `
+        SELECT schemaname, tablename, policyname, roles, cmd, qual, with_check 
+        FROM pg_policies 
+        WHERE tablename = 'inspection_reports';
+    `;
+    const { data, error } = await supabaseAdmin.rpc('exec_sql', { sql });
     if (error) {
-        console.error("Error:", error);
-        return;
+        console.error("Error checking policies:", error);
+    } else {
+        console.log("Policies on inspection_reports:", data);
     }
-    
-    data.forEach(row => {
-        if (row.key === 'technicianNames' || row.key === 'supervisorNames' || row.key === 'bayNumbers') {
-            console.log(`Key: ${row.key}, Branch: ${row.branch_id}`);
-            console.log(JSON.stringify(row.items, null, 2));
-            console.log("---------------------------------------");
-        }
-    });
 }
 
-run();
+checkPolicies();
