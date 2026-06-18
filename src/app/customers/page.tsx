@@ -8,7 +8,7 @@ import {
     Users, User, Search, Download, Plus, MapPin, Phone, 
     Mail, Car, FileText, ChevronLeft, ChevronRight, ShieldAlert,
     Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench, Loader2,
-    CheckCircle2, ShieldCheck, Droplets, Gauge
+    CheckCircle2, ShieldCheck, Droplets, Gauge, RefreshCcw
 } from "lucide-react";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import Link from "next/link";
@@ -347,6 +347,44 @@ export default function CustomersPage() {
             showError("خطأ", `خطأ أثناء الحذف: ${error.message}`);
         }
     };
+
+    const handleReopenReport = async (reportId: string, reportNumber: number) => {
+        const isConfirmed = await showConfirm(
+            "إعادة فتح أمر العمل",
+            `هل أنت متأكد من رغبتك في إعادة المركبة في الفاتورة #${reportNumber} إلى وضع قيد العمل؟`,
+            "نعم، أعد الفتح",
+            false
+        );
+        if (!isConfirmed) return;
+        
+        const { error } = await supabase
+            .from('inspection_reports')
+            .update({ 
+                status: 'قيد العمل', 
+                start_time: new Date().toISOString(),
+                completed_at: null
+            })
+            .eq('id', reportId);
+            
+        if (!error) {
+            fetchClients();
+            if (selectedProfile) {
+                setSelectedProfile({
+                    ...selectedProfile,
+                    allReports: selectedProfile.allReports.map((r: any) => 
+                        r.id === reportId 
+                            ? { ...r, status: 'قيد العمل' } 
+                            : r
+                    )
+                });
+            }
+            showSuccess("تمت إعادة الفتح", "تمت إعادة المركبة إلى قيد العمل بنجاح.");
+        } else {
+            showError("خطأ", `حدث خطأ: ${error.message}`);
+        }
+    };
+
+
 
     // Filter Logic is fully processed on server-side
     const filteredClients = clients;
@@ -1051,6 +1089,7 @@ export default function CustomersPage() {
                                                 report={loadedReports[activeProfileTab]}
                                                 isOwnerOrAdmin={isOwnerOrAdmin}
                                                 onDeleteReport={handleDeleteReport}
+                                                onReopenReport={handleReopenReport}
                                                 router={router}
                                             />
                                         ) : (
@@ -1105,10 +1144,11 @@ export default function CustomersPage() {
     );
 }
 
-function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, router }: {
+function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenReport, router }: {
     report: any;
     isOwnerOrAdmin: boolean;
     onDeleteReport: (id: string, num: number) => Promise<void>;
+    onReopenReport: (id: string, num: number) => Promise<void>;
     router: any;
 }) {
     const isPaperV2 = report.selected_services?.[0]?.is_paper_v2_format === true;
@@ -1239,6 +1279,11 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, router }: {
                     <p className="text-base font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20" dir="ltr">
                         {report.total_price ? report.total_price.toLocaleString() : 0} <span className="text-[10px]">IQD</span>
                     </p>
+                    {isOwnerOrAdmin && (report.status === "completed" || report.status === "تم الانتهاء") && (
+                        <button onClick={() => onReopenReport(report.id, report.report_number)} className="p-2 bg-muted hover:bg-amber-500 hover:text-white rounded-lg text-amber-500 transition-colors border border-amber-500/30" title="إعادة فتح أمر العمل">
+                            <RefreshCcw size={14}/>
+                        </button>
+                    )}
                     <Link href={`/reception?edit=${report.id}`} className="p-2 bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
                         <Edit2 size={14}/>
                     </Link>
