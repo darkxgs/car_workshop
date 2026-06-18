@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X } from "lucide-react";
+import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X, RefreshCcw } from "lucide-react";
 import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
@@ -290,6 +290,27 @@ export default function WorkOrderDetailPage() {
         }
     };
 
+    const handleReopen = async () => {
+        if (!order) return;
+        try {
+            const { error } = await supabase
+                .from('inspection_reports')
+                .update({ 
+                    status: 'قيد العمل', 
+                    start_time: new Date().toISOString(),
+                    completed_at: null
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            showSuccess("تمت إعادة الفتح", "تم إعادة المركبة إلى قيد العمل بنجاح!");
+            fetchOrder();
+        } catch (err) {
+            console.error(err);
+            showError("خطأ", "فشل إعادة فتح المركبة");
+        }
+    };
+
     const handleComplete = async () => {
         let finalElapsed = order?.elapsed_time || 0;
         if (order?.start_time) {
@@ -450,9 +471,16 @@ export default function WorkOrderDetailPage() {
                         </button>
                     )}
                     {order.status === 'تم الانتهاء' && (
-                        <span className="px-6 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-bold flex items-center gap-2">
-                            <CheckCircle2 size={18} /> المركبة جاهزة
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="px-6 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-bold flex items-center gap-2">
+                                <CheckCircle2 size={18} /> المركبة جاهزة
+                            </span>
+                            {(employeeRole === 'Admin' || employeeRole === 'Supervisor' || employeeRole === 'Owner') && (
+                                <button onClick={handleReopen} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 font-bold transition-all flex items-center gap-2" title="إعادة العمل على المركبة">
+                                    <RefreshCcw size={16} /> إعادة فتح
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

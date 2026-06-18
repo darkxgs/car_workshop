@@ -244,7 +244,7 @@ export default function SectorReception({
     onClose: () => void;
 }) {
     const { t } = useLanguage();
-    const { user, employeeRole, employeeBranchId } = useAuth();
+    const { user, employeeRole, employeeBranchId, employeeId } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
     const editId = searchParams.get('edit');
@@ -340,6 +340,13 @@ export default function SectorReception({
     // ---------- Employees ----------
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
     const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
+    
+    useEffect(() => {
+        if (employeeId && !editId) {
+            setSelectedReceptionistId(employeeId);
+        }
+    }, [employeeId, editId]);
+
     const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
     const [assignedTechnician, setAssignedTechnician] = useState<string>("");
 
@@ -438,7 +445,7 @@ export default function SectorReception({
         if (!editId) return;
         const loadReport = async () => {
             const { data } = await supabase.from('inspection_reports')
-                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id, bay_number,
+                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id, bay_number, receptionist_id,
                          vehicles(id, make, model, engine_size, plate_number, booklet_serial, clients(id, name, phone))`)
                 .eq('id', editId).single();
             
@@ -459,6 +466,7 @@ export default function SectorReception({
                 setNotes(data.notes || "");
                 setBayNumber(data.bay_number || "");
                 if (data.branch_id) setSelectedBranchId(data.branch_id);
+                if (data.receptionist_id) setSelectedReceptionistId(data.receptionist_id);
                 
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
                 if (payload) {
@@ -898,7 +906,7 @@ export default function SectorReception({
             if (editReportId) {
                 const { error: re } = await supabase.from('inspection_reports')
                     .update({
-                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
+                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
                         total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
@@ -925,7 +933,7 @@ export default function SectorReception({
 
             const { data: rd, error: re } = await supabase.from('inspection_reports')
                 .insert({
-                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: employeeId,
+                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     status, total_price: parseFloat(totalPrice || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
@@ -962,7 +970,7 @@ export default function SectorReception({
         setBookletType("");
         setBookletChanges("");
         setSelectedBranchId(newBranchId || "");
-        setSelectedReceptionistId(""); setSelectedTechnicianId(""); setAssignedTechnician("");
+        setSelectedReceptionistId(employeeId || ""); setSelectedTechnicianId(""); setAssignedTechnician("");
         setTotalPrice(""); setDiscount(""); setAmountReceived("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);
