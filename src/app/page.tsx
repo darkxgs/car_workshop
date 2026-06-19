@@ -22,6 +22,7 @@ import {
     Pie,
     Cell
 } from "recharts";
+import NotificationBell from "@/components/NotificationBell";
 
 type WorkOrder = {
     id: string;
@@ -214,9 +215,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center gap-4 mr-auto">
-                    <button className="relative p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground">
-                        <Bell size={20} />
-                    </button>
+                    <NotificationBell direction="down" align="left" />
                     <Link href="/settings" className="p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground flex items-center justify-center">
                         <Settings size={20} />
                     </Link>
