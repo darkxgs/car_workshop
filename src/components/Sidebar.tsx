@@ -273,17 +273,17 @@ export function Sidebar() {
                 }`}
             >
                 {/* Logo */}
-                <div className="h-[70px] flex items-center border-b border-border px-4 shrink-0">
+                <div className="h-[70px] flex items-center border-b border-border px-3 shrink-0 justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <div className={`w-10 h-10 rounded-xl ${LOGO_BG} flex items-center justify-center shrink-0 shadow-lg shadow-rose-500/20`}>
                             <Building2 className="text-white" size={20} />
                         </div>
                         {!isCollapsed && (
-                            <div className="overflow-hidden">
-                                <h1 className="font-display font-bold text-foreground whitespace-nowrap text-sm leading-tight">هندسة السيارات</h1>
+                            <div className="flex flex-col min-w-0">
+                                <span className="font-display font-bold text-sm text-foreground leading-none truncate">هندسة السيارات</span>
                                 {(employeeRole === 'Owner' || employeeRole === 'Admin') && branches.length > 0 ? (
                                     <select 
-                                        className="text-[10px] bg-transparent text-rose-400 font-bold outline-none cursor-pointer w-full mt-0.5"
+                                        className="text-xs bg-transparent text-rose-400 font-bold outline-none cursor-pointer w-full mt-1 truncate"
                                         value={employeeBranchId || ""}
                                         onChange={(e) => setEmployeeBranchId(e.target.value)}
                                     >
@@ -293,11 +293,16 @@ export function Sidebar() {
                                         ))}
                                     </select>
                                 ) : (
-                                    <p className="text-[10px] text-rose-400 whitespace-nowrap">إدارة الورشة المتكامل</p>
+                                    <span className="text-[10px] text-rose-400 mt-1 truncate">إدارة الورشة المتكامل</span>
                                 )}
                             </div>
                         )}
                     </div>
+                    {!isCollapsed && (
+                        <div className="shrink-0 pl-1">
+                            <NotificationBell direction="down" align="right" />
+                        </div>
+                    )}
                 </div>
 
                 {/* Collapse Toggle */}
@@ -347,10 +352,11 @@ export function Sidebar() {
 
                 {/* Footer */}
                 <div className="p-3 shrink-0 border-t border-border space-y-2">
-                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-1 mb-2`}>
-                        {!isCollapsed && <span className="text-xs font-bold text-muted-foreground">التنبيهات السريعة</span>}
-                        <NotificationBell direction="up" align="right" />
-                    </div>
+                    {isCollapsed && (
+                        <div className="flex items-center justify-center px-1 mb-2">
+                            <NotificationBell direction="up" align="right" />
+                        </div>
+                    )}
                     {!isCollapsed && <ThemeToggle />}
                     <button
                         onClick={() => signOut()}
