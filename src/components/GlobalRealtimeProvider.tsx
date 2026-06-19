@@ -17,6 +17,26 @@ export type NotificationItem = {
     bg: string;
 };
 
+const SVC_NAMES: Record<string, string> = {
+    engineOil: "زيت المحرك",
+    oilFilter: "فلتر زيت المحرك",
+    airFilter: "فلتر الهواء",
+    acFilter: "فلتر التبريد",
+    brakeFluid: "زيت المكابح",
+    coolant: "ماء الراديتر",
+    battery: "البطارية",
+    engineBelts: "قايش المحرك",
+    brakePads: "دسكات السيارة",
+    sparkPlugs: "شمعات الاحتراق",
+    gearboxHydraulic: "هايدروليك الكير",
+    gearboxFilter: "فلتر الكير",
+    wipers: "الماسحات",
+    additives: "المضافات والمحسنات",
+    engineFlash: "فلاش محرك",
+    engineCeramic: "سيراميك محرك",
+    linerCleaner: "منظف بطانة (جكجكة)",
+};
+
 interface NotificationContextType {
     notifications: NotificationItem[];
     markAsRead: (id: string) => void;
@@ -170,15 +190,71 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
                                 const oldTech = Array.isArray(oldRecord.selected_services) ? oldRecord.selected_services[0]?.technicianName : undefined;
                                 const newTech = Array.isArray(newRecord.selected_services) ? newRecord.selected_services[0]?.technicianName : undefined;
                                 if (oldTech !== undefined && newTech && newTech !== oldTech) {
-                                playNotificationSound();
-                                const title = `تغيير الفني المسؤول 🔧`;
-                                const text = `تم تعيين فني جديد لأمر العمل #${newRecord.report_number}`;
-                                addNotification({ title, text, icon: 'User', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
-                                Swal.fire({
-                                    title, text,
-                                    icon: 'info',
-                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
-                                });
+                                    playNotificationSound();
+                                    const title = `تغيير الفني المسؤول 🔧`;
+                                    const text = `تم تعيين فني جديد لأمر العمل #${newRecord.report_number}`;
+                                    addNotification({ title, text, icon: 'User', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
+                                    Swal.fire({
+                                        title, text,
+                                        icon: 'info',
+                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
+                                    });
+                                }
+                                
+                                // Detailed Service changes
+                                if (!didAlert && oldRecord.selected_services && newRecord.selected_services) {
+                                    const oldArr = Array.isArray(oldRecord.selected_services) ? oldRecord.selected_services : [oldRecord.selected_services];
+                                    const newArr = Array.isArray(newRecord.selected_services) ? newRecord.selected_services : [newRecord.selected_services];
+                                    
+                                    let addedMessage = "";
+
+                                    // Check if a dynamic service was added
+                                    if (newArr.length > oldArr.length) {
+                                        const newlyAdded = newArr[newArr.length - 1];
+                                        if (newlyAdded && newlyAdded.name) {
+                                            addedMessage = `إضافة: ${newlyAdded.name}`;
+                                        }
+                                    } else {
+                                        // Deep check for Paper v2 Format toggles
+                                        const old0 = oldArr[0] || {};
+                                        const new0 = newArr[0] || {};
+                                        if (new0.is_paper_v2_format && old0.is_paper_v2_format) {
+                                            
+                                            // 1. Custom Services Length
+                                            const oldCustom = old0.customServices || [];
+                                            const newCustom = new0.customServices || [];
+                                            if (newCustom.length > oldCustom.length) {
+                                                const newlyAdded = newCustom[newCustom.length - 1];
+                                                if (newlyAdded && newlyAdded.label) {
+                                                    addedMessage = `إضافة عنصر: ${newlyAdded.label}`;
+                                                }
+                                            } 
+                                            // 2. Services toggled to "تغيير"
+                                            else {
+                                                const oldS = old0.services || {};
+                                                const newS = new0.services || {};
+                                                for (const key of Object.keys(newS)) {
+                                                    if (newS[key]?.status === 'تغيير' && oldS[key]?.status !== 'تغيير') {
+                                                        const arabicName = SVC_NAMES[key] || key;
+                                                        addedMessage = `تحديد تغيير: ${arabicName}`;
+                                                        break; // Just show one for the toast
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (addedMessage) {
+                                        playNotificationSound();
+                                        const title = `تعديل داخلي 🛠️`;
+                                        const text = `في أمر #${newRecord.report_number} - ${addedMessage}`;
+                                        addNotification({ title, text, icon: 'Wrench', color: 'text-rose-500', bg: 'bg-rose-500/10' });
+                                        Swal.fire({
+                                            title, text,
+                                            icon: 'info',
+                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#f43f5e'
+                                        });
+                                    }
                                 }
                             }
                         }

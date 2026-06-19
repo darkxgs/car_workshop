@@ -303,6 +303,7 @@ export default function SectorReception({
         loadFromDB();
     }, [selectedBranchId, employeeBranchId]);
 
+
     const getFilteredSuggestions = () => {
         if (!focusedListId || !suggestionLists[focusedListId]) return [];
         
@@ -341,6 +342,7 @@ export default function SectorReception({
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
     const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
     
+    // Set current user as default receptionist for new orders
     useEffect(() => {
         if (employeeId && !editId) {
             setSelectedReceptionistId(employeeId);
