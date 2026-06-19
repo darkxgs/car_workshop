@@ -476,8 +476,8 @@ export default function WorkOrderDetailPage() {
                                 <CheckCircle2 size={18} /> المركبة جاهزة
                             </span>
                             {(employeeRole === 'Admin' || employeeRole === 'Supervisor' || employeeRole === 'Owner') && (
-                                <button onClick={handleReopen} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 font-bold transition-all flex items-center gap-2" title="إعادة العمل على المركبة">
-                                    <RefreshCcw size={16} /> إعادة فتح
+                                <button onClick={handleReopen} className="px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 font-bold transition-all flex items-center gap-2" title="إرجاع السيارة للعمل">
+                                    <RefreshCcw size={16} /> إرجاع للعمل
                                 </button>
                             )}
                         </div>

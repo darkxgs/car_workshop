@@ -350,9 +350,9 @@ export default function CustomersPage() {
 
     const handleReopenReport = async (reportId: string, reportNumber: number) => {
         const isConfirmed = await showConfirm(
-            "إعادة فتح أمر العمل",
-            `هل أنت متأكد من رغبتك في إعادة المركبة في الفاتورة #${reportNumber} إلى وضع قيد العمل؟`,
-            "نعم، أعد الفتح",
+            "إرجاع السيارة للعمل",
+            `هل أنت متأكد من رغبتك في إرجاع المركبة في الفاتورة #${reportNumber} إلى ساحة العمل (قيد العمل)؟`,
+            "نعم، إرجاع للعمل",
             false
         );
         if (!isConfirmed) return;
@@ -1279,9 +1279,9 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     <p className="text-base font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20" dir="ltr">
                         {report.total_price ? report.total_price.toLocaleString() : 0} <span className="text-[10px]">IQD</span>
                     </p>
-                    {isOwnerOrAdmin && (report.status === "completed" || report.status === "تم الانتهاء") && (
-                        <button onClick={() => onReopenReport(report.id, report.report_number)} className="p-2 bg-muted hover:bg-amber-500 hover:text-white rounded-lg text-amber-500 transition-colors border border-amber-500/30" title="إعادة فتح أمر العمل">
-                            <RefreshCcw size={14}/>
+                    {(report.status === "completed" || report.status === "تم الانتهاء") && (
+                        <button onClick={() => onReopenReport(report.id, report.report_number)} className="px-3 py-1.5 flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white rounded-lg text-amber-500 font-bold text-xs transition-colors border border-amber-500/30" title="إرجاع السيارة للعمل">
+                            <RefreshCcw size={14}/> إرجاع للعمل
                         </button>
                     )}
                     <Link href={`/reception?edit=${report.id}`} className="p-2 bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
