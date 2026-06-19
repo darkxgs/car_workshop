@@ -1,13 +1,81 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect, useState, createContext, useContext } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { playNotificationSound } from "@/lib/sound";
 import Swal from "sweetalert2";
 
-export default function GlobalRealtimeProvider() {
+export type NotificationItem = {
+    id: string;
+    title: string;
+    text: string;
+    time: Date;
+    read: boolean;
+    icon: string;
+    color: string;
+    bg: string;
+};
+
+interface NotificationContextType {
+    notifications: NotificationItem[];
+    markAsRead: (id: string) => void;
+    clearAll: () => void;
+    unreadCount: number;
+}
+
+export const NotificationContext = createContext<NotificationContextType>({
+    notifications: [],
+    markAsRead: () => {},
+    clearAll: () => {},
+    unreadCount: 0
+});
+
+export const useNotifications = () => useContext(NotificationContext);
+
+export default function GlobalRealtimeProvider({ children }: { children: React.ReactNode }) {
     const { user, employeeBranchId, employeeRole } = useAuth();
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    // Load from localStorage on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('global_notifications');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Convert string dates back to Date objects
+                setNotifications(parsed.map((n: any) => ({ ...n, time: new Date(n.time) })));
+            }
+        } catch (e) {
+            console.error('Failed to parse notifications from local storage', e);
+        }
+        setIsLoaded(true);
+    }, []);
+
+    // Save to localStorage when updated
+    useEffect(() => {
+        if (isLoaded) {
+            localStorage.setItem('global_notifications', JSON.stringify(notifications));
+        }
+    }, [notifications, isLoaded]);
+
+    const addNotification = (notif: Omit<NotificationItem, 'id' | 'time' | 'read'>) => {
+        setNotifications(prev => [{
+            ...notif,
+            id: Math.random().toString(36).substring(2, 9),
+            time: new Date(),
+            read: false
+        }, ...prev].slice(0, 50)); // Keep last 50
+    };
+
+    const markAsRead = (id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    };
+
+    const clearAll = () => {
+        setNotifications([]);
+    };
 
     useEffect(() => {
         if (!user) return; // Only listen if authenticated
@@ -29,9 +97,12 @@ export default function GlobalRealtimeProvider() {
                 if (payload.eventType === 'INSERT') {
                     if (newRecord.status === 'تم الاستلام') {
                         playNotificationSound();
+                        const title = `أمر عمل جديد!`;
+                        const text = `تم فتح أمر عمل جديد برقم ${newRecord.report_number}`;
+                        addNotification({ title, text, icon: 'Clock', color: 'text-sky-400', bg: 'bg-sky-500/10' });
                         Swal.fire({
-                            title: `أمر عمل جديد!`,
-                            text: `تم فتح أمر عمل جديد برقم ${newRecord.report_number}`,
+                            title,
+                            text,
                             icon: 'info',
                             toast: true,
                             position: 'top-end',
@@ -55,43 +126,31 @@ export default function GlobalRealtimeProvider() {
                             didAlert = true;
                             
                             if (oldRecord.status === 'تم الانتهاء' && newRecord.status === 'قيد العمل') {
+                                const title = `تمت إعادة فتح أمر العمل ⏳`;
+                                const text = `تمت إعادة المركبة #${newRecord.report_number} إلى وضع قيد العمل`;
+                                addNotification({ title, text, icon: 'RefreshCcw', color: 'text-amber-500', bg: 'bg-amber-500/10' });
                                 Swal.fire({
-                                    title: `تمت إعادة فتح أمر العمل ⏳`,
-                                    text: `تمت إعادة المركبة #${newRecord.report_number} إلى وضع قيد العمل`,
+                                    title, text,
                                     icon: 'warning',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 5000,
-                                    timerProgressBar: true,
-                                    background: '#0f172a',
-                                    color: '#f59e0b'
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#f59e0b'
                                 });
                             } else if (newRecord.status === 'قيد العمل') {
+                                const title = `بدأ العمل 🛠️`;
+                                const text = `أمر العمل #${newRecord.report_number} أصبح قيد العمل الآن`;
+                                addNotification({ title, text, icon: 'Wrench', color: 'text-blue-500', bg: 'bg-blue-500/10' });
                                 Swal.fire({
-                                    title: `بدأ العمل 🛠️`,
-                                    text: `أمر العمل #${newRecord.report_number} أصبح قيد العمل الآن`,
+                                    title, text,
                                     icon: 'info',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 5000,
-                                    timerProgressBar: true,
-                                    background: '#0f172a',
-                                    color: '#3b82f6'
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#3b82f6'
                                 });
                             } else if (newRecord.status === 'تم الانتهاء') {
+                                const title = `جاهز للتسليم 💚`;
+                                const text = `اكتمل العمل في أمر العمل #${newRecord.report_number}`;
+                                addNotification({ title, text, icon: 'CheckCircle2', color: 'text-emerald-500', bg: 'bg-emerald-500/10' });
                                 Swal.fire({
-                                    title: `جاهز للتسليم 💚`,
-                                    text: `اكتمل العمل في أمر العمل #${newRecord.report_number}`,
+                                    title, text,
                                     icon: 'success',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 6000,
-                                    timerProgressBar: true,
-                                    background: '#0f172a',
-                                    color: '#10b981'
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 6000, timerProgressBar: true, background: '#0f172a', color: '#10b981'
                                 });
                             }
                         }
@@ -100,34 +159,25 @@ export default function GlobalRealtimeProvider() {
                         if (!didAlert) {
                             if (newRecord.bay_number !== oldRecord.bay_number) {
                                 playNotificationSound();
+                                const title = `تحديث الخانة 🚗`;
+                                const text = `تم نقل أمر العمل #${newRecord.report_number} إلى ${newRecord.bay_number || 'غير محدد'}`;
+                                addNotification({ title, text, icon: 'Car', color: 'text-purple-500', bg: 'bg-purple-500/10' });
                                 Swal.fire({
-                                    title: `تحديث الخانة 🚗`,
-                                    text: `تم نقل أمر العمل #${newRecord.report_number} إلى ${newRecord.bay_number || 'غير محدد'}`,
-                                    icon: 'info',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 4000,
-                                    timerProgressBar: true,
-                                    background: '#0f172a',
-                                    color: '#8b5cf6'
+                                    title, text,
+                                    icon: 'info', toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
                                 });
                             } else {
                                 const oldTech = Array.isArray(oldRecord.selected_services) ? oldRecord.selected_services[0]?.technicianName : undefined;
                                 const newTech = Array.isArray(newRecord.selected_services) ? newRecord.selected_services[0]?.technicianName : undefined;
                                 if (oldTech !== undefined && newTech && newTech !== oldTech) {
                                 playNotificationSound();
+                                const title = `تغيير الفني المسؤول 🔧`;
+                                const text = `تم تعيين فني جديد لأمر العمل #${newRecord.report_number}`;
+                                addNotification({ title, text, icon: 'User', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
                                 Swal.fire({
-                                    title: `تغيير الفني المسؤول 🔧`,
-                                    text: `تم تعيين فني جديد لأمر العمل #${newRecord.report_number}`,
+                                    title, text,
                                     icon: 'info',
-                                    toast: true,
-                                    position: 'top-end',
-                                    showConfirmButton: false,
-                                    timer: 4000,
-                                    timerProgressBar: true,
-                                    background: '#0f172a',
-                                    color: '#8b5cf6'
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
                                 });
                                 }
                             }
@@ -142,5 +192,11 @@ export default function GlobalRealtimeProvider() {
         };
     }, [user, employeeBranchId, employeeRole]);
 
-    return null; // This component doesn't render anything visible
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    return (
+        <NotificationContext.Provider value={{ notifications, markAsRead, clearAll, unreadCount }}>
+            {children}
+        </NotificationContext.Provider>
+    );
 }

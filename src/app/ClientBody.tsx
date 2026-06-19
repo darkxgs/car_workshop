@@ -47,13 +47,14 @@ export default function ClientBody({
         <LanguageProvider>
             <CurrencyProvider>
                 <AuthProvider>
-                    <GlobalRealtimeProvider />
-                    <div className={`min-h-screen pattern-bg font-ibm text-foreground print:bg-white print:text-black ${isLoginPage ? "flex flex-col items-center justify-center p-4 bg-background" : ""}`}>
-                        {!isLoginPage && <Sidebar />}
-                        <main className={isLoginPage ? "w-full max-w-md" : "min-h-screen transition-all duration-300 lg:pr-64 pt-16 lg:pt-0 print:pr-0 print:pt-0"}>
-                            {children}
-                        </main>
-                    </div>
+                    <GlobalRealtimeProvider>
+                        <div className={`min-h-screen pattern-bg font-ibm text-foreground print:bg-white print:text-black ${isLoginPage ? "flex flex-col items-center justify-center p-4 bg-background" : ""}`}>
+                            {!isLoginPage && <Sidebar />}
+                            <main className={isLoginPage ? "w-full max-w-md" : "min-h-screen transition-all duration-300 lg:pr-64 pt-16 lg:pt-0 print:pr-0 print:pt-0"}>
+                                {children}
+                            </main>
+                        </div>
+                    </GlobalRealtimeProvider>
                 </AuthProvider>
             </CurrencyProvider>
         </LanguageProvider>

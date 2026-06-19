@@ -41,6 +41,7 @@ import {
     MessageSquare,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
 
 const LOGO_BG = "bg-gradient-to-br from-rose-500 via-red-500 to-rose-700";
 const ACCENT_BTN = "bg-rose-600 hover:bg-rose-500 text-white";
@@ -184,12 +185,15 @@ export function Sidebar() {
                         )}
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsMobileOpen(!isMobileOpen)}
-                    className="p-2 hover:bg-slate-800/40 rounded-lg transition-colors text-muted-foreground"
-                >
-                    {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
-                </button>
+                <div className="flex items-center gap-1">
+                    <NotificationBell direction="down" align="left" />
+                    <button
+                        onClick={() => setIsMobileOpen(!isMobileOpen)}
+                        className="p-2 hover:bg-slate-800/40 rounded-lg transition-colors text-muted-foreground"
+                    >
+                        {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
+                    </button>
+                </div>
             </header>
 
             {/* ── Mobile Overlay ── */}
@@ -343,6 +347,10 @@ export function Sidebar() {
 
                 {/* Footer */}
                 <div className="p-3 shrink-0 border-t border-border space-y-2">
+                    <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-1 mb-2`}>
+                        {!isCollapsed && <span className="text-xs font-bold text-muted-foreground">التنبيهات السريعة</span>}
+                        <NotificationBell direction="up" align="right" />
+                    </div>
                     {!isCollapsed && <ThemeToggle />}
                     <button
                         onClick={() => signOut()}
