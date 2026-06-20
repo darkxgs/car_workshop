@@ -116,7 +116,7 @@ export function Sidebar() {
             title: "المالية والتحليلات (Finance & Analytics)",
             items: [
                 { href: "/reports", label: "الفواتير (PDF)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
-                { href: "/financial-reports", label: "السجلات والدفاتر (CSV)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
+                { href: "/financial-reports", label: "السجلات والدفاتر (Excel)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
                 { href: "/accounting", label: "النظام المحاسبي", icon: <Wallet size={20} />, roles: ["Owner", "Admin"] },
                 { href: "/analytics", label: "تحليلات الأداء الحيّة", icon: <PieChart size={20} /> },
             ]
