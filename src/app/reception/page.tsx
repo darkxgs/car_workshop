@@ -2,12 +2,11 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
-    UserPlus, Car, Save, Phone, Hash, AlertCircle, Loader2,
-    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X, Trash2
+    UserPlus, Car, Loader2,
+    FileText, Printer, Edit2, X, Trash2
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";

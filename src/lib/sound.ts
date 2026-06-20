@@ -25,7 +25,7 @@ export const playNotificationSound = () => {
         playTone(523.25, 0, 0.4); // C5
         playTone(659.25, 0.1, 0.6); // E5
 
-    } catch (e) {
+    } catch {
         console.warn("Audio Context not supported or blocked by browser.");
     }
 };

@@ -36,7 +36,7 @@ function saveToLocal(rates: Rates) {
   const payload: LsPayload = { rates, ts: Date.now() };
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(payload));
-  } catch (e) {
+  } catch {
     // ignore localStorage errors
   }
 }
@@ -67,7 +67,7 @@ export async function getRatesCached(): Promise<Rates> {
     const rates = await fetchRates();
     saveToLocal(rates);
     return rates;
-  } catch (err) {
+  } catch {
     if (cached?.rates) return cached.rates;
     return FALLBACK_RATES;
   }

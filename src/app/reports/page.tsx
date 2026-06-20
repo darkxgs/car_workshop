@@ -1,8 +1,8 @@
 "use client";
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { Printer, FileText, CheckCircle2, Search, Loader2, AlertTriangle, XCircle, Car, Calendar, DollarSign, AlertCircle } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Printer, FileText, Search, Loader2, Car, Calendar, DollarSign, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";

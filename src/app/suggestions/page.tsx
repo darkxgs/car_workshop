@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileSpreadsheet, Plus, Trash2, Save, Search, X,
-    Droplets, Thermometer, Filter, Zap, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
+    Droplets, Thermometer, Filter, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
     Shield, Wrench, Activity
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { showSuccess, showError, showConfirm } from "@/lib/alerts";
+import { showSuccess, showError } from "@/lib/alerts";
 import { useAuth } from "@/lib/AuthProvider";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";

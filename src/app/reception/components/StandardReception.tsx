@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Save, Phone, Hash, AlertCircle, Loader2,
-    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, CheckSquare, Edit2, Wrench, X, Trash2
+    CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, X
 } from "lucide-react";
-import { showConfirm, showSuccess, showError } from "@/lib/alerts";
+import { showSuccess } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 type Step = 1 | 2 | 3;

@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { showSuccess, showError } from "@/lib/alerts";
-import { Wrench, ShieldAlert, Shield, ArrowLeft, Clock, Car, Activity, Loader2, Gauge, FileText } from "lucide-react";
+import { Wrench, ShieldAlert, Shield, ArrowLeft, Car, Activity, Loader2, Gauge } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrderList = {
@@ -27,29 +26,14 @@ export default function WorkOrdersListPage() {
     const { employeeRole, employeeBranchId, permissionWorkOrders, loading: authLoading } = useAuth();
     const [orders, setOrders] = useState<WorkOrderList[]>([]);
     const [loading, setLoading] = useState(true);
-    const [now, setNow] = useState(Date.now());
+    const [now, setNow] = useState(() => Date.now());
     
     const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState("");
 
-    if (authLoading) {
-        return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
-                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
-            </div>
-        );
-    }
-
-    if (employeeRole !== 'Owner' && !permissionWorkOrders) {
-        return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
-                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
-                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
-                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى ساحة الورشة والعمل الحي.</p>
-                </div>
-            </div>
-        );
-    }
+    // Hooks must run unconditionally (Rules of Hooks). Access guards early-return
+    // below, after every hook/handler is declared.
+    const isAuthorized = employeeRole === 'Owner' || permissionWorkOrders;
 
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000); // Check every second
@@ -68,8 +52,9 @@ export default function WorkOrdersListPage() {
     }, [employeeBranchId]);
 
     useEffect(() => {
+        if (authLoading || !isAuthorized) return;
         if (branches.length > 0 && !selectedBranchId) return; // Wait until branch is selected
-        
+
         fetchOrders();
 
         const channel = supabase.channel('work_orders_realtime')
@@ -79,7 +64,7 @@ export default function WorkOrdersListPage() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [employeeBranchId, employeeRole, selectedBranchId]);
+    }, [employeeBranchId, employeeRole, selectedBranchId, authLoading, isAuthorized]);
 
 
 
@@ -102,10 +87,30 @@ export default function WorkOrdersListPage() {
         setLoading(false);
     };
 
+    // Access guards (placed after all hooks so the Rules of Hooks are respected).
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى ساحة الورشة والعمل الحي.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
             <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border">
                     <div>

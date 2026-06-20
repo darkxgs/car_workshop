@@ -22,8 +22,10 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         amountOwedByClient: 0,
         amountOwedToClient: 0,
     };
-    const customs = data?.customServices || oldServices.map((srv: any) => ({
-        id: Math.random().toString(),
+    const customs = data?.customServices || oldServices.map((srv: any, i: number) => ({
+        // Stable, deterministic id (used as a React key below). Avoids Math.random()
+        // during render, which would regenerate keys and remount rows every render.
+        id: `old-${i}`,
         label: typeof srv === 'string' ? srv : (srv.service || srv.label || 'خدمة سابقة'),
         status: srv.status || 'مكتمل',
         price: srv.price || 0,

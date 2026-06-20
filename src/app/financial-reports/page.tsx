@@ -113,7 +113,7 @@ export default function ReportsPage() {
                                 const label = SERVICE_LABELS[key] || key;
                                 const det = v?.details || {};
                                 
-                                let parts = [];
+                                const parts = [];
                                 if (key === 'additives' || key === 'cleaners') {
                                     for (let i = 0; i < 10; i++) {
                                         if (det[`prod_${i}`]) {
@@ -163,7 +163,7 @@ export default function ReportsPage() {
 
                 const { data } = await query;
                 if (data) {
-                    let totalVisits = data.length;
+                    const totalVisits = data.length;
                     let bookletCount = 0;
                     const servicesBreakdown: Record<string, number> = {};
                     const visitsMap: Record<string, number> = {};

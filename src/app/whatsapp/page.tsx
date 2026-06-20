@@ -6,7 +6,6 @@ import {
     Send,
     ShieldCheck,
     Settings,
-    Code,
     FileText,
     Calculator,
     RefreshCw,
@@ -15,9 +14,6 @@ import {
     TrendingUp,
     FileCode,
     Copy,
-    Sparkles,
-    Check,
-    Eye,
     Image as ImageIcon
 } from "lucide-react";
 

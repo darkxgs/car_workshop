@@ -12,6 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // One-off root-level maintenance/seed/scratch scripts — not part of the app
+    // (the application source lives entirely under src/). Kept in the repo for
+    // manual use, but excluded from the app's lint signal.
+    "scratch_*.{js,mjs}",
+    "migrate*.{js,mjs}",
+    "seed*.{js,mjs}",
+    "wipe*.{js,mjs}",
+    "check-*.{js,mjs}",
+    "check_*.{js,mjs}",
+    "run-*.{js,mjs}",
+    "run_*.{js,mjs}",
+    "copy_parts.mjs",
   ]),
 ]);
 

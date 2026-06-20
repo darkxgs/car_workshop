@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
 import { UserRole } from "@/lib/types";
+import { requireAdmin } from "@/lib/supabase-server";
 
 // Admin Server Action to securely instantiate employees with usernames and permissions
 export async function createEmployeeAccount(formData: {
@@ -18,19 +18,11 @@ export async function createEmployeeAccount(formData: {
     permission_reports?: boolean;
     permission_employees?: boolean;
 }) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return { success: false, error: "Missing Supabase Service Role configuration." };
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
-        }
-    });
+    // SECURITY: server actions are public POST endpoints — verify the caller is an
+    // admin before touching the service-role client (which bypasses RLS).
+    const guard = await requireAdmin();
+    if (!guard.ok) return { success: false, error: guard.error };
+    const { supabaseAdmin } = guard;
 
     try {
         const cleanUsername = formData.username.trim().toLowerCase();
@@ -81,9 +73,9 @@ export async function createEmployeeAccount(formData: {
 
         console.log("Employee Record Created Successfully.");
         return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Critical Exception:", e);
-        return { success: false, error: e.message || "An unexpected error occurred." };
+        return { success: false, error: e instanceof Error ? e.message : "An unexpected error occurred." };
     }
 }
 
@@ -105,23 +97,20 @@ export async function updateEmployeeAccount(
         permission_employees?: boolean;
     }
 ) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return { success: false, error: "Missing Supabase Service Role configuration." };
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-    });
+    const guard = await requireAdmin();
+    if (!guard.ok) return { success: false, error: guard.error };
+    const { supabaseAdmin } = guard;
 
     try {
         const cleanUsername = formData.username.trim().toLowerCase();
         const dummyEmail = `${cleanUsername}@workshop.local`;
 
         // 1. Update Auth User if password is provided
-        const updatePayload: any = {
+        const updatePayload: {
+            email: string;
+            user_metadata: { name: string };
+            password?: string;
+        } = {
             email: dummyEmail,
             user_metadata: { name: formData.name }
         };
@@ -153,23 +142,21 @@ export async function updateEmployeeAccount(
         if (dbError) return { success: false, error: dbError.message };
 
         return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message || "An unexpected error occurred." };
+    } catch (e: unknown) {
+        return { success: false, error: e instanceof Error ? e.message : "An unexpected error occurred." };
     }
 }
 
 // Admin Server Action to delete an employee
 export async function deleteEmployeeAccount(authId: string) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const guard = await requireAdmin();
+    if (!guard.ok) return { success: false, error: guard.error };
+    const { supabaseAdmin, userId } = guard;
 
-    if (!supabaseUrl || !serviceRoleKey) {
-        return { success: false, error: "Missing Supabase Service Role configuration." };
+    // Guard against an admin deleting their own account and locking themselves out.
+    if (authId === userId) {
+        return { success: false, error: "You cannot delete your own account." };
     }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-    });
 
     try {
         // 1. Delete Employee Record
@@ -182,37 +169,71 @@ export async function deleteEmployeeAccount(authId: string) {
 
         // 2. Delete Auth User
         const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(authId);
-        
+
         if (authError) return { success: false, error: authError.message };
 
         return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message || "An unexpected error occurred." };
+    } catch (e: unknown) {
+        return { success: false, error: e instanceof Error ? e.message : "An unexpected error occurred." };
     }
 }
 
 // Admin Server Action to fetch auth user emails
 export async function getAuthEmails() {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return { success: false, data: [] };
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-    });
+    const guard = await requireAdmin();
+    if (!guard.ok) return { success: false, data: [] };
+    const { supabaseAdmin } = guard;
 
     try {
         const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
         if (error) return { success: false, data: [] };
-        
-        return { 
-            success: true, 
-            data: users.map(u => ({ id: u.id, email: u.email })) 
+
+        return {
+            success: true,
+            data: users.map(u => ({ id: u.id, email: u.email }))
         };
-    } catch (e: any) {
+    } catch {
         return { success: false, data: [] };
+    }
+}
+
+// Admin Server Action to list app users (employees joined with their auth email).
+// Replaces the previously-missing `/api/users` route handler.
+export async function listAppUsers() {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { success: false, error: guard.error, users: [] };
+    const { supabaseAdmin } = guard;
+
+    try {
+        const { data: employees, error: empError } = await supabaseAdmin
+            .from("employees")
+            .select("id, auth_id, name, role")
+            .order("name", { ascending: true });
+
+        if (empError) return { success: false, error: empError.message, users: [] };
+
+        const { data: { users: authUsers }, error: authError } =
+            await supabaseAdmin.auth.admin.listUsers();
+        if (authError) return { success: false, error: authError.message, users: [] };
+
+        const emailByAuthId = new Map(authUsers.map(u => [u.id, u.email ?? ""]));
+
+        const users = (employees ?? [])
+            .filter(e => e.auth_id)
+            .map(e => ({
+                id: e.auth_id as string,
+                employee_id: e.id,
+                name: e.name,
+                role: e.role,
+                email: emailByAuthId.get(e.auth_id as string) ?? "",
+            }));
+
+        return { success: true, users };
+    } catch (e: unknown) {
+        return {
+            success: false,
+            error: e instanceof Error ? e.message : "An unexpected error occurred.",
+            users: [],
+        };
     }
 }

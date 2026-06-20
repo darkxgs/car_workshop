@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { showConfirm, showError, showSuccess } from "@/lib/alerts";
-import { Search, ShoppingCart, Plus, Minus, Trash2, Wallet, Receipt, CreditCard, ChevronLeft, Package } from "lucide-react";
+import { showError, showSuccess } from "@/lib/alerts";
+import { Search, ShoppingCart, Plus, Minus, Trash2, Wallet, Receipt, CreditCard, Package } from "lucide-react";
 import Link from "next/link";
 
 type InventoryItem = {
@@ -87,7 +87,7 @@ export default function PartsPOSPage() {
 
         try {
             // 1. Deduct from inventory
-            for (let item of cart) {
+            for (const item of cart) {
                 const newQuantity = item.quantity - item.cartQuantity;
                 await supabase.from('inventory').update({ quantity: newQuantity }).eq('id', item.id);
             }
@@ -113,7 +113,7 @@ export default function PartsPOSPage() {
             showSuccess("تم", "تم الدفع وخصم الكميات من المستودع بنجاح!");
             fetchInventory(); // refresh
 
-        } catch (error) {
+        } catch {
             showError("خطأ", "حدث خطأ أثناء إتمام العملية.");
         } finally {
             setProcessing(false);

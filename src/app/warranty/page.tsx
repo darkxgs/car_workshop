@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { ShieldCheck, Search, ShieldAlert, BadgeCheck, FileText, CalendarDays, Edit2, X, Save } from "lucide-react";
+import { ShieldCheck, Search, ShieldAlert, BadgeCheck, CalendarDays, Edit2, X, Save } from "lucide-react";
 import { showError, showSuccess } from "@/lib/alerts";
 
 type WarrantyRecord = {
