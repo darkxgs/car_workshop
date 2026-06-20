@@ -152,7 +152,7 @@ export function Sidebar() {
             if (item.href === '/work-orders') return !!permissionWorkOrders;
             if (item.href === '/customers') return !!permissionCustomers;
             if (item.href === '/reports') return !!permissionReports;
-            if (item.href === '/financial-reports') return employeeRole === 'Owner' || employeeRole === 'Admin';
+            if (item.href === '/financial-reports') return employeeRole === 'Admin';
             if (item.href === '/settings') return !!permissionEmployees;
 
             return true;
