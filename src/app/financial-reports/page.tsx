@@ -562,7 +562,7 @@ export default function ReportsPage() {
                                                             <span className="line-clamp-2">{row.services}</span>
                                                         </td>
                                                         <td className="p-3 text-center">
-                                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${row.status === 'تم الانتهاء' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : row.status === 'قيد العمل' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                                                            <span className={`whitespace-nowrap inline-block px-2 py-1 rounded-full text-[10px] font-bold border ${row.status === 'تم الانتهاء' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : row.status === 'قيد العمل' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
                                                                 {row.status}
                                                             </span>
                                                         </td>
@@ -581,7 +581,7 @@ export default function ReportsPage() {
                                                             <p className="text-xs text-muted-foreground">{row.details}</p>
                                                         </td>
                                                         <td className="p-4 text-xs text-center">
-                                                            <span className={`px-2 py-1 flex justify-center rounded-full border ${row.status === 'تم الانتهاء' || row.status === 'مكتمل' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'bg-muted border-border text-muted-foreground'}`}>
+                                                            <span className={`whitespace-nowrap inline-flex justify-center px-2 py-1 rounded-full border ${row.status === 'تم الانتهاء' || row.status === 'مكتمل' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'bg-muted border-border text-muted-foreground'}`}>
                                                                 {row.status}
                                                             </span>
                                                         </td>
