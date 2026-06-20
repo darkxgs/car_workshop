@@ -3,19 +3,26 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
-import { FileText, Download, Calendar as CalIcon, Filter, Layers, PieChart, ShoppingCart, Wrench } from "lucide-react";
+import { FileText, Download, Calendar as CalIcon, Filter, Layers, PieChart, ShoppingCart, Wrench, BarChart2, Users, BookOpen } from "lucide-react";
 
-type ReportType = 'revenue' | 'work-orders' | 'inventory';
+type ReportType = 'revenue' | 'work-orders' | 'inventory' | 'analytics';
 
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<ReportType>('revenue');
     const [loading, setLoading] = useState(false);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [reportData, setReportData] = useState<any[]>([]);
+    
+    const [analyticsData, setAnalyticsData] = useState<{
+        totalVisits: number;
+        bookletCount: number;
+        servicesBreakdown: Record<string, number>;
+    } | null>(null);
 
     const generateReport = async (fetchWithoutDates = false) => {
         setLoading(true);
         setReportData([]);
+        setAnalyticsData(null);
 
         try {
             if (activeTab === 'revenue') {
@@ -142,6 +149,72 @@ export default function ReportsPage() {
             } else if (activeTab === 'inventory') {
                 const { data } = await supabase.from('inventory').select('item_code, name, category, quantity, purchase_price, sell_price');
                 setReportData(data || []);
+            } else if (activeTab === 'analytics') {
+                let query = supabase.from('inspection_reports').select('selected_services');
+                
+                if (!fetchWithoutDates) {
+                    if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
+                    if (dateRange.end) query = query.lte('created_at', dateRange.end + 'T23:59:59Z');
+                }
+
+                const { data } = await query;
+                if (data) {
+                    let totalVisits = data.length;
+                    let bookletCount = 0;
+                    const servicesBreakdown: Record<string, number> = {};
+
+                    const SERVICE_LABELS: Record<string, string> = {
+                        engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك',
+                        airFilter: 'فلتر الهواء', acFilter: 'فلتر التبريد',
+                        brakeFluid: 'زيت المكابح', coolant: 'ماء الراديتر',
+                        battery: 'البطارية', engineBelts: 'قايش المحرك',
+                        brakePads: 'دسكات السيارة', sparkPlugs: 'شمعات الاحتراق',
+                        gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
+                        wipers: 'مساحات زجاج', windshieldFluid: 'سائل غسيل جام',
+                        battery2: 'البطارية فحص دوري', batteryFilter: 'فلتر البطارية',
+                        engineFlash: 'فلاش المحرك', engineCeramic: 'سيراميك محرك',
+                        linerCleaner: 'منظف بطانة (جكجكة)', oilLeakPreventer: 'مانع تسريب زيت',
+                        smokePreventer: 'مانع دخان', gearboxFlash: 'فلاش كير',
+                        gearboxCeramic: 'سيراميك كير', gearboxAntiSlip: 'مانع انزلاق كير',
+                        acCleaner: 'منظف دورة تبريد', injectorCleaner: 'منظف بخاخات',
+                        fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
+                        additives: 'معالجات ومحسنات', cleaners: 'منظفات وأساسيات'
+                    };
+
+                    data.forEach(r => {
+                        const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
+                        if (!svc) return;
+
+                        // Check Booklet
+                        if (svc.booklet?.type && svc.booklet.type !== 'none' && svc.booklet.serial) {
+                            bookletCount++;
+                        }
+
+                        // Check Standard Services
+                        const services = svc.services || {};
+                        Object.entries(services).forEach(([key, v]: any) => {
+                            if (v?.status === 'تغيير' || v?.status === 'يحتاج تغيير' || v?.status === 'مضاف') {
+                                const label = SERVICE_LABELS[key] || key;
+                                servicesBreakdown[label] = (servicesBreakdown[label] || 0) + 1;
+                            }
+                        });
+
+                        // Check Custom Services
+                        const customServices = svc.customServices || [];
+                        customServices.forEach((c: any) => {
+                            if (c.label) {
+                                servicesBreakdown[c.label] = (servicesBreakdown[c.label] || 0) + 1;
+                            }
+                        });
+                    });
+
+                    // Sort breakdown by count descending
+                    const sortedBreakdown = Object.fromEntries(
+                        Object.entries(servicesBreakdown).sort(([,a], [,b]) => b - a)
+                    );
+
+                    setAnalyticsData({ totalVisits, bookletCount, servicesBreakdown: sortedBreakdown });
+                }
             }
         } catch (error) {
             console.error(error);
@@ -249,6 +322,9 @@ export default function ReportsPage() {
                                 <button onClick={() => setActiveTab('inventory')} className={`w-full text-right p-3 rounded-xl transition-colors border flex items-center gap-3 ${activeTab === 'inventory' ? 'bg-blue-600/10 border-blue-500/30 text-blue-500' : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted'}`}>
                                     <Layers size={18} /> تقييم جرد المخزون
                                 </button>
+                                <button onClick={() => setActiveTab('analytics')} className={`w-full text-right p-3 rounded-xl transition-colors border flex items-center gap-3 ${activeTab === 'analytics' ? 'bg-amber-600/10 border-amber-500/30 text-amber-500' : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted'}`}>
+                                    <BarChart2 size={18} /> الملخص التحليلي (مختصر)
+                                </button>
                             </div>
                         </div>
 
@@ -272,7 +348,7 @@ export default function ReportsPage() {
                             <button onClick={() => generateReport(false)} disabled={loading} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
                                 <Filter size={18} /> {loading ? 'جاري التوليد...' : 'توليد التقرير المحدد'}
                             </button>
-                            {activeTab !== 'inventory' && (
+                            {activeTab !== 'inventory' && activeTab !== 'analytics' && (
                                 <button onClick={() => { setDateRange({start:'', end:''}); generateReport(true); }} disabled={loading} className="w-full py-3 bg-muted border border-border hover:bg-slate-200 dark:hover:bg-slate-800 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2">
                                     إظهار تفاصيل كل التواريخ
                                 </button>
@@ -285,22 +361,73 @@ export default function ReportsPage() {
                         <div className="p-4 border-b border-border flex justify-between items-center bg-muted/50 rounded-t-2xl">
                             <h2 className="font-bold text-foreground flex items-center gap-2">
                                 <CalIcon className="text-blue-500" size={18} /> 
-                                {activeTab === 'revenue' ? 'سجل الإيرادات المكتملة الفعلي' : activeTab === 'work-orders' ? 'كافة أوامر العمل (مفتوحة ومغلقة)' : 'الأرصدة وتقييم المستودع'}
+                                {activeTab === 'revenue' ? 'سجل الإيرادات المكتملة الفعلي' : activeTab === 'work-orders' ? 'كافة أوامر العمل (مفتوحة ومغلقة)' : activeTab === 'analytics' ? 'الملخص التحليلي للأداء' : 'الأرصدة وتقييم المستودع'}
                             </h2>
-                            <button onClick={downloadExcel} disabled={reportData.length === 0} className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-lg transition-colors flex items-center gap-2 text-sm font-bold disabled:opacity-50 shadow-sm">
-                                <Download size={16} /> تصدير نسخة Excel (.xlsx)
-                            </button>
+                            {activeTab !== 'analytics' && (
+                                <button onClick={downloadExcel} disabled={reportData.length === 0} className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-lg transition-colors flex items-center gap-2 text-sm font-bold disabled:opacity-50 shadow-sm">
+                                    <Download size={16} /> تصدير نسخة Excel (.xlsx)
+                                </button>
+                            )}
                         </div>
 
                         <div className="flex-1 p-0 overflow-x-auto custom-scrollbar relative">
-                            {reportData.length === 0 && !loading && (
+                            {(reportData.length === 0 && activeTab !== 'analytics') && !loading && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground space-y-3">
                                     <FileText size={48} className="text-muted-foreground opacity-30" />
                                     <p className="font-bold">قم بتحديد الفلتر الزمني واضغط "توليد التقرير" لجلب البيانات.</p>
                                 </div>
                             )}
 
-                            {reportData.length > 0 && (
+                            {activeTab === 'analytics' ? (
+                                analyticsData ? (
+                                    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+                                        {/* Top KPIs */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                            <div className="bg-muted/30 border border-border rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
+                                                <Users size={36} className="text-blue-500 mb-2" />
+                                                <h3 className="text-muted-foreground font-bold text-sm">إجمالي زيارات العملاء</h3>
+                                                <span className="text-5xl font-black font-mono text-foreground">{analyticsData.totalVisits}</span>
+                                            </div>
+                                            <div className="bg-muted/30 border border-border rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
+                                                <BookOpen size={36} className="text-amber-500 mb-2" />
+                                                <h3 className="text-muted-foreground font-bold text-sm">عملاء لديهم دفتر صيانة</h3>
+                                                <span className="text-5xl font-black font-mono text-foreground">{analyticsData.bookletCount}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Services Breakdown */}
+                                        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                                            <div className="bg-muted/50 p-4 border-b border-border">
+                                                <h3 className="font-bold flex items-center gap-2 text-foreground">
+                                                    <Wrench size={18} className="text-emerald-500" />
+                                                    مختصر الخدمات المباعة والمضافة
+                                                </h3>
+                                            </div>
+                                            {Object.keys(analyticsData.servicesBreakdown).length === 0 ? (
+                                                <div className="p-8 text-center text-muted-foreground">لا توجد خدمات مباعة في هذه الفترة</div>
+                                            ) : (
+                                                <div className="divide-y divide-border">
+                                                    {Object.entries(analyticsData.servicesBreakdown).map(([serviceName, count]) => (
+                                                        <div key={serviceName} className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors">
+                                                            <span className="font-medium text-foreground">{serviceName}</span>
+                                                            <span className="font-mono font-bold bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/20">
+                                                                {count} <span className="text-xs font-sans font-normal ml-1">مرة</span>
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    !loading && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground space-y-3">
+                                            <BarChart2 size={48} className="text-muted-foreground opacity-30" />
+                                            <p className="font-bold">قم بتحديد الفلتر الزمني واضغط "توليد التقرير" لجلب الملخص التحليلي.</p>
+                                        </div>
+                                    )
+                                )
+                            ) : reportData.length > 0 && (
                                 <table className="w-full text-right border-collapse text-sm">
                                     <thead className="bg-muted sticky top-0 border-b border-border z-10">
                                         <tr>
