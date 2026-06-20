@@ -307,13 +307,13 @@ export default function ReportsPage() {
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-8 print:p-0 font-ibm print:bg-white" dir="rtl">
+        <div className="min-h-screen p-4 md:p-8 print:p-0 font-ibm print:bg-white" dir="rtl">
             <div className="max-w-7xl mx-auto space-y-8 print:space-y-0 animate-fade-in print:block">
                 
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 print:hidden">
                     <div>
-                        <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
+                        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
                             <PieChart className="text-blue-500" size={32} />
                             التقارير المالية والإحصائيات
                         </h1>
@@ -407,18 +407,18 @@ export default function ReportsPage() {
                                             <div className="bg-muted/30 print:bg-gray-50 border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
                                                 <Users size={36} className="text-blue-500 mb-2" />
                                                 <h3 className="text-muted-foreground print:text-gray-600 font-bold text-sm">إجمالي زيارات العملاء</h3>
-                                                <span className="text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.totalVisits}</span>
+                                                <span className="text-4xl md:text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.totalVisits}</span>
                                             </div>
                                             <div className="bg-muted/30 print:bg-gray-50 border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
                                                 <BookOpen size={36} className="text-amber-500 mb-2" />
                                                 <h3 className="text-muted-foreground print:text-gray-600 font-bold text-sm">عملاء لديهم دفتر صيانة</h3>
-                                                <span className="text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.bookletCount}</span>
+                                                <span className="text-4xl md:text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.bookletCount}</span>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[450px]">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                             {/* Daily Visits Chart */}
-                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col shadow-sm">
+                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-4 md:p-6 flex flex-col shadow-sm min-h-[350px] lg:min-h-[400px]">
                                                 <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black mb-6">
                                                     <BarChart2 size={18} className="text-blue-500" />
                                                     معدل الزيارات اليومي
@@ -437,7 +437,7 @@ export default function ReportsPage() {
                                             </div>
 
                                             {/* Services Pie Chart */}
-                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col shadow-sm">
+                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-4 md:p-6 flex flex-col shadow-sm min-h-[350px] lg:min-h-[400px]">
                                                 <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black mb-6">
                                                     <PieChart size={18} className="text-amber-500" />
                                                     الخدمات الأكثر مبيعاً
@@ -449,8 +449,8 @@ export default function ReportsPage() {
                                                                 data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 5)}
                                                                 cx="50%"
                                                                 cy="50%"
-                                                                innerRadius={60}
-                                                                outerRadius={110}
+                                                                innerRadius="50%"
+                                                                outerRadius="80%"
                                                                 paddingAngle={3}
                                                                 dataKey="value"
                                                             >
