@@ -416,7 +416,7 @@ export default function ReportsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[400px]">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[450px]">
                                             {/* Daily Visits Chart */}
                                             <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col shadow-sm">
                                                 <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black mb-6">
@@ -425,7 +425,7 @@ export default function ReportsPage() {
                                                 </h3>
                                                 <div className="flex-1 w-full min-h-0">
                                                     <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={analyticsData.dailyVisits} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                        <BarChart data={analyticsData.dailyVisits} margin={{ top: 30, right: 30, left: 30, bottom: 10 }}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                                                             <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                                             <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
@@ -444,13 +444,13 @@ export default function ReportsPage() {
                                                 </h3>
                                                 <div className="flex-1 w-full min-h-0">
                                                     <ResponsiveContainer width="100%" height="100%">
-                                                        <RechartsPieChart>
+                                                        <RechartsPieChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
                                                             <Pie
                                                                 data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 8)}
                                                                 cx="50%"
                                                                 cy="50%"
-                                                                innerRadius={50}
-                                                                outerRadius={80}
+                                                                innerRadius={45}
+                                                                outerRadius={75}
                                                                 paddingAngle={2}
                                                                 dataKey="value"
                                                                 label={({name, percent}) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
