@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Bell, AlertTriangle, ShieldAlert, CheckCircle, PackageOpen, Wrench, Clock, RefreshCw } from "lucide-react";
+import { Bell, CheckCircle, PackageOpen, Wrench, Clock, RefreshCw } from "lucide-react";
 
 type Alert = {
     id: string;
@@ -24,7 +24,7 @@ export default function AlertsPage() {
 
     const generateAlerts = async () => {
         setLoading(true);
-        let sysAlerts: Alert[] = [];
+        const sysAlerts: Alert[] = [];
 
         // 1. Check Inventory
         const { data: lowStock } = await supabase.from('inventory').select('name, quantity, min_quantity').lt('quantity', 10);

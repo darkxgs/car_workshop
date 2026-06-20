@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { Settings, Users, Building2, MapPin, Save, MessageCircle, Plus, Loader2, X, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
-import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount, getAuthEmails } from "@/app/actions/admin";
+import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount } from "@/app/actions/admin";
 import { UserRole } from "@/lib/types";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 

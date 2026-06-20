@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
-    User, Phone, Mail, Car, ArrowRight, Calendar, Clock,
+    Phone, Car, ArrowRight, Calendar, Clock,
     Wrench, Hash, AlertTriangle, CheckCircle2, ClipboardList,
-    TrendingUp, Star, Activity, FileText
+    TrendingUp, Activity, FileText
 } from "lucide-react";
 import Link from "next/link";
 

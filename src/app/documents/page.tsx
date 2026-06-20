@@ -134,7 +134,7 @@ export default function DocumentsPage() {
                 // Open file in new tab or trigger download
                 window.open(data.signedUrl, '_blank');
             }
-        } catch (error) {
+        } catch {
             showError("خطأ", "خطأ في تحميل المستند، قد يكون محذوفاً من السيرفر.");
         }
     };

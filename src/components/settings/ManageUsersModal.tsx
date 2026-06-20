@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { Loader2, Trash2, Shield, User, X } from "lucide-react";
+import { Loader2, Trash2, Shield, User } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
+import { listAppUsers, deleteEmployeeAccount } from "@/app/actions/admin";
 
 interface ManageUsersModalProps {
     isOpen: boolean;
@@ -27,9 +28,8 @@ export function ManageUsersModal({ isOpen, onClose }: ManageUsersModalProps) {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const res = await fetch("/api/users");
-            const data = await res.json();
-            if (data.users) {
+            const data = await listAppUsers();
+            if (data.success) {
                 setUsers(data.users);
             }
         } catch (error) {
@@ -50,14 +50,12 @@ export function ManageUsersModal({ isOpen, onClose }: ManageUsersModalProps) {
 
         setDeleting(user.id);
         try {
-            const res = await fetch(`/api/users?id=${user.id}&employee_id=${user.employee_id || ''}`, {
-                method: 'DELETE'
-            });
-            
-            if (res.ok) {
+            const res = await deleteEmployeeAccount(user.id);
+
+            if (res.success) {
                 setUsers(users.filter(u => u.id !== user.id));
             } else {
-                alert("Failed to delete user");
+                alert(res.error || "Failed to delete user");
             }
         } catch (error) {
             console.error("Delete Error:", error);

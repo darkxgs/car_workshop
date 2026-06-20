@@ -106,7 +106,7 @@ export default function KanbanStatusPage() {
         setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
         // Db Update
-        let updateData: any = { status: newStatus };
+        const updateData: any = { status: newStatus };
         
         // If moved to "تم الانتهاء", log completed_at
         if (newStatus === 'تم الانتهاء') {

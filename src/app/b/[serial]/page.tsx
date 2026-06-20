@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { 
-    Car, Calendar, MapPin, User, ShieldCheck, 
-    ChevronDown, ChevronUp, AlertCircle, Wrench, 
-    Droplets, Info, CheckCircle2, Eye, Activity, Gauge
+import {
+    Car, MapPin, User, ShieldCheck,
+    AlertCircle, Wrench,
+    Droplets, CheckCircle2, Activity, Gauge
 } from "lucide-react";
 import Link from "next/link";
 
@@ -121,17 +121,17 @@ export default function PublicBookletPage() {
         setLoading(true);
         setError(null);
         try {
-            // 1. Fetch vehicle by booklet_serial
-            const { data: vData, error: vErr } = await (supabase
-                .from("vehicles")
-                .select(`
-                    id, make, model, plate_number, engine_size, booklet_serial,
-                    clients (id, name, phone)
-                `)
-                .eq("booklet_serial", serial)
-                .maybeSingle() as any);
+            // Anonymous-safe lookup. A SECURITY DEFINER database function returns
+            // ONLY this one vehicle + its reports for the given serial, so no table
+            // is exposed to the anon role (RLS keeps every table closed otherwise).
+            const { data, error: rpcErr } = await (supabase.rpc as any)(
+                "get_public_booklet",
+                { p_serial: serial }
+            );
 
-            if (vErr) throw vErr;
+            if (rpcErr) throw rpcErr;
+
+            const vData = data?.vehicle;
             if (!vData) {
                 setError("رقم الدفتر غير مسجل في النظام. يرجى التحقق من الرقم المطبوع أو رمز QR.");
                 setLoading(false);
@@ -145,24 +145,11 @@ export default function PublicBookletPage() {
                 plate_number: vData.plate_number,
                 engine_size: vData.engine_size,
                 booklet_serial: vData.booklet_serial,
-                clients: Array.isArray(vData.clients) ? vData.clients[0] : vData.clients
+                clients: vData.clients ?? null
             };
 
             setVehicle(mappedVehicle);
-
-            // 2. Fetch completed inspection reports (visits)
-            const { data: rData, error: rErr } = await (supabase
-                .from("inspection_reports")
-                .select(`
-                    id, report_number, status, total_price, selected_services, odometer_reading, created_at,
-                    branches (name),
-                    receptionist:receptionist_id (name)
-                `)
-                .eq("vehicle_id", mappedVehicle.id)
-                .order("created_at", { ascending: false }) as any);
-
-            if (rErr) throw rErr;
-            setReports(rData || []);
+            setReports(data?.reports || []);
 
 
         } catch (e: any) {
@@ -240,22 +227,22 @@ export default function PublicBookletPage() {
     const latestOdometer = reports.length > 0 ? Math.max(...reports.map(r => r.odometer_reading || 0)) : 0;
 
     return (
-        <div className="min-h-screen bg-[#07070a] text-foreground font-ibm pb-16" dir="rtl">
+        <div className="relative min-h-screen bg-[#07070a] text-foreground font-ibm pb-16 overflow-x-hidden" dir="rtl">
             {isEmployee && (
-                <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-4 py-3 flex flex-wrap items-center justify-between gap-4 font-bold text-sm shadow-md border-b border-amber-500/30 sticky top-0 z-[20]">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 font-bold text-sm shadow-md border-b border-amber-500/30 sticky top-0 z-[20]">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
                         <span>وضع الإدارة - مرحباً بك يا {employeeName || "زميلنا"} 👋</span>
                         <span className="text-[11px] text-amber-200 bg-amber-800/40 px-2 py-0.5 rounded border border-amber-700/20 font-medium">تتصفح الدفتر الرقمي للزبون</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Link 
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link
                             href={`/reception?search=${serial}`}
                             className="bg-white text-amber-700 hover:bg-amber-50 px-3.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold"
                         >
                             <Wrench size={14} /> استقبال صيانة جديدة
                         </Link>
-                        <Link 
+                        <Link
                             href={`/customers?search=${serial}`}
                             className="bg-amber-900/40 hover:bg-amber-900/60 border border-amber-800 text-white px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold"
                         >

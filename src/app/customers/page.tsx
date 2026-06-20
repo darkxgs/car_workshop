@@ -5,8 +5,8 @@ import { useAuth } from "@/lib/AuthProvider";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
-    Users, User, Search, Download, Plus, MapPin, Phone, 
-    Mail, Car, FileText, ChevronLeft, ChevronRight, ShieldAlert,
+    Users, User, Search, Download, Plus, MapPin, Phone,
+    Car, FileText, ChevronLeft, ChevronRight, ShieldAlert,
     Trash2, Edit2, FolderOpen, Calendar, Save, X, Wrench, Loader2,
     CheckCircle2, ShieldCheck, Droplets, Gauge, RefreshCcw
 } from "lucide-react";
@@ -33,26 +33,10 @@ export default function CustomersPage() {
     const router = useRouter();
     const { employeeRole, employeeBranchId, permissionCustomers, loading: authLoading } = useAuth();
     const isOwnerOrAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
+    // Hooks must run unconditionally on every render (Rules of Hooks). The access
+    // guards that early-return live below, after all hooks/handlers are declared.
+    const isAuthorized = employeeRole === 'Owner' || permissionCustomers;
 
-    if (authLoading) {
-        return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
-                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
-            </div>
-        );
-    }
-
-    if (employeeRole !== 'Owner' && !permissionCustomers) {
-        return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
-                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
-                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
-                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى سجل العملاء والمركبات.</p>
-                </div>
-            </div>
-        );
-    }
-    
     const [clients, setClients] = useState<ClientWithVehicles[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -104,8 +88,9 @@ export default function CustomersPage() {
     }, [branchFilter, dateFrom, dateTo]);
 
     useEffect(() => {
+        if (authLoading || !isAuthorized) return;
         fetchClients();
-    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, currentPage, employeeBranchId, employeeRole]);
+    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized]);
 
     const fetchBranches = async () => {
         const { data } = await supabase.from('branches').select('id, name');
@@ -211,9 +196,9 @@ export default function CustomersPage() {
             if (data) {
                 setTotalCount(count || 0);
                 const mapped = data.map((c: any) => {
-                    let allReports: any[] = [];
-                    let branchIdSet = new Set<string>();
-                    let branchNameSet = new Set<string>();
+                    const allReports: any[] = [];
+                    const branchIdSet = new Set<string>();
+                    const branchNameSet = new Set<string>();
 
                     c.vehicles?.forEach((v: any) => {
                         v.inspection_reports?.forEach((r: any) => {
@@ -484,7 +469,7 @@ export default function CustomersPage() {
                 .map(([k, v]) => {
                     const label = SERVICE_LABELS[k] || k;
                     const det = v?.details || {};
-                    let parts = [];
+                    const parts = [];
                     if (k === 'additives' || k === 'cleaners') {
                         for (let i = 0; i < 10; i++) {
                             if (det[`prod_${i}`]) {
@@ -652,10 +637,30 @@ export default function CustomersPage() {
         }
     };
 
+    // Access guards (placed after all hooks so the Rules of Hooks are respected).
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+                <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
+            </div>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+                <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
+                    <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى سجل العملاء والمركبات.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
             <div className="max-w-[1400px] mx-auto space-y-8 animate-fade-in">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
@@ -742,7 +747,7 @@ export default function CustomersPage() {
 
                 {/* Main Table */}
                 <div className="glass-card rounded-2xl border-border overflow-hidden">
-                    <div className="overflow-x-auto custom-scrollbar">
+                    <div className="overflow-x-auto custom-scrollbar hidden md:block">
                         <table className="w-full text-right border-collapse">
                             <thead>
                                 <tr className="bg-card border-b border-border">
@@ -830,6 +835,63 @@ export default function CustomersPage() {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Mobile card list (replaces the wide table on phones) */}
+                    <div className="md:hidden divide-y divide-border">
+                        {loading && (
+                            <div className="p-12 text-center text-muted-foreground">جاري تحميل البيانات...</div>
+                        )}
+                        {!loading && filteredClients.length === 0 && (
+                            <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-3">
+                                <ShieldAlert size={40} className="text-slate-700" />
+                                لا يوجد عملاء يطابقون الفلاتر.
+                            </div>
+                        )}
+                        {!loading && filteredClients.map((client) => (
+                            <div
+                                key={client.id}
+                                onClick={() => openProfile(client)}
+                                className="p-4 active:bg-muted/40 transition-colors cursor-pointer"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-rose-400 font-bold text-lg shrink-0">
+                                            {client.name.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <span className="font-bold text-foreground text-base block truncate">{client.name}</span>
+                                            <span className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
+                                                <Phone size={12} className="shrink-0" /> <span dir="ltr">{client.phone}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span className={`inline-flex shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                        client.latestStatus === "مكتمل" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                        client.latestStatus === "قيد العمل" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                        "bg-muted text-muted-foreground border-border"
+                                    }`}>
+                                        {client.latestStatus}
+                                    </span>
+                                </div>
+
+                                {client.vehicles && client.vehicles.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {client.vehicles.map((v, i) => (
+                                            <div key={i} className="flex items-center gap-2 px-2.5 py-1 bg-background border border-border rounded-lg text-xs font-medium">
+                                                <Car size={13} className="text-blue-500 shrink-0" />
+                                                <span>{v.make} {v.model}</span>
+                                                <span className="text-[10px] text-muted-foreground font-mono px-1.5 py-0.5 bg-muted rounded">{v.plate_number}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="mt-3 flex items-center gap-1.5 text-rose-400 text-xs font-bold">
+                                    <FolderOpen size={14} /> عرض الملف الشامل
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Pagination Controls */}

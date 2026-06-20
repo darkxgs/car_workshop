@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Activity, FileText, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Activity, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -56,7 +56,7 @@ export default function AccountingPage() {
                 .from('inventory')
                 .select('name, quantity, purchase_price');
 
-            let fakeLedger: Transaction[] = [];
+            const fakeLedger: Transaction[] = [];
             let rev = 0;
             let pendingRev = 0;
             let exp = 0;

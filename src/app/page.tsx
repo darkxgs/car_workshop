@@ -3,9 +3,9 @@
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import {
-    Wrench, Car, Play, CheckCircle2, DollarSign, Activity, FileText,
-    Search, Bell, Settings, Calendar, Plus, User, LayoutDashboard,
-    Package, ShoppingCart, TrendingUp, AlertTriangle, Clock, Wallet, Database, ArrowLeft, Loader2
+    Wrench, Car, CheckCircle2, Activity, FileText,
+    Search, Bell, Settings, Calendar, Plus, User,
+    TrendingUp, Clock, Loader2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -179,6 +179,30 @@ export default function Home() {
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('en-US').format(val);
+    };
+
+    // Compact axis labels: 1500000 -> "1.5M", 25000 -> "25k"
+    const formatAxis = (val: number) => {
+        if (Math.abs(val) >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+        if (Math.abs(val) >= 1_000) return `${Math.round(val / 1_000)}k`;
+        return `${val}`;
+    };
+
+    // Readable Arabic tooltip for the dashboard performance chart
+    const ChartTooltip = ({ active, payload, label }: any) => {
+        if (!active || !payload || !payload.length) return null;
+        return (
+            <div dir="rtl" style={{ background: 'rgba(15,23,42,0.92)', border: '1px solid #333', borderRadius: '12px', padding: '10px 14px', backdropFilter: 'blur(10px)' }}>
+                <p style={{ color: '#e2e8f0', fontWeight: 700, marginBottom: 6, fontSize: 13 }}>{label}</p>
+                {payload.map((e: any, i: number) => (
+                    <p key={i} style={{ color: e.color, fontSize: 12, margin: 0 }}>
+                        {e.dataKey === 'revenue'
+                            ? `الإيرادات: ${formatCurrency(e.value)} د.ع`
+                            : `أوامر الصيانة: ${e.value}`}
+                    </p>
+                ))}
+            </div>
+        );
     };
 
     if (authLoading) {
@@ -357,12 +381,9 @@ export default function Home() {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
                                     <XAxis dataKey="name" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis yAxisId="left" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
-                                    <YAxis yAxisId="right" orientation="right" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: '#333', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
-                                        itemStyle={{ color: '#fff' }}
-                                    />
+                                    <YAxis yAxisId="left" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={formatAxis} />
+                                    <YAxis yAxisId="right" orientation="right" stroke="#666" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(16,185,129,0.25)', strokeWidth: 1 }} />
                                     <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" activeDot={{ r: 6, strokeWidth: 2, stroke: '#10b981', fill: '#0f172a' }} />
                                     <Area yAxisId="right" type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" activeDot={{ r: 6, strokeWidth: 2, stroke: '#3b82f6', fill: '#0f172a' }} />
                                 </AreaChart>

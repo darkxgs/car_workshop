@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { DollarSign, Clock, Calendar, CheckCircle, Search, AlertCircle, Save, Edit2, X, TrendingUp } from "lucide-react";
+import { DollarSign, CheckCircle, AlertCircle, Save, Edit2, X, TrendingUp } from "lucide-react";
 import { showError, showSuccess } from "@/lib/alerts";
 import { useAuth } from "@/lib/AuthProvider";
 
@@ -75,7 +75,7 @@ export default function PayrollPage() {
 
                 setRecords(merged);
             }
-        } catch (error) {
+        } catch {
             showError("خطأ", "حدث خطأ أثناء تحميل بيانات الرواتب.");
         } finally {
             setLoading(false);

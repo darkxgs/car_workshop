@@ -8,9 +8,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
     LayoutDashboard,
-    Car,
     Wrench,
-    PackageOpen,
     FileText,
     Settings,
     ChevronLeft,
@@ -19,26 +17,9 @@ import {
     X,
     Building2,
     LogOut,
-    Activity,
-    Database,
-    Wallet,
     Users,
     ClipboardList,
-    Hammer,
-    Clock,
-    History,
-    Truck,
-    ShoppingCart,
-    TrendingUp,
-    CreditCard,
-    UserCircle,
-    CalendarDays,
-    ShieldCheck,
-    PieChart,
-    Bell,
-    FolderOpen,
     FileSpreadsheet,
-    MessageSquare,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";

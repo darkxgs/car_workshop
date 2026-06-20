@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Building2, KeyRound, User, Loader2, AlertCircle } from "lucide-react";
+import { KeyRound, User, Loader2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
