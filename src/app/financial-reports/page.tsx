@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
-import { FileText, Download, Calendar as CalIcon, Filter, Layers, PieChart, ShoppingCart, Wrench, BarChart2, Users, BookOpen } from "lucide-react";
+import { FileText, Download, Calendar as CalIcon, Filter, Layers, PieChart, ShoppingCart, Wrench, BarChart2, Users, BookOpen, Printer } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid } from "recharts";
 
 type ReportType = 'revenue' | 'work-orders' | 'inventory' | 'analytics';
 
@@ -17,7 +18,10 @@ export default function ReportsPage() {
         totalVisits: number;
         bookletCount: number;
         servicesBreakdown: Record<string, number>;
+        dailyVisits: { date: string, count: number }[];
     } | null>(null);
+
+    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1'];
 
     const generateReport = async (fetchWithoutDates = false) => {
         setLoading(true);
@@ -150,7 +154,7 @@ export default function ReportsPage() {
                 const { data } = await supabase.from('inventory').select('item_code, name, category, quantity, purchase_price, sell_price');
                 setReportData(data || []);
             } else if (activeTab === 'analytics') {
-                let query = supabase.from('inspection_reports').select('selected_services');
+                let query = supabase.from('inspection_reports').select('created_at, selected_services');
                 
                 if (!fetchWithoutDates) {
                     if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
@@ -162,6 +166,7 @@ export default function ReportsPage() {
                     let totalVisits = data.length;
                     let bookletCount = 0;
                     const servicesBreakdown: Record<string, number> = {};
+                    const visitsMap: Record<string, number> = {};
 
                     const SERVICE_LABELS: Record<string, string> = {
                         engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك',
@@ -182,6 +187,11 @@ export default function ReportsPage() {
                     };
 
                     data.forEach(r => {
+                        // Track daily visits
+                        const dateObj = new Date(r.created_at);
+                        const dateStr = dateObj.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+                        visitsMap[dateStr] = (visitsMap[dateStr] || 0) + 1;
+
                         const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
                         if (!svc) return;
 
@@ -213,7 +223,13 @@ export default function ReportsPage() {
                         Object.entries(servicesBreakdown).sort(([,a], [,b]) => b - a)
                     );
 
-                    setAnalyticsData({ totalVisits, bookletCount, servicesBreakdown: sortedBreakdown });
+                    // Format Daily Visits for chart (maintain chronological order if possible, but they are from map so we sort by actual date by recreating or just taking as is since we don't have year in key. For simplicity, since data is already sorted by created_at desc from supabase if we ordered it, but we didn't order. Let's order by the original r.created_at chronological)
+                    // We'll just build it from sorted data
+                    const dailyVisitsArr = Object.entries(visitsMap).map(([date, count]) => ({ date, count }));
+                    // simple reverse since data was likely ordered desc
+                    dailyVisitsArr.reverse();
+
+                    setAnalyticsData({ totalVisits, bookletCount, servicesBreakdown: sortedBreakdown, dailyVisits: dailyVisitsArr });
                 }
             }
         } catch (error) {
@@ -363,14 +379,19 @@ export default function ReportsPage() {
                                 <CalIcon className="text-blue-500" size={18} /> 
                                 {activeTab === 'revenue' ? 'سجل الإيرادات المكتملة الفعلي' : activeTab === 'work-orders' ? 'كافة أوامر العمل (مفتوحة ومغلقة)' : activeTab === 'analytics' ? 'الملخص التحليلي للأداء' : 'الأرصدة وتقييم المستودع'}
                             </h2>
+                            {activeTab === 'analytics' && (
+                                <button onClick={() => window.print()} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-bold shadow-sm print:hidden">
+                                    <Printer size={16} /> طباعة الملخص (PDF)
+                                </button>
+                            )}
                             {activeTab !== 'analytics' && (
-                                <button onClick={downloadExcel} disabled={reportData.length === 0} className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-lg transition-colors flex items-center gap-2 text-sm font-bold disabled:opacity-50 shadow-sm">
+                                <button onClick={downloadExcel} disabled={reportData.length === 0} className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-lg transition-colors flex items-center gap-2 text-sm font-bold disabled:opacity-50 shadow-sm print:hidden">
                                     <Download size={16} /> تصدير نسخة Excel (.xlsx)
                                 </button>
                             )}
                         </div>
 
-                        <div className="flex-1 p-0 overflow-x-auto custom-scrollbar relative">
+                        <div className="flex-1 p-0 overflow-x-auto custom-scrollbar relative print:overflow-visible print:bg-white print:text-black print:p-4">
                             {(reportData.length === 0 && activeTab !== 'analytics') && !loading && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground space-y-3">
                                     <FileText size={48} className="text-muted-foreground opacity-30" />
@@ -380,37 +401,88 @@ export default function ReportsPage() {
 
                             {activeTab === 'analytics' ? (
                                 analyticsData ? (
-                                    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+                                    <div className="p-6 space-y-8 max-w-5xl mx-auto w-full">
                                         {/* Top KPIs */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                            <div className="bg-muted/30 border border-border rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
+                                            <div className="bg-muted/30 print:bg-gray-50 border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
                                                 <Users size={36} className="text-blue-500 mb-2" />
-                                                <h3 className="text-muted-foreground font-bold text-sm">إجمالي زيارات العملاء</h3>
-                                                <span className="text-5xl font-black font-mono text-foreground">{analyticsData.totalVisits}</span>
+                                                <h3 className="text-muted-foreground print:text-gray-600 font-bold text-sm">إجمالي زيارات العملاء</h3>
+                                                <span className="text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.totalVisits}</span>
                                             </div>
-                                            <div className="bg-muted/30 border border-border rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
+                                            <div className="bg-muted/30 print:bg-gray-50 border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-2 shadow-sm">
                                                 <BookOpen size={36} className="text-amber-500 mb-2" />
-                                                <h3 className="text-muted-foreground font-bold text-sm">عملاء لديهم دفتر صيانة</h3>
-                                                <span className="text-5xl font-black font-mono text-foreground">{analyticsData.bookletCount}</span>
+                                                <h3 className="text-muted-foreground print:text-gray-600 font-bold text-sm">عملاء لديهم دفتر صيانة</h3>
+                                                <span className="text-5xl font-black font-mono text-foreground print:text-black">{analyticsData.bookletCount}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[400px]">
+                                            {/* Daily Visits Chart */}
+                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col shadow-sm">
+                                                <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black mb-6">
+                                                    <BarChart2 size={18} className="text-blue-500" />
+                                                    معدل الزيارات اليومي
+                                                </h3>
+                                                <div className="flex-1 w-full min-h-0">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={analyticsData.dailyVisits}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                                                            <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                                                            <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px'}} itemStyle={{color: '#fff'}} />
+                                                            <Bar dataKey="count" name="عدد الزيارات" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </div>
+
+                                            {/* Services Pie Chart */}
+                                            <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl p-6 flex flex-col shadow-sm">
+                                                <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black mb-6">
+                                                    <PieChart size={18} className="text-amber-500" />
+                                                    الخدمات الأكثر مبيعاً
+                                                </h3>
+                                                <div className="flex-1 w-full min-h-0">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <RechartsPieChart>
+                                                            <Pie
+                                                                data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 8)}
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius={60}
+                                                                outerRadius={100}
+                                                                paddingAngle={2}
+                                                                dataKey="value"
+                                                                label={({name, percent}) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                                                                labelLine={false}
+                                                            >
+                                                                {Object.entries(analyticsData.servicesBreakdown).slice(0, 8).map((entry, index) => (
+                                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                                ))}
+                                                            </Pie>
+                                                            <Tooltip contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px'}} itemStyle={{color: '#fff'}} />
+                                                        </RechartsPieChart>
+                                                    </ResponsiveContainer>
+                                                </div>
                                             </div>
                                         </div>
                                         
-                                        {/* Services Breakdown */}
-                                        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-                                            <div className="bg-muted/50 p-4 border-b border-border">
-                                                <h3 className="font-bold flex items-center gap-2 text-foreground">
+                                        {/* Services Breakdown Table */}
+                                        <div className="bg-card print:bg-white border border-border print:border-gray-300 rounded-2xl overflow-hidden shadow-sm">
+                                            <div className="bg-muted/50 print:bg-gray-100 p-4 border-b border-border print:border-gray-300">
+                                                <h3 className="font-bold flex items-center gap-2 text-foreground print:text-black">
                                                     <Wrench size={18} className="text-emerald-500" />
-                                                    مختصر الخدمات المباعة والمضافة
+                                                    تفاصيل الخدمات المباعة والمضافة
                                                 </h3>
                                             </div>
                                             {Object.keys(analyticsData.servicesBreakdown).length === 0 ? (
-                                                <div className="p-8 text-center text-muted-foreground">لا توجد خدمات مباعة في هذه الفترة</div>
+                                                <div className="p-8 text-center text-muted-foreground print:text-gray-500">لا توجد خدمات مباعة في هذه الفترة</div>
                                             ) : (
-                                                <div className="divide-y divide-border">
+                                                <div className="divide-y divide-border print:divide-gray-200">
                                                     {Object.entries(analyticsData.servicesBreakdown).map(([serviceName, count]) => (
                                                         <div key={serviceName} className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors">
-                                                            <span className="font-medium text-foreground">{serviceName}</span>
-                                                            <span className="font-mono font-bold bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/20">
+                                                            <span className="font-medium text-foreground print:text-black">{serviceName}</span>
+                                                            <span className="font-mono font-bold bg-emerald-500/10 print:bg-emerald-100 text-emerald-500 print:text-emerald-700 px-3 py-1 rounded-full border border-emerald-500/20 print:border-emerald-200">
                                                                 {count} <span className="text-xs font-sans font-normal ml-1">مرة</span>
                                                             </span>
                                                         </div>
