@@ -425,12 +425,12 @@ export default function ReportsPage() {
                                                 </h3>
                                                 <div className="flex-1 w-full min-h-0">
                                                     <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={analyticsData.dailyVisits} margin={{ top: 30, right: 30, left: 30, bottom: 10 }}>
+                                                        <BarChart data={analyticsData.dailyVisits} margin={{ top: 20, right: 10, left: -20, bottom: 20 }}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                                                            <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                                                            <XAxis dataKey="date" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} angle={-35} textAnchor="end" height={60} minTickGap={10} tickMargin={15} />
+                                                            <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                                                             <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px', textAlign: 'right'}} itemStyle={{color: '#fff', textAlign: 'right'}} />
-                                                            <Bar dataKey="count" name="عدد الزيارات" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                                                            <Bar dataKey="count" name="عدد الزيارات" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                                                         </BarChart>
                                                     </ResponsiveContainer>
                                                 </div>
