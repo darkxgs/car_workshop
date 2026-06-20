@@ -307,11 +307,11 @@ export default function ReportsPage() {
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
-            <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+        <div className="min-h-screen p-6 md:p-8 print:p-0 font-ibm print:bg-white" dir="rtl">
+            <div className="max-w-7xl mx-auto space-y-8 print:space-y-0 animate-fade-in print:block">
                 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 print:hidden">
                     <div>
                         <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
                             <PieChart className="text-blue-500" size={32} />
@@ -323,9 +323,9 @@ export default function ReportsPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
                     {/* Sidebar Configuration */}
-                    <div className="glass-card p-6 rounded-2xl border-border h-fit space-y-6">
+                    <div className="glass-card p-6 rounded-2xl border-border h-fit space-y-6 print:hidden">
                         <div>
                             <label className="text-sm font-bold text-muted-foreground mb-3 block">نوع التقرير</label>
                             <div className="space-y-2">
@@ -425,11 +425,11 @@ export default function ReportsPage() {
                                                 </h3>
                                                 <div className="flex-1 w-full min-h-0">
                                                     <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={analyticsData.dailyVisits}>
+                                                        <BarChart data={analyticsData.dailyVisits} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                                                             <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                                             <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                                                            <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px'}} itemStyle={{color: '#fff'}} />
+                                                            <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px', textAlign: 'right'}} itemStyle={{color: '#fff', textAlign: 'right'}} />
                                                             <Bar dataKey="count" name="عدد الزيارات" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
                                                         </BarChart>
                                                     </ResponsiveContainer>
@@ -449,18 +449,18 @@ export default function ReportsPage() {
                                                                 data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 8)}
                                                                 cx="50%"
                                                                 cy="50%"
-                                                                innerRadius={60}
-                                                                outerRadius={100}
+                                                                innerRadius={50}
+                                                                outerRadius={80}
                                                                 paddingAngle={2}
                                                                 dataKey="value"
                                                                 label={({name, percent}) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
-                                                                labelLine={false}
+                                                                labelLine={true}
                                                             >
                                                                 {Object.entries(analyticsData.servicesBreakdown).slice(0, 8).map((entry, index) => (
                                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                                 ))}
                                                             </Pie>
-                                                            <Tooltip contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px'}} itemStyle={{color: '#fff'}} />
+                                                            <Tooltip contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px', textAlign: 'right'}} itemStyle={{color: '#fff', textAlign: 'right'}} />
                                                         </RechartsPieChart>
                                                     </ResponsiveContainer>
                                                 </div>
