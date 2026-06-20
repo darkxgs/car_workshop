@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { FileText, Download, Calendar as CalIcon, Filter, Layers, PieChart, ShoppingCart, Wrench, BarChart2, Users, BookOpen, Printer } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid, Legend } from "recharts";
 
 type ReportType = 'revenue' | 'work-orders' | 'inventory' | 'analytics';
 
@@ -444,21 +444,22 @@ export default function ReportsPage() {
                                                 </h3>
                                                 <div className="flex-1 w-full min-h-0">
                                                     <ResponsiveContainer width="100%" height="100%">
-                                                        <RechartsPieChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
+                                                        <RechartsPieChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
                                                             <Pie
-                                                                data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 8)}
+                                                                data={Object.entries(analyticsData.servicesBreakdown).map(([name, value]) => ({ name, value })).slice(0, 5)}
                                                                 cx="50%"
                                                                 cy="50%"
-                                                                innerRadius={45}
-                                                                outerRadius={75}
-                                                                paddingAngle={2}
+                                                                innerRadius={60}
+                                                                outerRadius={110}
+                                                                paddingAngle={3}
                                                                 dataKey="value"
                                                             >
-                                                                {Object.entries(analyticsData.servicesBreakdown).slice(0, 8).map((entry, index) => (
+                                                                {Object.entries(analyticsData.servicesBreakdown).slice(0, 5).map((entry, index) => (
                                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                                 ))}
                                                             </Pie>
                                                             <Tooltip contentStyle={{backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', borderRadius: '8px', textAlign: 'right'}} itemStyle={{color: '#fff', textAlign: 'right'}} />
+                                                            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '12px', marginTop: '20px' }} />
                                                         </RechartsPieChart>
                                                     </ResponsiveContainer>
                                                 </div>
