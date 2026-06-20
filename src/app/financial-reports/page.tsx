@@ -453,8 +453,6 @@ export default function ReportsPage() {
                                                                 outerRadius={75}
                                                                 paddingAngle={2}
                                                                 dataKey="value"
-                                                                label={({name, percent}) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
-                                                                labelLine={true}
                                                             >
                                                                 {Object.entries(analyticsData.servicesBreakdown).slice(0, 8).map((entry, index) => (
                                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
