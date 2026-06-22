@@ -10,6 +10,7 @@ import {
     CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, X
 } from "lucide-react";
 import { showSuccess } from "@/lib/alerts";
+import { withCommas, digitsOnly } from "@/lib/format";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 type Step = 1 | 2 | 3;
@@ -362,6 +363,7 @@ export default function SectorReception({
     const [model, setModel] = useState("");
     const [engineSize, setEngineSize] = useState("");
     const [odometer, setOdometer] = useState("");
+    const [odometerUnit, setOdometerUnit] = useState<'km' | 'mi'>('km');
     const [plateNumber, setPlateNumber] = useState("");
 
     // ---------- STEP 2: Services ----------
@@ -447,7 +449,7 @@ export default function SectorReception({
         if (!editId) return;
         const loadReport = async () => {
             const { data } = await supabase.from('inspection_reports')
-                .select(`id, status, notes, total_price, odometer_reading, selected_services, branch_id, bay_number, receptionist_id,
+                .select(`id, status, notes, total_price, odometer_reading, odometer_unit, selected_services, branch_id, bay_number, receptionist_id,
                          vehicles(id, make, model, engine_size, plate_number, booklet_serial, clients(id, name, phone))`)
                 .eq('id', editId).single();
             
@@ -465,6 +467,7 @@ export default function SectorReception({
                     setBookletSerial(vehicle.booklet_serial || "");
                 }
                 setOdometer(data.odometer_reading?.toString() || "");
+                setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
                 setNotes(data.notes || "");
                 setBayNumber(data.bay_number || "");
                 if (data.branch_id) setSelectedBranchId(data.branch_id);
@@ -910,6 +913,7 @@ export default function SectorReception({
                     .update({
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
+                        odometer_unit: odometerUnit,
                         total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
@@ -937,6 +941,7 @@ export default function SectorReception({
                 .insert({
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
+                    odometer_unit: odometerUnit,
                     status, total_price: parseFloat(totalPrice || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
@@ -965,7 +970,7 @@ export default function SectorReception({
 
     const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
-        setOdometer(""); setPlateNumber(""); setNotes(""); setBayNumber("");
+        setOdometer(""); setOdometerUnit('km'); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -1113,8 +1118,14 @@ export default function SectorReception({
                                 <input type="text" placeholder="2.5L" className="input-field" value={engineSize} onChange={e => setEngineSize(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">عداد الكيلومتر</label>
-                                <input type="number" dir="ltr" placeholder="0" className="input-field text-right" value={odometer} onChange={e => setOdometer(e.target.value)} />
+                                <label className="text-sm font-medium text-muted-foreground">عداد السيارة</label>
+                                <div className="flex gap-2">
+                                    <input type="text" inputMode="numeric" dir="ltr" placeholder="0" className="input-field text-right flex-1" value={withCommas(odometer)} onChange={e => setOdometer(digitsOnly(e.target.value))} />
+                                    <div className="flex rounded-xl border border-border overflow-hidden shrink-0">
+                                        <button type="button" onClick={() => setOdometerUnit('km')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'km' ? 'bg-rose-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>كم</button>
+                                        <button type="button" onClick={() => setOdometerUnit('mi')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'mi' ? 'bg-rose-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>ميل</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1153,11 +1164,11 @@ export default function SectorReception({
                                     <div className="flex items-center gap-3 flex-1 min-w-[220px]">
                                         <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">عدد التبديلات داخل الدفتر:</label>
                                         <input
-                                            type="number"
+                                            type="text" inputMode="numeric"
                                             min="0"
                                             placeholder="0"
-                                            value={bookletChanges}
-                                            onChange={e => setBookletChanges(e.target.value)}
+                                            value={withCommas(bookletChanges)}
+                                            onChange={e => setBookletChanges(digitsOnly(e.target.value))}
                                             className="input-field w-24 text-center"
                                             dir="ltr"
                                         />
@@ -1254,12 +1265,12 @@ export default function SectorReception({
                                                                 {/* Price field */}
                                                                 <div className="flex items-center gap-1">
                                                                     <input
-                                                                        type="number"
+                                                                        type="text" inputMode="numeric"
                                                                         placeholder="السعر"
                                                                         className="input-field text-xs py-1.5 w-24 text-left"
                                                                         dir="ltr"
-                                                                        value={entry.price}
-                                                                        onChange={e => setServicePrice(svc.key, e.target.value)}
+                                                                        value={withCommas(entry.price)}
+                                                                        onChange={e => setServicePrice(svc.key, digitsOnly(e.target.value))}
                                                                     />
                                                                     <span className="text-xs text-muted-foreground">د.ع</span>
                                                                 </div>
@@ -1360,12 +1371,12 @@ export default function SectorReception({
                                                     {/* Price field */}
                                                     <div className="flex items-center gap-1">
                                                         <input
-                                                            type="number"
+                                                            type="text" inputMode="numeric"
                                                             placeholder="السعر"
                                                             className="input-field text-xs py-1.5 w-24 text-left"
                                                             dir="ltr"
-                                                            value={entry.price}
-                                                            onChange={e => setServicePrice(svc.key, e.target.value)}
+                                                            value={withCommas(entry.price)}
+                                                            onChange={e => setServicePrice(svc.key, digitsOnly(e.target.value))}
                                                         />
                                                         <span className="text-xs text-muted-foreground">د.ع</span>
                                                     </div>
@@ -1444,13 +1455,13 @@ export default function SectorReception({
                                                                             </div>
                                                                             <div className="flex items-center gap-1 w-24">
                                                                                 <input 
-                                                                                    type="number"
+                                                                                    type="text" inputMode="numeric"
                                                                                     placeholder="السعر"
                                                                                     className="input-field text-xs py-1.5 w-full text-left"
                                                                                     dir="ltr"
-                                                                                    value={entry.details[priceKey] || ""}
+                                                                                    value={withCommas(entry.details[priceKey] || "")}
                                                                                     onChange={e => {
-                                                                                        setServiceDetail(svc.key, priceKey, e.target.value);
+                                                                                        setServiceDetail(svc.key, priceKey, digitsOnly(e.target.value));
                                                                                         setTimeout(() => {
                                                                                             setServices(prev => {
                                                                                                 const svcData = prev[svc.key];
@@ -1605,10 +1616,10 @@ export default function SectorReception({
                                             />
 
                                             <input
-                                                type="number"
+                                                type="text" inputMode="numeric"
                                                 placeholder="الكمية"
-                                                value={(cs as any).qty || ""}
-                                                onChange={e => setCustomSvcField(cs.id, 'qty', e.target.value)}
+                                                value={withCommas((cs as any).qty || "")}
+                                                onChange={e => setCustomSvcField(cs.id, 'qty', digitsOnly(e.target.value))}
                                                 className="input-field text-xs py-1.5 w-24 text-center"
                                                 min="1"
                                             />
@@ -1623,10 +1634,10 @@ export default function SectorReception({
 
                                             <div className="flex items-center gap-1">
                                                 <input
-                                                    type="number"
+                                                    type="text" inputMode="numeric"
                                                     placeholder="السعر"
-                                                    value={cs.price}
-                                                    onChange={e => setCustomSvcField(cs.id, 'price', e.target.value)}
+                                                    value={withCommas(cs.price)}
+                                                    onChange={e => setCustomSvcField(cs.id, 'price', digitsOnly(e.target.value))}
                                                     className="input-field text-xs py-1.5 w-24 text-left"
                                                     dir="ltr"
                                                 />
@@ -1738,15 +1749,15 @@ export default function SectorReception({
                             <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className="text-xs text-muted-foreground block mb-1">المجموع الكلي (د.ع)</label>
-                                    <input type="number" className="input-field bg-background text-lg font-bold" placeholder="0" value={totalPrice} onChange={e => setTotalPrice(e.target.value)} disabled />
+                                    <input type="text" inputMode="numeric" className="input-field bg-background text-lg font-bold" placeholder="0" value={withCommas(totalPrice)} onChange={e => setTotalPrice(digitsOnly(e.target.value))} disabled />
                                 </div>
                                 <div>
                                     <label className="text-xs text-rose-400 font-bold block mb-1">الخصم (د.ع)</label>
-                                    <input type="number" className="input-field bg-rose-950/30 text-rose-300 font-bold border-rose-500/30" placeholder="0" value={discount} onChange={e => setDiscount(e.target.value)} />
+                                    <input type="text" inputMode="numeric" className="input-field bg-rose-950/30 text-rose-300 font-bold border-rose-500/30" placeholder="0" value={withCommas(discount)} onChange={e => setDiscount(digitsOnly(e.target.value))} />
                                 </div>
                                 <div>
                                     <label className="text-xs text-muted-foreground block mb-1">الواصل (د.ع)</label>
-                                    <input type="number" className="input-field bg-background text-lg" placeholder="0" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} />
+                                    <input type="text" inputMode="numeric" className="input-field bg-background text-lg" placeholder="0" value={withCommas(amountReceived)} onChange={e => setAmountReceived(digitsOnly(e.target.value))} />
                                 </div>
                             </div>
                         </div>

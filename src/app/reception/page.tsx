@@ -32,6 +32,17 @@ function ReceptionContainer() {
     const [previewReport, setPreviewReport] = useState<any>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
 
+    // ---------- Search (filters the loaded reception list) ----------
+    const [searchTerm, setSearchTerm] = useState("");
+    const searchQ = searchTerm.trim().toLowerCase();
+    const filteredOrders = !searchQ ? orders : orders.filter((o: any) => {
+        const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
+        const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+        return [String(o.report_number), client?.name, client?.phone, vehicle?.make, vehicle?.model, vehicle?.plate_number]
+            .filter(Boolean)
+            .some((v: any) => String(v).toLowerCase().includes(searchQ));
+    });
+
     useEffect(() => {
         if (editId) {
             setIsWizardOpen(true);
@@ -216,18 +227,25 @@ function ReceptionContainer() {
 
                 {/* Orders table */}
                 <div className="glass-card rounded-3xl border border-border/50 overflow-hidden">
-                    <div className="p-6 border-b border-border/50 bg-card/30 flex justify-between items-center">
-                        <h2 className="font-bold text-lg text-foreground">سجل أوامر العمل</h2>
+                    <div className="p-6 border-b border-border/50 bg-card/30 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                        <h2 className="font-bold text-lg text-foreground shrink-0">سجل أوامر العمل</h2>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="بحث برقم الكرت، العميل، الهاتف، المركبة، أو اللوحة..."
+                            className="input-field w-full sm:max-w-sm"
+                        />
                     </div>
-                    
+
                     {loading ? (
                         <div className="p-20 text-center">
                             <Loader2 className="animate-spin text-rose-500 w-10 h-10 mx-auto" />
                         </div>
-                    ) : orders.length === 0 ? (
+                    ) : filteredOrders.length === 0 ? (
                         <div className="p-20 text-center text-muted-foreground space-y-4">
                             <Car size={48} className="mx-auto text-muted-foreground/50" />
-                            <p>لا توجد أوامر عمل مسجلة حالياً.</p>
+                            <p>{orders.length === 0 ? "لا توجد أوامر عمل مسجلة حالياً." : "لا توجد نتائج مطابقة للبحث."}</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -245,7 +263,7 @@ function ReceptionContainer() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/30 text-sm">
-                                    {orders.map((o) => {
+                                    {filteredOrders.map((o: any) => {
                                         const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
                                         const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
                                         const date = new Date(o.created_at).toLocaleDateString('ar-EG', {

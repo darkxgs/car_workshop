@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Wrench, ShieldAlert, Shield, ArrowLeft, Car, Activity, Loader2, Gauge } from "lucide-react";
+import { Wrench, ShieldAlert, Shield, ArrowLeft, Car, Activity, Loader2, Gauge, Search } from "lucide-react";
 import Link from "next/link";
 
 type WorkOrderList = {
@@ -14,6 +14,7 @@ type WorkOrderList = {
     start_time: string | null;
     elapsed_time: number | null;
     odometer_reading: number;
+    odometer_unit?: string;
     vehicles: { make: string; model: string; plate_number: string; clients?: { name: string } | null };
     technician: { name: string } | null;
     created_at: string;
@@ -30,10 +31,21 @@ export default function WorkOrdersListPage() {
     
     const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Hooks must run unconditionally (Rules of Hooks). Access guards early-return
     // below, after every hook/handler is declared.
     const isAuthorized = employeeRole === 'Owner' || permissionWorkOrders;
+
+    // Filter the live orders by report number, plate, customer name, make/model or bay.
+    const q = searchTerm.trim().toLowerCase();
+    const filteredOrders = !q ? orders : orders.filter(o => {
+        const clients = o.vehicles?.clients;
+        const clientName = Array.isArray(clients) ? clients[0]?.name : (clients as { name?: string } | undefined)?.name;
+        return [String(o.report_number), o.vehicles?.make, o.vehicles?.model, o.vehicles?.plate_number, clientName, o.bay_number]
+            .filter(Boolean)
+            .some(v => String(v).toLowerCase().includes(q));
+    });
 
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000); // Check every second
@@ -71,7 +83,7 @@ export default function WorkOrdersListPage() {
     const fetchOrders = async () => {
         let query = supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, odometer_reading, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
+            .select(`id, report_number, status, created_at, estimated_duration, is_delayed, odometer_reading, odometer_unit, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
             .order('created_at', { ascending: false });
@@ -142,17 +154,28 @@ export default function WorkOrdersListPage() {
                     </div>
                 </div>
 
-
+                {/* Search */}
+                <div className="relative">
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={18} />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="بحث برقم التقرير، اللوحة، العميل، نوع السيارة، أو الخانة..."
+                        className="input-field w-full"
+                        style={{ paddingRight: '3rem' }}
+                    />
+                </div>
 
                 {loading ? (
                     <div className="flex justify-center p-20"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-                ) : orders.length === 0 ? (
+                ) : filteredOrders.length === 0 ? (
                     <div className="glass-card p-12 text-center text-muted-foreground rounded-2xl border-border">
-                        لا يوجد مركبات في الورشة حالياً.
+                        {orders.length === 0 ? "لا يوجد مركبات في الورشة حالياً." : "لا توجد نتائج مطابقة للبحث."}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {orders.map(order => {
+                        {filteredOrders.map(order => {
                             let currentLiveSeconds = (order.elapsed_time || 0) * 60;
                             if (order.status === 'قيد العمل' && order.start_time) {
                                 const startMs = new Date(order.start_time).getTime();
@@ -208,7 +231,7 @@ export default function WorkOrdersListPage() {
                                             <Activity className="text-emerald-400" size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Gauge className="text-cyan-400" size={16} /> عداد السيارة: <span className="text-foreground">{order.odometer_reading ? `${order.odometer_reading.toLocaleString()} كم` : 'غير محدد'}</span>
+                                            <Gauge className="text-cyan-400" size={16} /> عداد السيارة: <span className="text-foreground">{order.odometer_reading ? `${order.odometer_reading.toLocaleString()} ${order.odometer_unit === 'mi' ? 'ميل' : 'كم'}` : 'غير محدد'}</span>
                                         </div>
                                     </div>
 
