@@ -161,6 +161,7 @@ export interface Database {
           supervisor_id: string | null
           status: Database["public"]["Enums"]["report_status"]
           odometer_reading: number
+          odometer_unit: string
           total_price: number | null
           notes: string | null
           completed_at: string | null
@@ -183,6 +184,7 @@ export interface Database {
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
           odometer_reading: number
+          odometer_unit?: string
           total_price?: number | null
           notes?: string | null
           completed_at?: string | null
@@ -205,6 +207,7 @@ export interface Database {
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
           odometer_reading?: number
+          odometer_unit?: string
           total_price?: number | null
           notes?: string | null
           completed_at?: string | null
