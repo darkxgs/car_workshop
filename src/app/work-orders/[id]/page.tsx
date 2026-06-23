@@ -14,6 +14,7 @@ type WorkOrder = {
     id: string;
     report_number: number;
     status: string;
+    order_type?: string;
     estimated_duration: number;
     elapsed_time: number;
     start_time: string | null;
@@ -145,7 +146,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, order_type, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -312,6 +313,12 @@ export default function WorkOrderDetailPage() {
     };
 
     const handleComplete = async () => {
+        // Sale orders ("بيع منتج") have no technician, so they are exempt from this lock.
+        // For maintenance orders, the task cannot be finished without a technician AND a supervisor.
+        if (order?.order_type !== 'sale' && (!techName.trim() || !supervisorName.trim())) {
+            showError("لا يمكن إنهاء المهمة", "يجب إدخال اسم الفني واسم المشرف قبل إنهاء الصيانة. اكتبهما في بطاقة \"تفاصيل الصيانة والفني\" ثم اضغط \"حفظ التفاصيل فقط\".");
+            return;
+        }
         let finalElapsed = order?.elapsed_time || 0;
         if (order?.start_time) {
             const startMs = new Date(order.start_time).getTime();
@@ -319,12 +326,24 @@ export default function WorkOrderDetailPage() {
         }
         const isDelayed = finalElapsed > (order?.estimated_duration || 0);
 
+        // Persist the technician/supervisor names on finish so the daily technician
+        // report always has the data, even if "حفظ التفاصيل فقط" was never pressed.
+        const updatedServices = [...(order?.selected_services || [])];
+        if (order?.order_type !== 'sale') {
+            if (updatedServices.length > 0) {
+                updatedServices[0] = { ...updatedServices[0], technicianName: techName, shiftSupervisor: supervisorName };
+            } else {
+                updatedServices.push({ is_paper_v2_format: true, technicianName: techName, shiftSupervisor: supervisorName, services: {} });
+            }
+        }
+
         await supabase.from('inspection_reports')
-            .update({ 
-                status: 'تم الانتهاء', 
-                elapsed_time: finalElapsed, 
-                is_delayed: isDelayed, 
-                completed_at: new Date().toISOString() 
+            .update({
+                status: 'تم الانتهاء',
+                elapsed_time: finalElapsed,
+                is_delayed: isDelayed,
+                completed_at: new Date().toISOString(),
+                selected_services: updatedServices
             })
             .eq('id', id);
         fetchOrder();

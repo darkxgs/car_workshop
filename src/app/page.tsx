@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import {
     Wrench, Car, CheckCircle2, Activity, FileText,
     Search, Bell, Settings, Calendar, Plus, User,
-    TrendingUp, Clock, Loader2
+    TrendingUp, Clock, Loader2, ShoppingCart
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -275,6 +275,10 @@ export default function Home() {
                         <Link href="/reception" className="px-5 py-2.5 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-foreground rounded-xl transition-all font-medium flex items-center gap-2 shadow-lg shadow-rose-500/25 border border-rose-500/50">
                             <Plus size={18} />
                             أمر صيانة جديد
+                        </Link>
+                        <Link href="/reception?sale=1" className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-foreground rounded-xl transition-all font-medium flex items-center gap-2 shadow-lg shadow-emerald-500/25 border border-emerald-500/50">
+                            <ShoppingCart size={18} />
+                            بيع منتج
                         </Link>
                     </div>
                 </div>
