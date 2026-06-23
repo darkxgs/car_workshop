@@ -83,6 +83,7 @@ export function Sidebar() {
             title: "التقارير والتصدير",
             items: [
                 { href: "/reports", label: "الفواتير والتقارير (PDF)", icon: <FileText size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
+                { href: "/technician-report", label: "تقرير الفنيين اليومي", icon: <Wrench size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
                 { href: "/financial-reports", label: "السجلات والدفاتر (Excel)", icon: <FileSpreadsheet size={20} />, roles: ["Owner", "Admin"] },
             ]
         },
@@ -133,6 +134,7 @@ export function Sidebar() {
             if (item.href === '/work-orders') return !!permissionWorkOrders;
             if (item.href === '/customers') return !!permissionCustomers;
             if (item.href === '/reports') return !!permissionReports;
+            if (item.href === '/technician-report') return employeeRole === 'Admin' || employeeRole === 'Supervisor' || !!permissionReports;
             if (item.href === '/financial-reports') return employeeRole === 'Admin';
             if (item.href === '/settings') return !!permissionEmployees;
 

@@ -160,6 +160,7 @@ export interface Database {
           receptionist_id: string | null
           supervisor_id: string | null
           status: Database["public"]["Enums"]["report_status"]
+          order_type: string
           odometer_reading: number
           odometer_unit: string
           total_price: number | null
@@ -183,6 +184,7 @@ export interface Database {
           receptionist_id?: string | null
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
+          order_type?: string
           odometer_reading: number
           odometer_unit?: string
           total_price?: number | null
@@ -206,6 +208,7 @@ export interface Database {
           receptionist_id?: string | null
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
+          order_type?: string
           odometer_reading?: number
           odometer_unit?: string
           total_price?: number | null

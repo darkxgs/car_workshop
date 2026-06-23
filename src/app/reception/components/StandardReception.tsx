@@ -259,13 +259,19 @@ export default function StandardReception({
     branches,
     selectedBranchId,
     setSelectedBranchId,
-    onClose
+    onClose,
+    saleMode = false
 }: {
     branches: { id: string; name: string }[];
     selectedBranchId: string;
     setSelectedBranchId: (id: string) => void;
     onClose: () => void;
+    saleMode?: boolean;
 }) {
+    // "بيع منتج" order: same flow as a normal work order, but tagged as a sale so it
+    // never requires a technician to finish. Initialized from the prop for new orders,
+    // and overridden from the loaded record when editing an existing sale.
+    const [isSale, setIsSale] = useState<boolean>(saleMode);
     const { t } = useLanguage();
     const { user, employeeRole, employeeBranchId, employeeId } = useAuth();
     const searchParams = useSearchParams();
@@ -506,12 +512,13 @@ export default function StandardReception({
         if (!editId) return;
         const loadReport = async () => {
             const { data } = await supabase.from('inspection_reports')
-                .select(`id, status, notes, total_price, odometer_reading, odometer_unit, selected_services, branch_id, bay_number, receptionist_id,
+                .select(`id, status, notes, total_price, odometer_reading, odometer_unit, order_type, selected_services, branch_id, bay_number, receptionist_id,
                          vehicles(id, make, model, engine_size, plate_number, booklet_serial, clients(id, name, phone))`)
                 .eq('id', editId).single();
-            
+
             if (data) {
                 setEditReportId(data.id);
+                setIsSale((data as { order_type?: string }).order_type === 'sale');
                 const vehicle = Array.isArray(data.vehicles) ? data.vehicles[0] : data.vehicles;
                 const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
                 
@@ -970,6 +977,7 @@ export default function StandardReception({
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
                         odometer_unit: odometerUnit,
+                        order_type: isSale ? 'sale' : 'maintenance',
                         total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
                         selected_services: [paperPayload],
@@ -998,6 +1006,7 @@ export default function StandardReception({
                     branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     odometer_unit: odometerUnit,
+                    order_type: isSale ? 'sale' : 'maintenance',
                     status, total_price: parseFloat(totalPrice || "0"),
                     notes, bay_number: bayNumber, start_time: startTime,
                     selected_services: [paperPayload],
@@ -1053,9 +1062,9 @@ export default function StandardReception({
                     <div>
                         <h1 className="text-3xl font-display font-bold text-foreground mb-2 flex items-center gap-3">
                             <FileText className="text-rose-500" size={32} />
-                            أمر عمل جديد — هندسة السيارات
+                            {isSale ? "بيع منتج — هندسة السيارات" : "أمر عمل جديد — هندسة السيارات"}
                         </h1>
-                        <p className="text-muted-foreground">إنشاء بطاقة عمل مفصّلة مطابقة للنموذج الرسمي للورشة</p>
+                        <p className="text-muted-foreground">{isSale ? "بيع منتج مباشر للعميل (بدون اسم فني)" : "إنشاء بطاقة عمل مفصّلة مطابقة للنموذج الرسمي للورشة"}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 bg-background/40 p-2 rounded-xl border border-border">

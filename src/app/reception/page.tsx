@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Loader2,
-    FileText, Printer, Edit2, X, Trash2
+    FileText, Printer, Edit2, X, Trash2, ShoppingCart
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
@@ -18,7 +18,10 @@ function ReceptionContainer() {
     const router = useRouter();
     const { employeeBranchId, employeeRole, permissionReception, loading: authLoading } = useAuth();
     const editId = searchParams.get('edit');
+    const saleParam = searchParams.get('sale');
     const [isWizardOpen, setIsWizardOpen] = useState(false);
+    // When true the wizard opens as a direct product sale ("بيع منتج") instead of a work order.
+    const [wizardSaleMode, setWizardSaleMode] = useState(false);
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -45,11 +48,17 @@ function ReceptionContainer() {
 
     useEffect(() => {
         if (editId) {
+            // Editing an existing order: the form decides sale-vs-maintenance from the loaded record.
+            setWizardSaleMode(false);
+            setIsWizardOpen(true);
+        } else if (saleParam) {
+            // Opened from the dashboard "بيع منتج" button (/reception?sale=1).
+            setWizardSaleMode(true);
             setIsWizardOpen(true);
         } else {
             setIsWizardOpen(false);
         }
-    }, [editId]);
+    }, [editId, saleParam]);
 
     // Fetch branches on mount
     useEffect(() => {
@@ -79,7 +88,7 @@ function ReceptionContainer() {
             if (page === 1) setLoading(true);
             let query = supabase
                 .from('inspection_reports')
-                .select(`id, report_number, status, created_at, total_price, vehicles (make, model, plate_number, clients (name, phone))`)
+                .select(`id, report_number, status, order_type, created_at, total_price, vehicles (make, model, plate_number, clients (name, phone))`)
                 .order('created_at', { ascending: false })
                 .range((page - 1) * 50, page * 50 - 1);
             
@@ -175,8 +184,10 @@ function ReceptionContainer() {
                 branches={branches}
                 selectedBranchId={selectedBranchId}
                 setSelectedBranchId={setSelectedBranchId}
+                saleMode={wizardSaleMode}
                 onClose={() => {
                     setIsWizardOpen(false);
+                    setWizardSaleMode(false);
                     router.replace('/reception');
                 }}
             />
@@ -185,8 +196,10 @@ function ReceptionContainer() {
                 branches={branches}
                 selectedBranchId={selectedBranchId}
                 setSelectedBranchId={setSelectedBranchId}
+                saleMode={wizardSaleMode}
                 onClose={() => {
                     setIsWizardOpen(false);
+                    setWizardSaleMode(false);
                     router.replace('/reception');
                 }}
             />
@@ -217,10 +230,16 @@ function ReceptionContainer() {
                             </select>
                         )}
                         <button
-                            onClick={() => setIsWizardOpen(true)}
+                            onClick={() => { setWizardSaleMode(false); setIsWizardOpen(true); }}
                             className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <UserPlus size={18} /> إنشاء كرت فحص جديد
+                        </button>
+                        <button
+                            onClick={() => { setWizardSaleMode(true); setIsWizardOpen(true); }}
+                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
+                        >
+                            <ShoppingCart size={18} /> بيع منتج
                         </button>
                     </div>
                 </div>
@@ -272,7 +291,14 @@ function ReceptionContainer() {
 
                                         return (
                                             <tr key={o.id} className="hover:bg-muted/20 transition-colors">
-                                                <td className="p-4 font-mono font-bold text-rose-400">#{o.report_number}</td>
+                                                <td className="p-4 font-mono font-bold text-rose-400">
+                                                    <span className="inline-flex items-center gap-2">
+                                                        #{o.report_number}
+                                                        {o.order_type === 'sale' && (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">بيع منتج</span>
+                                                        )}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 font-bold">{client?.name || 'عميل نقدي'}</td>
                                                 <td className="p-4 text-muted-foreground font-mono">{client?.phone || '-'}</td>
                                                 <td className="p-4 font-bold">{vehicle?.make} {vehicle?.model}</td>
