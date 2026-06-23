@@ -373,10 +373,7 @@ export default function SuggestionsPage() {
                     const name = String(row[8]).trim();
                     if (!name) continue;
 
-                    let priceStr = row[1] ? String(row[1]) : "";
-                    priceStr = priceStr.replace(/[^\d]/g, "");
-
-                    newItems.push({ name, price: priceStr });
+                    newItems.push({ name, price: "" });
                 }
 
                 if (newItems.length === 0) {
@@ -455,7 +452,6 @@ export default function SuggestionsPage() {
             
             // Row 9 is headers
             const headerRow: any[] = [];
-            headerRow[1] = "سعر البيع";
             headerRow[4] = "العدد";
             headerRow[8] = "المادة";
             headerRow[13] = "تـ";
@@ -464,7 +460,6 @@ export default function SuggestionsPage() {
             // Add data rows
             currentList.forEach((item, idx) => {
                 const row: any[] = [];
-                row[1] = item.price ? `${Number(item.price).toLocaleString()} د.ع` : "";
                 row[4] = "1";
                 row[8] = item.name;
                 row[13] = String(idx + 1);
@@ -505,7 +500,7 @@ export default function SuggestionsPage() {
                         إدارة الاقتراحات (قاعدة البيانات)
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        تحكم بـ 33 قائمة للاقتراحات والأسعار التلقائية تظهر في شاشة الاستقبال وأوامر العمل.
+                        تحكم بـ 33 قائمة للاقتراحات تظهر في شاشة الاستقبال وأوامر العمل.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -657,22 +652,6 @@ export default function SuggestionsPage() {
                                                 onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
                                                 className={`flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
                                             />
-                                            {!isStaffCategory && (
-                                                <div className="flex gap-2 w-full sm:w-auto">
-                                                    <div className="relative w-full sm:w-[180px]">
-                                                        <input
-                                                            type="number"
-                                                            placeholder="سعر البيع (اختياري)"
-                                                            value={newItemPrices[cat.key] || ""}
-                                                            onChange={e => setNewItemPrices(prev => ({ ...prev, [cat.key]: e.target.value }))}
-                                                            onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
-                                                            className={`w-full bg-background border border-border rounded-xl pr-4 pl-12 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm text-left font-mono`}
-                                                            dir="ltr"
-                                                        />
-                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">د.ع</span>
-                                                    </div>
-                                                </div>
-                                            )}
                                             <button
                                                 onClick={() => handleAddItem(cat.key)}
                                                 className={`px-6 py-2.5 ${cc.bg} ${cc.border} border ${cc.text} font-bold text-sm rounded-xl hover:opacity-80 transition-all flex items-center justify-center gap-2 cursor-pointer`}
@@ -721,19 +700,6 @@ export default function SuggestionsPage() {
                                                                 className="flex-1 min-w-[120px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm"
                                                                 placeholder="الاسم"
                                                             />
-                                                            {!isStaffCategory && (
-                                                                <div className="relative w-[100px]">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={editingItem.price}
-                                                                        onChange={e => setEditingItem(prev => prev ? { ...prev, price: e.target.value } : null)}
-                                                                        className="w-full bg-background border border-border rounded-lg pr-2 pl-7 py-1.5 text-xs text-foreground focus:outline-none focus:border-rose-500 font-ibm text-left font-mono"
-                                                                        placeholder="السعر"
-                                                                        dir="ltr"
-                                                                    />
-                                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">د.ع</span>
-                                                                </div>
-                                                            )}
                                                             <button
                                                                 onClick={() => {
                                                                     if (!editingItem.name.trim()) return;
@@ -777,11 +743,6 @@ export default function SuggestionsPage() {
                                                                 </span>
                                                             )}
                                                             <span className="truncate font-bold text-foreground/90">{item.name}</span>
-                                                            {item.price && !isStaffCategory && (
-                                                                <span className="shrink-0 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm px-3 py-1 rounded-lg font-bold font-mono shadow-sm">
-                                                                    {Number(item.price).toLocaleString()} د.ع
-                                                                </span>
-                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 shrink-0">
                                                             <button

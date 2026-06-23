@@ -315,7 +315,12 @@ export default function StandardReception({
                 setSuggestionLists(() => {
                     const merged: Record<string, any[]> = {};
                     for (const key of Object.keys(DEFAULT_SUGGESTION_LISTS)) {
-                        merged[key] = fetchedLists[key] || DEFAULT_SUGGESTION_LISTS[key];
+                        const src = fetchedLists[key] || DEFAULT_SUGGESTION_LISTS[key];
+                        // الاقتراحات بدون أسعار (حسب طلب المستخدم): نُفرّغ أي سعر مخزّن حتى
+                        // لا يظهر بالقوائم المنسدلة ولا يُعبّأ تلقائياً بخانات الفاتورة.
+                        merged[key] = Array.isArray(src)
+                            ? src.map((it: any) => (typeof it === 'object' && it !== null ? { ...it, price: "" } : it))
+                            : src;
                     }
                     return merged;
                 });
