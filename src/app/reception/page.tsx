@@ -12,6 +12,7 @@ import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 import StandardReception from "./components/StandardReception";
 import SectorReception from "./components/SectorReception";
+import SaleForm from "./components/SaleForm";
 
 function ReceptionContainer() {
     const searchParams = useSearchParams();
@@ -22,6 +23,8 @@ function ReceptionContainer() {
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // When true the wizard opens as a direct product sale ("بيع منتج") instead of a work order.
     const [wizardSaleMode, setWizardSaleMode] = useState(false);
+    // null = still loading order_type for the order being edited; true/false once known.
+    const [editIsSale, setEditIsSale] = useState<boolean | null>(null);
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,22 +44,28 @@ function ReceptionContainer() {
     const filteredOrders = !searchQ ? orders : orders.filter((o: any) => {
         const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
         const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
-        return [String(o.report_number), client?.name, client?.phone, vehicle?.make, vehicle?.model, vehicle?.plate_number]
+        const sp = o.order_type === 'sale' ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
+        return [String(o.report_number), client?.name, client?.phone, vehicle?.make, vehicle?.model, vehicle?.plate_number, sp?.customerName, sp?.customerPhone]
             .filter(Boolean)
             .some((v: any) => String(v).toLowerCase().includes(searchQ));
     });
 
     useEffect(() => {
         if (editId) {
-            // Editing an existing order: the form decides sale-vs-maintenance from the loaded record.
+            // Editing: look up order_type so we open the sale form for sales, the work-order form otherwise.
             setWizardSaleMode(false);
+            setEditIsSale(null);
             setIsWizardOpen(true);
+            supabase.from('inspection_reports').select('order_type').eq('id', editId).single()
+                .then(({ data }) => setEditIsSale((data as { order_type?: string } | null)?.order_type === 'sale'));
         } else if (saleParam) {
-            // Opened from the dashboard "بيع منتج" button (/reception?sale=1).
+            // Opened from the "بيع منتج" button (dashboard or reception) -> /reception?sale=1.
             setWizardSaleMode(true);
+            setEditIsSale(null);
             setIsWizardOpen(true);
         } else {
             setIsWizardOpen(false);
+            setEditIsSale(null);
         }
     }, [editId, saleParam]);
 
@@ -88,7 +97,7 @@ function ReceptionContainer() {
             if (page === 1) setLoading(true);
             let query = supabase
                 .from('inspection_reports')
-                .select(`id, report_number, status, order_type, created_at, total_price, vehicles (make, model, plate_number, clients (name, phone))`)
+                .select(`id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`)
                 .order('created_at', { ascending: false })
                 .range((page - 1) * 50, page * 50 - 1);
             
@@ -179,29 +188,47 @@ function ReceptionContainer() {
     const isSectorBranch = selectedBranch?.name === 'القطاع' || selectedBranch?.name === 'فرع القطاع';
 
     if (isWizardOpen) {
+        const onCloseWizard = () => {
+            setIsWizardOpen(false);
+            setWizardSaleMode(false);
+            setEditIsSale(null);
+            router.replace('/reception');
+        };
+
+        // New sale, or editing an existing sale -> lightweight sale form.
+        if (wizardSaleMode || editIsSale === true) {
+            return (
+                <SaleForm
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    setSelectedBranchId={setSelectedBranchId}
+                    onClose={onCloseWizard}
+                />
+            );
+        }
+
+        // Editing: wait until we know whether it's a sale, so the wrong form doesn't flash.
+        if (editId && editIsSale === null) {
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <Loader2 className="animate-spin text-rose-500 w-10 h-10" />
+                </div>
+            );
+        }
+
         return isSectorBranch ? (
             <SectorReception
                 branches={branches}
                 selectedBranchId={selectedBranchId}
                 setSelectedBranchId={setSelectedBranchId}
-                saleMode={wizardSaleMode}
-                onClose={() => {
-                    setIsWizardOpen(false);
-                    setWizardSaleMode(false);
-                    router.replace('/reception');
-                }}
+                onClose={onCloseWizard}
             />
         ) : (
             <StandardReception
                 branches={branches}
                 selectedBranchId={selectedBranchId}
                 setSelectedBranchId={setSelectedBranchId}
-                saleMode={wizardSaleMode}
-                onClose={() => {
-                    setIsWizardOpen(false);
-                    setWizardSaleMode(false);
-                    router.replace('/reception');
-                }}
+                onClose={onCloseWizard}
             />
         );
     }
@@ -285,6 +312,8 @@ function ReceptionContainer() {
                                     {filteredOrders.map((o: any) => {
                                         const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
                                         const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+                                        const isSale = o.order_type === 'sale';
+                                        const salePayload = isSale ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
                                         const date = new Date(o.created_at).toLocaleDateString('ar-EG', {
                                             year: 'numeric', month: 'short', day: 'numeric'
                                         });
@@ -299,10 +328,10 @@ function ReceptionContainer() {
                                                         )}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 font-bold">{client?.name || 'عميل نقدي'}</td>
-                                                <td className="p-4 text-muted-foreground font-mono">{client?.phone || '-'}</td>
-                                                <td className="p-4 font-bold">{vehicle?.make} {vehicle?.model}</td>
-                                                <td className="p-4 font-mono text-xs">{vehicle?.plate_number || 'بدون لوحة'}</td>
+                                                <td className="p-4 font-bold">{isSale ? (salePayload?.customerName || 'عميل نقدي') : (client?.name || 'عميل نقدي')}</td>
+                                                <td className="p-4 text-muted-foreground font-mono">{isSale ? (salePayload?.customerPhone || '-') : (client?.phone || '-')}</td>
+                                                <td className="p-4 font-bold">{isSale ? <span className="text-emerald-400">بيع منتج</span> : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
+                                                <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
                                                 <td className="p-4">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                                         o.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -315,20 +344,24 @@ function ReceptionContainer() {
                                                 <td className="p-4 text-muted-foreground text-xs font-mono">{date}</td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex gap-2 justify-center">
-                                                        <button
-                                                            onClick={() => { setPreviewReportId(o.id); setPreviewMode('full'); }}
-                                                            className="p-2 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
-                                                            title="معاينة وطباعة شاملة"
-                                                        >
-                                                            <Printer size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => { setPreviewReportId(o.id); setPreviewMode('short'); }}
-                                                            className="p-2 bg-amber-600/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
-                                                            title="معاينة وطباعة مختصرة للفني"
-                                                        >
-                                                            <FileText size={16} />
-                                                        </button>
+                                                        {!isSale && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => { setPreviewReportId(o.id); setPreviewMode('full'); }}
+                                                                    className="p-2 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                                                                    title="معاينة وطباعة شاملة"
+                                                                >
+                                                                    <Printer size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setPreviewReportId(o.id); setPreviewMode('short'); }}
+                                                                    className="p-2 bg-amber-600/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
+                                                                    title="معاينة وطباعة مختصرة للفني"
+                                                                >
+                                                                    <FileText size={16} />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                         <button
                                                             onClick={() => {
                                                                 if (o.branch_id) setSelectedBranchId(o.branch_id);

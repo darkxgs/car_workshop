@@ -86,6 +86,7 @@ export default function WorkOrdersListPage() {
             .select(`id, report_number, status, created_at, estimated_duration, is_delayed, odometer_reading, odometer_unit, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
+            .neq('order_type', 'sale')
             .order('created_at', { ascending: false });
 
         if (selectedBranchId) {

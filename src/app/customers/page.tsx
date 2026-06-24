@@ -119,7 +119,7 @@ export default function CustomersPage() {
                 if (!matchedReports || matchedReports.length === 0) {
                     filterHasNoMatches = true;
                 } else {
-                    const vehicleIds = matchedReports.map(r => r.vehicle_id).filter(Boolean);
+                    const vehicleIds = matchedReports.map(r => r.vehicle_id).filter((id): id is string => Boolean(id));
                     if (vehicleIds.length === 0) {
                         filterHasNoMatches = true;
                     } else {
