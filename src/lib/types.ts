@@ -156,7 +156,7 @@ export interface Database {
           id: string
           report_number: number
           branch_id: string | null
-          vehicle_id: string
+          vehicle_id: string | null
           receptionist_id: string | null
           supervisor_id: string | null
           status: Database["public"]["Enums"]["report_status"]
@@ -180,7 +180,7 @@ export interface Database {
           id?: string
           report_number?: number
           branch_id?: string | null
-          vehicle_id: string
+          vehicle_id?: string | null
           receptionist_id?: string | null
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
@@ -204,7 +204,7 @@ export interface Database {
           id?: string
           report_number?: number
           branch_id?: string | null
-          vehicle_id?: string
+          vehicle_id?: string | null
           receptionist_id?: string | null
           supervisor_id?: string | null
           status?: Database["public"]["Enums"]["report_status"]
