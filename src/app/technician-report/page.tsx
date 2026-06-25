@@ -53,6 +53,18 @@ function countServices(payload: any): number {
     return n;
 }
 
+// A car may be worked by more than one technician, written as one field joined by
+// + - / , ، & or "و" (e.g. "عباس عجل+حسن"). Split it so each technician is credited
+// individually instead of creating a shared/combined profile.
+function splitTechnicians(raw: any): string[] {
+    if (!raw) return [];
+    const parts = String(raw)
+        .split(/\s*[+\-/،,&]\s*|\s+و\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    return Array.from(new Set(parts)); // de-dupe within the same car
+}
+
 export default function TechnicianReportPage() {
     const { employeeRole, employeeBranchId, permissionReports, loading: authLoading } = useAuth();
     const isAuthorized = employeeRole === "Owner" || employeeRole === "Admin" || employeeRole === "Supervisor" || !!permissionReports;
@@ -109,34 +121,41 @@ export default function TechnicianReportPage() {
 
     const { groups, totalCars, totalServices } = useMemo(() => {
         const map = new Map<string, TechGroup>();
+        let totalCars = 0;
+        let totalServices = 0;
         for (const r of rows) {
             const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
-            const tech = ((payload?.technicianName as string) || "").trim() || "غير محدد";
-            let g = map.get(tech);
-            if (!g) {
-                g = { name: tech, cars: 0, services: 0, completed: 0, orders: [] };
-                map.set(tech, g);
-            }
             const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
             const sc = countServices(payload);
-            g.cars += 1;
-            g.services += sc;
-            if (r.status === "تم الانتهاء") g.completed += 1;
-            g.orders.push({
+            // Totals are per actual car (a shared car is still one car / its services counted once).
+            totalCars += 1;
+            totalServices += sc;
+
+            const techs = splitTechnicians(payload?.technicianName);
+            const names = techs.length ? techs : ["غير محدد"];
+            const order: OrderItem = {
                 id: r.id,
                 report_number: r.report_number,
                 date: new Date(r.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "2-digit" }),
                 status: r.status,
                 vehicle: v ? `${v.make || ""} ${v.model || ""}${v.plate_number ? ` (${v.plate_number})` : ""}`.trim() : "—",
                 services: sc,
-            });
+            };
+            // Credit the car + its services to every technician who worked on it.
+            for (const name of names) {
+                let g = map.get(name);
+                if (!g) {
+                    g = { name, cars: 0, services: 0, completed: 0, orders: [] };
+                    map.set(name, g);
+                }
+                g.cars += 1;
+                g.services += sc;
+                if (r.status === "تم الانتهاء") g.completed += 1;
+                g.orders.push(order);
+            }
         }
         const groups = Array.from(map.values()).sort((a, b) => b.cars - a.cars);
-        return {
-            groups,
-            totalCars: groups.reduce((s, g) => s + g.cars, 0),
-            totalServices: groups.reduce((s, g) => s + g.services, 0),
-        };
+        return { groups, totalCars, totalServices };
     }, [rows]);
 
     const profile = selectedTech ? groups.find((g) => g.name === selectedTech) || null : null;
