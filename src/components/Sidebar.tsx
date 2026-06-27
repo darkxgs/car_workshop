@@ -66,6 +66,8 @@ export function Sidebar() {
             title: "العمليات (Operations)",
             items: [
                 { href: "/", label: t.common.dashboard || "لوحة التحكم", icon: <LayoutDashboard size={20} /> },
+                // المساعد الذكي مخفي مؤقتاً من القائمة (الكود جاهز — يُعاد تفعيله بإزالة التعليق).
+                // { href: "/assistant", label: "المساعد الذكي", icon: <Sparkles size={20} />, roles: ["Owner", "Admin"] },
                 { href: "/reception", label: "الاستقبال وأوامر العمل", icon: <ClipboardList size={20} /> },
                 { href: "/suggestions", label: "إدارة الاقتراحات", icon: <FileSpreadsheet size={20} /> },
                 // { href: "/services", label: "الفحص والصيانة", icon: <Hammer size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
@@ -130,6 +132,7 @@ export function Sidebar() {
 
             // Map path to appropriate permission flag
             if (item.href === '/') return !!permissionDashboard;
+            if (item.href === '/assistant') return employeeRole === 'Admin';
             if (item.href === '/reception') return !!permissionReception;
             if (item.href === '/work-orders') return !!permissionWorkOrders;
             if (item.href === '/customers') return !!permissionCustomers;
