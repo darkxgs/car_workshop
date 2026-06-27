@@ -840,8 +840,11 @@ export default function StandardReception({
             const cleanedEngine = engineSize ? engineSize.trim() : "";
 
             if (cleanedPlate !== "") {
+                // Scope to THIS client so a returning customer's new car doesn't match
+                // (or hijack) another client's vehicle with the same plate.
                 const { data: evs } = await supabase.from('vehicles')
                     .select('id')
+                    .eq('client_id', clientId)
                     .eq('plate_number', cleanedPlate)
                     .limit(1);
                 if (evs && evs.length > 0) vehicleId = evs[0].id;
@@ -887,12 +890,24 @@ export default function StandardReception({
                     })
                     .eq('id', vehicleId);
             } else {
+                // New car for this client. booklet_serial is globally UNIQUE, so never
+                // reuse a serial that already belongs to another vehicle (e.g. the old
+                // car's serial auto-filled into the form) — that caused the insert to be
+                // rejected and blocked the whole order. Drop it; staff can assign a
+                // booklet to the new car separately.
+                if (finalBookletSerial) {
+                    const { data: dup } = await supabase.from('vehicles')
+                        .select('id')
+                        .eq('booklet_serial', finalBookletSerial)
+                        .limit(1);
+                    if (dup && dup.length > 0) finalBookletSerial = "";
+                }
                 const { data: nv, error: ve } = await supabase.from('vehicles')
-                    .insert({ 
-                        client_id: clientId, 
-                        make: cleanedMake, 
-                        model: cleanedModel, 
-                        engine_size: cleanedEngine, 
+                    .insert({
+                        client_id: clientId,
+                        make: cleanedMake,
+                        model: cleanedModel,
+                        engine_size: cleanedEngine,
                         plate_number: cleanedPlate || null,
                         booklet_serial: finalBookletSerial || null
                     })
