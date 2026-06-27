@@ -65,6 +65,51 @@ function splitTechnicians(raw: any): string[] {
     return Array.from(new Set(parts)); // de-dupe within the same car
 }
 
+// Canonicalize an Arabic name for *matching* (not for display): unify the common
+// data-entry variants — alef/hamza forms, ة/ه, ى/ي, tatweel, diacritics, spacing.
+// Names that differ only by these collapse to the same key.
+function normalizeName(raw: string): string {
+    return (raw || "")
+        .replace(/[ً-ٰٟ]/g, "") // diacritics
+        .replace(/ـ/g, "")                 // tatweel ـ
+        .replace(/[إأآٱا]/g, "ا")               // alef variants -> ا
+        .replace(/ى/g, "ي")                     // alef maqsura -> ي
+        .replace(/ؤ/g, "و")
+        .replace(/ئ/g, "ي")
+        .replace(/ة/g, "ه")                     // ta marbuta -> ه
+        .replace(/[^ء-ي٠-٩a-z0-9 ]/gi, " ") // strip punctuation
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+
+// Levenshtein edit distance (small inputs — names).
+function editDistance(a: string, b: string): number {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const tmp = dp[j];
+            dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+            prev = tmp;
+        }
+    }
+    return dp[n];
+}
+
+// Two normalized names are "the same technician" when they're identical or within
+// a small typo distance. Short names require an exact match to avoid false merges.
+function namesAreClose(a: string, b: string): boolean {
+    if (a === b) return true;
+    const maxLen = Math.max(a.length, b.length);
+    if (maxLen < 4) return false;
+    return 1 - editDistance(a, b) / maxLen >= 0.84;
+}
+
 export default function TechnicianReportPage() {
     const { employeeRole, employeeBranchId, permissionReports, loading: authLoading } = useAuth();
     const isAuthorized = employeeRole === "Owner" || employeeRole === "Admin" || employeeRole === "Supervisor" || !!permissionReports;
@@ -120,9 +165,12 @@ export default function TechnicianReportPage() {
     }, [month, selectedBranchId, employeeBranchId, authLoading, isAuthorized, branches.length]);
 
     const { groups, totalCars, totalServices } = useMemo(() => {
-        const map = new Map<string, TechGroup>();
+        const UNSET = "غير محدد";
+        type Acc = { cars: number; services: number; completed: number; orders: OrderItem[]; spellings: Map<string, number> };
+        const byKey = new Map<string, Acc>(); // keyed by normalized name
         let totalCars = 0;
         let totalServices = 0;
+
         for (const r of rows) {
             const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
             const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
@@ -132,7 +180,7 @@ export default function TechnicianReportPage() {
             totalServices += sc;
 
             const techs = splitTechnicians(payload?.technicianName);
-            const names = techs.length ? techs : ["غير محدد"];
+            const names = techs.length ? techs : [UNSET];
             const order: OrderItem = {
                 id: r.id,
                 report_number: r.report_number,
@@ -141,20 +189,72 @@ export default function TechnicianReportPage() {
                 vehicle: v ? `${v.make || ""} ${v.model || ""}${v.plate_number ? ` (${v.plate_number})` : ""}`.trim() : "—",
                 services: sc,
             };
-            // Credit the car + its services to every technician who worked on it.
+
+            // Credit the car to each technician; near-duplicate spellings on the same
+            // card collapse to one credit via the normalized key.
+            const seen = new Set<string>();
             for (const name of names) {
-                let g = map.get(name);
-                if (!g) {
-                    g = { name, cars: 0, services: 0, completed: 0, orders: [] };
-                    map.set(name, g);
+                const key = name === UNSET ? UNSET : normalizeName(name);
+                if (!key || seen.has(key)) continue;
+                seen.add(key);
+                let a = byKey.get(key);
+                if (!a) {
+                    a = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map() };
+                    byKey.set(key, a);
                 }
-                g.cars += 1;
-                g.services += sc;
-                if (r.status === "تم الانتهاء") g.completed += 1;
-                g.orders.push(order);
+                a.cars += 1;
+                a.services += sc;
+                if (r.status === "تم الانتهاء") a.completed += 1;
+                a.orders.push(order);
+                if (name !== UNSET) a.spellings.set(name, (a.spellings.get(name) || 0) + 1);
             }
         }
-        const groups = Array.from(map.values()).sort((a, b) => b.cars - a.cars);
+
+        // Cluster near-duplicate normalized keys (typos / different letters) via union-find.
+        const keys = [...byKey.keys()];
+        const parent = new Map<string, string>();
+        keys.forEach((k) => parent.set(k, k));
+        const find = (x: string): string => {
+            while (parent.get(x) !== x) {
+                parent.set(x, parent.get(parent.get(x)!)!);
+                x = parent.get(x)!;
+            }
+            return x;
+        };
+        const real = keys.filter((k) => k !== UNSET);
+        for (let i = 0; i < real.length; i++) {
+            for (let j = i + 1; j < real.length; j++) {
+                if (namesAreClose(real[i], real[j])) parent.set(find(real[i]), find(real[j]));
+            }
+        }
+
+        // Merge each cluster's tallies; display the most-used original spelling.
+        const clusters = new Map<string, Acc>();
+        for (const k of keys) {
+            const root = k === UNSET ? UNSET : find(k);
+            let c = clusters.get(root);
+            if (!c) {
+                c = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map() };
+                clusters.set(root, c);
+            }
+            const a = byKey.get(k)!;
+            c.cars += a.cars;
+            c.services += a.services;
+            c.completed += a.completed;
+            c.orders.push(...a.orders);
+            a.spellings.forEach((cnt, sp) => c!.spellings.set(sp, (c!.spellings.get(sp) || 0) + cnt));
+        }
+
+        const groups: TechGroup[] = [...clusters.entries()].map(([root, c]) => {
+            let name = UNSET;
+            if (root !== UNSET) {
+                let best = "", bestN = -1;
+                c.spellings.forEach((cnt, sp) => { if (cnt > bestN) { bestN = cnt; best = sp; } });
+                name = best || root;
+            }
+            return { name, cars: c.cars, services: c.services, completed: c.completed, orders: c.orders };
+        }).sort((a, b) => b.cars - a.cars);
+
         return { groups, totalCars, totalServices };
     }, [rows]);
 
