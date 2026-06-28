@@ -8,6 +8,23 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as 
 
 type ReportType = 'revenue' | 'work-orders' | 'inventory' | 'analytics';
 
+// A "بيع منتج" (product sale) order keeps its products in selected_services[0].products
+// and has no maintenance services — show the product names instead of the inspection details.
+function isSaleReport(r: any, svc: any): boolean {
+    return r?.order_type === 'sale' || svc?.is_sale === true;
+}
+function saleProductsText(svc: any): string {
+    const products = Array.isArray(svc?.products) ? svc.products : [];
+    if (products.length === 0) return 'بيع منتج';
+    return products
+        .map((p: any) => {
+            const name = String(p?.name || '').trim() || 'منتج';
+            const qty = Number(p?.qty || 0);
+            return qty > 1 ? `${name} ×${qty}` : name;
+        })
+        .join(' | ');
+}
+
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<ReportType>('revenue');
     const [loading, setLoading] = useState(false);
@@ -31,7 +48,7 @@ export default function ReportsPage() {
         try {
             if (activeTab === 'revenue') {
                 // Fetch from Work Orders
-                let q1 = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, vehicles(make, model, clients(name))').eq('status', 'تم الانتهاء');
+                let q1 = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, order_type, selected_services, vehicles(make, model, clients(name))').eq('status', 'تم الانتهاء');
                 
                 // Fetch from POS
                 let q2 = supabase.from('pos_sales').select('id, payment_method, total_amount, created_at');
@@ -51,15 +68,19 @@ export default function ReportsPage() {
                 
                 const mergedRevenue = [];
                 if (res1.data) {
-                    mergedRevenue.push(...res1.data.map(r => ({
-                        id: r.report_number,
-                        type: 'ورشة (صيانة)',
-                        client: r.vehicles?.clients?.name || 'عميل مجهول',
-                        details: `${r.vehicles?.make} ${r.vehicles?.model}`,
-                        status: r.status,
-                        total_price: Number(r.total_price || 0),
-                        created_at: r.created_at
-                    })));
+                    mergedRevenue.push(...res1.data.map((r: any) => {
+                        const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
+                        const sale = isSaleReport(r, svc);
+                        return {
+                            id: r.report_number,
+                            type: sale ? 'بيع منتج' : 'ورشة (صيانة)',
+                            client: sale ? (svc?.customerName || 'عميل نقدي') : (r.vehicles?.clients?.name || 'عميل مجهول'),
+                            details: sale ? saleProductsText(svc) : `${r.vehicles?.make || ''} ${r.vehicles?.model || ''}`.trim(),
+                            status: r.status,
+                            total_price: Number(r.total_price || 0),
+                            created_at: r.created_at
+                        };
+                    }));
                 }
                 if (res2.data) {
                     mergedRevenue.push(...res2.data.map((r: any) => ({
@@ -78,7 +99,7 @@ export default function ReportsPage() {
                 setReportData(mergedRevenue);
 
             } else if (activeTab === 'work-orders') {
-                let query = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, odometer_reading, selected_services, vehicles(make, model, plate_number, clients(name))');
+                let query = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, odometer_reading, order_type, selected_services, vehicles(make, model, plate_number, clients(name))');
                 
                 if (!fetchWithoutDates) {
                     if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
@@ -133,17 +154,18 @@ export default function ReportsPage() {
                                 return parts.length ? `${label}: ${parts.join(' - ')}` : label;
                             })
                             .join(' | ');
+                        const sale = isSaleReport(r, svc);
                         return {
                             id: r.report_number,
-                            type: 'أمر عمل',
-                            client: (r.vehicles as any)?.clients?.name || 'غير محدد',
-                            vehicle: `${(r.vehicles as any)?.make || ''} ${(r.vehicles as any)?.model || ''}`.trim(),
-                            plate: (r.vehicles as any)?.plate_number || '',
-                            odometer: r.odometer_reading || 0,
-                            services: serviceDetails || '-',
+                            type: sale ? 'بيع منتج' : 'أمر عمل',
+                            client: sale ? (svc?.customerName || 'عميل نقدي') : ((r.vehicles as any)?.clients?.name || 'غير محدد'),
+                            vehicle: sale ? 'بيع منتج' : `${(r.vehicles as any)?.make || ''} ${(r.vehicles as any)?.model || ''}`.trim(),
+                            plate: sale ? '' : ((r.vehicles as any)?.plate_number || ''),
+                            odometer: sale ? 0 : (r.odometer_reading || 0),
+                            services: sale ? saleProductsText(svc) : (serviceDetails || '-'),
                             shift: svc?.shiftName || '',
                             supervisor: svc?.shiftSupervisor || '',
-                            technician: svc?.technicianName || '',
+                            technician: sale ? '' : (svc?.technicianName || ''),
                             status: r.status,
                             total_price: Number(r.total_price || 0),
                             created_at: r.created_at
