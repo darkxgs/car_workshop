@@ -100,92 +100,58 @@ export default function CustomersPage() {
     const fetchClients = async () => {
         setLoading(true);
         try {
-            let filteredClientIds: Set<string> | null = null;
-            let filterHasNoMatches = false;
-
             const activeBranchId = employeeBranchId || branchFilter;
+            const hasReportFilter = !!(activeBranchId || dateFrom || dateTo);
 
-            if (activeBranchId || dateFrom || dateTo) {
-                let reportQuery = supabase
-                    .from('inspection_reports')
-                    .select('vehicle_id');
-                
-                if (activeBranchId) reportQuery = reportQuery.eq('branch_id', activeBranchId);
-                if (dateFrom) reportQuery = reportQuery.gte('created_at', `${dateFrom}T00:00:00`);
-                if (dateTo) reportQuery = reportQuery.lte('created_at', `${dateTo}T23:59:59`);
-
-                const { data: matchedReports } = await reportQuery;
-
-                if (!matchedReports || matchedReports.length === 0) {
-                    filterHasNoMatches = true;
-                } else {
-                    const vehicleIds = matchedReports.map(r => r.vehicle_id).filter((id): id is string => Boolean(id));
-                    if (vehicleIds.length === 0) {
-                        filterHasNoMatches = true;
-                    } else {
-                        const { data: matchedVehicles } = await supabase
-                            .from('vehicles')
-                            .select('client_id')
-                            .in('id', vehicleIds);
-
-                        if (!matchedVehicles || matchedVehicles.length === 0) {
-                            filterHasNoMatches = true;
-                        } else {
-                            filteredClientIds = new Set(matchedVehicles.map(v => v.client_id).filter(Boolean));
-                        }
-                    }
-                }
-            }
-
-            if (debouncedSearchTerm && !filterHasNoMatches) {
+            // Search term -> a (usually small) set of matching client ids, applied via .in().
+            let searchClientIds: Set<string> | null = null;
+            if (debouncedSearchTerm) {
                 const term = debouncedSearchTerm.trim();
-                
                 const { data: matchedClients } = await supabase
                     .from('clients')
                     .select('id')
                     .or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
-
                 const { data: matchedVehicles } = await supabase
                     .from('vehicles')
                     .select('client_id')
                     .or(`plate_number.ilike.%${term}%,make.ilike.%${term}%,booklet_serial.ilike.%${term}%`);
 
-                const searchClientIds = new Set<string>();
-                if (matchedClients) matchedClients.forEach(c => searchClientIds.add(c.id));
-                if (matchedVehicles) matchedVehicles.forEach(v => { if (v.client_id) searchClientIds.add(v.client_id); });
+                searchClientIds = new Set<string>();
+                matchedClients?.forEach(c => searchClientIds!.add(c.id));
+                matchedVehicles?.forEach(v => { if (v.client_id) searchClientIds!.add(v.client_id); });
 
                 if (searchClientIds.size === 0) {
-                    filterHasNoMatches = true;
-                } else {
-                    if (filteredClientIds === null) {
-                        filteredClientIds = searchClientIds;
-                    } else {
-                        filteredClientIds = new Set([...filteredClientIds].filter(id => searchClientIds.has(id)));
-                    }
+                    setClients([]);
+                    setTotalCount(0);
+                    setLoading(false);
+                    return;
                 }
             }
 
-            if (filterHasNoMatches || (filteredClientIds !== null && filteredClientIds.size === 0)) {
-                setClients([]);
-                setTotalCount(0);
-                setLoading(false);
-                return;
-            }
-
             const offset = (currentPage - 1) * PAGE_SIZE;
-            let query = supabase
-                .from('clients')
-                .select(`
-                    id, name, phone, email, created_at,
-                    vehicles (
+
+            // Branch/date filtering is done DB-side via an inner join on the client's
+            // vehicles' reports. The previous approach collected every matching vehicle
+            // and client id and passed them to .in(...), which on a busy branch produced
+            // a request URL too long for PostgREST (Bad Request) and showed zero customers.
+            const vehiclesSelect = hasReportFilter
+                ? `vehicles!inner (
+                        id, make, model, plate_number, engine_size, booklet_serial,
+                        inspection_reports!inner (id, report_number, status, branch_id, created_at, total_price, branches(name))
+                    )`
+                : `vehicles (
                         id, make, model, plate_number, engine_size, booklet_serial,
                         inspection_reports (id, report_number, status, branch_id, created_at, total_price, branches(name))
-                    )
-                `, { count: 'exact' });
+                    )`;
 
-            if (filteredClientIds !== null) {
-                query = query.in('id', Array.from(filteredClientIds));
-            }
+            let query = supabase
+                .from('clients')
+                .select(`id, name, phone, email, created_at, ${vehiclesSelect}`, { count: 'exact' });
+
+            if (activeBranchId) query = query.eq('vehicles.inspection_reports.branch_id', activeBranchId);
+            if (dateFrom) query = query.gte('vehicles.inspection_reports.created_at', `${dateFrom}T00:00:00`);
+            if (dateTo) query = query.lte('vehicles.inspection_reports.created_at', `${dateTo}T23:59:59`);
+            if (searchClientIds) query = query.in('id', Array.from(searchClientIds));
 
             const { data, count, error } = await query
                 .order('created_at', { ascending: false })
