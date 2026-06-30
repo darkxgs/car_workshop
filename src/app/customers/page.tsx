@@ -377,7 +377,7 @@ export default function CustomersPage() {
     const exportExcel = async () => {
         const { data, error } = await supabase
             .from("inspection_reports")
-            .select(`id, report_number, created_at, total_price, status, selected_services, odometer_reading, branch_id,
+            .select(`id, report_number, created_at, total_price, status, order_type, selected_services, odometer_reading, branch_id,
                      receptionist:receptionist_id(name),
                      vehicles(make, model, plate_number, booklet_serial, clients(name, phone)), branches(name)`)
             .order("created_at", { ascending: false });
@@ -459,6 +459,18 @@ export default function CustomersPage() {
             const customs    = payload?.customServices || [];
             const bookletObj = payload?.booklet   || {};
 
+            // "بيع منتج" order: no inspection services — show the product name(s) instead of "فحص".
+            const isSale = r.order_type === 'sale' || payload?.is_sale === true;
+            const saleProductsText = isSale
+                ? (Array.isArray(payload?.products) && payload.products.length
+                    ? payload.products.map((p: any) => {
+                        const n = String(p?.name || '').trim() || 'منتج';
+                        const q = Number(p?.qty || 0);
+                        return q > 1 ? `${n} ×${q}` : n;
+                    }).join("، ")
+                    : 'بيع منتج')
+                : '';
+
             const oilSvc  = services.engineOil || {};
             const oilType = oilSvc.details?.type || oilSvc.details?.brand || "";
             const oilVisc = oilSvc.details?.viscosity || "";
@@ -504,19 +516,19 @@ export default function CustomersPage() {
             return {
                 seq: idx + 1,
                 branch_name: r.branches?.name || "—",
-                client_name:  client?.name  || "—",
-                client_phone: client?.phone || "—",
-                car_make:  vehicle?.make  || "—",
-                car_model: vehicle?.model || "—",
-                plate: vehicle?.plate_number || "—",
+                client_name:  isSale ? (payload?.customerName || "عميل نقدي") : (client?.name  || "—"),
+                client_phone: isSale ? (payload?.customerPhone || "—") : (client?.phone || "—"),
+                car_make:  isSale ? "بيع منتج" : (vehicle?.make  || "—"),
+                car_model: isSale ? "—" : (vehicle?.model || "—"),
+                plate: isSale ? "—" : (vehicle?.plate_number || "—"),
                 booklet_serial: vehicle?.booklet_serial || "—",
                 created_at: new Date(r.created_at).toLocaleDateString("en-US"),
                 shift_name: shiftName || "—",
                 receptionist_name: receptionistName || "—",
                 supervisor_name: supervisorName || "—",
-                technician_name: technicianName || "—",
-                odometer: odometer || "—",
-                service_type: needChange.join("، ") || "فحص",
+                technician_name: isSale ? "—" : (technicianName || "—"),
+                odometer: isSale ? "—" : (odometer || "—"),
+                service_type: isSale ? saleProductsText : (needChange.join("، ") || "فحص"),
                 oil_type: oilType, oil_viscosity: oilVisc, oil_liters: oilLiters,
                 extra_services: customLabels.join("، "),
                 booklet: bookletStr,
