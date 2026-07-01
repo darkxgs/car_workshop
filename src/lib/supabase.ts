@@ -18,8 +18,16 @@ const customFetch = (url: RequestInfo | URL, options?: RequestInit) => {
     ]);
 };
 
+const getSupabaseUrl = () => {
+    if (typeof window !== "undefined") {
+        // Use relative path to proxy through Next.js server to bypass ISP blocks/routing issues in Iraq
+        return `${window.location.origin}/api/supabase`;
+    }
+    return process.env.NEXT_PUBLIC_SUPABASE_URL!;
+};
+
 export const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    getSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
         global: {
