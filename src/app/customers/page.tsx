@@ -425,17 +425,29 @@ export default function CustomersPage() {
             const customs    = payload?.customServices || [];
             const bookletObj = payload?.booklet   || {};
 
-            // "بيع منتج" order: no inspection services — show the product name(s) instead of "فحص".
+            // "بيع منتج" order: no inspection services. نوع الخدمة = "بيع منتج", and each
+            // product is sorted into the right report column — oils into the oil columns,
+            // filters/others into "الخدمات الإضافية" — instead of dumping everything in one cell.
             const isSale = r.order_type === 'sale' || payload?.is_sale === true;
-            const saleProductsText = isSale
-                ? (Array.isArray(payload?.products) && payload.products.length
-                    ? payload.products.map((p: any) => {
-                        const n = String(p?.name || '').trim() || 'منتج';
-                        const q = Number(p?.qty || 0);
-                        return q > 1 ? `${n} ×${q}` : n;
-                    }).join("، ")
-                    : 'بيع منتج')
-                : '';
+            let saleOilType = "", saleOilVisc = "", saleOilLiters = "", saleExtra = "";
+            if (isSale) {
+                const oils: { name: string; qty: number; visc: string }[] = [];
+                const others: { name: string; qty: number }[] = [];
+                (Array.isArray(payload?.products) ? payload.products : []).forEach((p: any) => {
+                    const name = String(p?.name || '').trim();
+                    if (!name) return;
+                    const qty = Number(p?.qty || 0);
+                    const isFilter = /فلتر|filter/i.test(name);
+                    const visc = (name.match(/\d+\s*w\s*[-_ ]?\s*\d+/i) || [''])[0].replace(/\s+/g, '');
+                    const isOil = !isFilter && (visc !== '' || /زيت|oil/i.test(name));
+                    if (isOil) oils.push({ name, qty, visc });
+                    else others.push({ name, qty });
+                });
+                saleOilType = oils.map(o => o.name).join('، ');
+                saleOilVisc = oils.map(o => o.visc).filter(Boolean).join('، ');
+                saleOilLiters = oils.map(o => o.qty).filter(Boolean).join('، ');
+                saleExtra = others.map(o => (o.qty > 1 ? `${o.name} ×${o.qty}` : o.name)).join('، ');
+            }
 
             const oilSvc  = services.engineOil || {};
             const oilType = oilSvc.details?.type || oilSvc.details?.brand || "";
@@ -484,7 +496,7 @@ export default function CustomersPage() {
                 branch_name: r.branches?.name || "—",
                 client_name:  isSale ? (payload?.customerName || "عميل نقدي") : (client?.name  || "—"),
                 client_phone: isSale ? (payload?.customerPhone || "—") : (client?.phone || "—"),
-                car_make:  isSale ? "بيع منتج" : (vehicle?.make  || "—"),
+                car_make:  isSale ? "—" : (vehicle?.make  || "—"),
                 car_model: isSale ? "—" : (vehicle?.model || "—"),
                 plate: isSale ? "—" : (vehicle?.plate_number || "—"),
                 booklet_serial: vehicle?.booklet_serial || "—",
@@ -494,9 +506,11 @@ export default function CustomersPage() {
                 supervisor_name: supervisorName || "—",
                 technician_name: isSale ? "—" : (technicianName || "—"),
                 odometer: isSale ? "—" : (odometer || "—"),
-                service_type: isSale ? saleProductsText : (needChange.join("، ") || "فحص"),
-                oil_type: oilType, oil_viscosity: oilVisc, oil_liters: oilLiters,
-                extra_services: customLabels.join("، "),
+                service_type: isSale ? "بيع منتج" : (needChange.join("، ") || "فحص"),
+                oil_type: isSale ? (saleOilType || "—") : oilType,
+                oil_viscosity: isSale ? (saleOilVisc || "—") : oilVisc,
+                oil_liters: isSale ? (saleOilLiters || "—") : oilLiters,
+                extra_services: isSale ? saleExtra : customLabels.join("، "),
                 booklet: bookletStr,
                 total_price: r.total_price || 0,
                 status: STATUS_MAP[r.status] || r.status || "",
