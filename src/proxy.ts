@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 // Routes that must remain reachable without an authenticated session.
 // NOTE: `/b/` is the public, customer-facing vehicle booklet (opened via QR code).
-const PUBLIC_PREFIXES = ["/login", "/b/"];
+const PUBLIC_PREFIXES = ["/login", "/b/", "/api/"];
 
 function isPublicPath(pathname: string): boolean {
     return PUBLIC_PREFIXES.some(
