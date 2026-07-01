@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { processLock } from '@supabase/supabase-js'
 import type { Database } from './types'
 
 // Custom fetch wrapper to prevent infinite deadlocks when tabs hibernate/wake up.
@@ -23,6 +24,14 @@ export const supabase = createBrowserClient<Database>(
     {
         global: {
             fetch: customFetch
-        }
+        },
+        auth: {
+            // Use an in-memory lock instead of the browser Web Locks API. The default
+            // navigator lock throws "Lock ... was released because another request stole it"
+            // under contention (slow networks, multiple tabs, or browsers like Brave),
+            // which was crashing auth init for users. processLock serializes token
+            // refreshes within the tab without relying on navigator.locks.
+            lock: processLock,
+        },
     }
 );
