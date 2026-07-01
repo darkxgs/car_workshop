@@ -137,47 +137,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let isMounted = true;
 
+        // Transient failures (Web-Locks contention or the customFetch 10s timeout on slow
+        // networks) must not hard-crash the app with the fatal screen — retry, then degrade
+        // to the login page instead.
+        const isTransientAuthError = (e: any) => {
+            const m = (e?.message || String(e) || "").toLowerCase();
+            return m.includes("lock") || m.includes("stole") || m.includes("timeout") ||
+                m.includes("freeze") || m.includes("acquire") || m.includes("network") || m.includes("fetch");
+        };
+
         const init = async () => {
-            try {
-                setDebugMsg("طلب جلسة Supabase...");
-                const { data: { session }, error } = await supabase.auth.getSession();
-                
-                if (error) {
-                    if (error.message?.includes("Refresh Token") || error.message?.includes("not found") || error.status === 400) {
-                        console.warn("Outdated session detected. Resetting local auth state and clearing cookies.");
-                        try {
-                            await supabase.auth.signOut({ scope: 'local' });
-                        } catch {}
-                        localStorage.clear();
-                        sessionStorage.clear();
-                        if (typeof document !== "undefined") {
-                            document.cookie.split(";").forEach(c => {
-                                const name = c.trim().split("=")[0];
-                                if (name.includes("auth-token") || name.startsWith("sb-")) {
-                                    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
-                                }
-                            });
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    setDebugMsg(attempt === 0 ? "طلب جلسة Supabase..." : `إعادة محاولة الاتصال (${attempt})...`);
+                    const { data: { session }, error } = await supabase.auth.getSession();
+
+                    if (error) {
+                        if (error.message?.includes("Refresh Token") || error.message?.includes("not found") || error.status === 400) {
+                            console.warn("Outdated session detected. Resetting local auth state and clearing cookies.");
+                            try {
+                                await supabase.auth.signOut({ scope: 'local' });
+                            } catch {}
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            if (typeof document !== "undefined") {
+                                document.cookie.split(";").forEach(c => {
+                                    const name = c.trim().split("=")[0];
+                                    if (name.includes("auth-token") || name.startsWith("sb-")) {
+                                        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                                    }
+                                });
+                            }
+                            if (isMounted) {
+                                setSession(null);
+                                setUser(null);
+                                setLoading(false);
+                                router.push("/login");
+                            }
+                            return;
                         }
-                        if (isMounted) {
+                        // Any other getSession error is non-fatal: log and continue with whatever we have.
+                        console.warn("getSession error:", error.message);
+                    }
+
+                    if (isMounted) {
+                        setSession(session);
+                        setUser(session?.user ?? null);
+                        if (!session?.user) setLoading(false);
+                    }
+                    return; // success
+                } catch (err: any) {
+                    console.error(`Auth init attempt ${attempt + 1} failed:`, err?.message || err);
+                    if (isTransientAuthError(err) && attempt < 2) {
+                        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                        continue; // retry
+                    }
+                    if (isMounted) {
+                        if (isTransientAuthError(err)) {
+                            // Degrade gracefully instead of the fatal screen: treat as signed
+                            // out and send to login; a reload picks up the session cleanly.
                             setSession(null);
                             setUser(null);
                             setLoading(false);
-                            router.push("/login");
+                            redirect(null);
+                        } else {
+                            setDebugError(`Auth init exception: ${err?.message || String(err)}`);
                         }
-                        return;
                     }
-                    setDebugError(`getSession error: ${error.message}`);
+                    return;
                 }
-
-                if (isMounted) {
-                    setSession(session);
-                    setUser(session?.user ?? null);
-                    if (!session?.user) setLoading(false);
-                }
-            } catch (err: any) {
-                const errMsg = `Auth init exception: ${err?.message || String(err)}`;
-                console.error(errMsg);
-                if (isMounted) setDebugError(errMsg);
             }
         };
 
