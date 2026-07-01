@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { showSuccess, showError } from "@/lib/alerts";
-import { withCommas, digitsOnly } from "@/lib/format";
+import { digitsOnly, decimalsOnly, withCommasDecimal } from "@/lib/format";
 import { ShoppingCart, ArrowRight, Plus, Trash2, Printer, Loader2, CheckCircle2 } from "lucide-react";
 
 type Product = { name: string; qty: string; price: string };
@@ -67,7 +67,7 @@ export default function SaleForm({
     }, [editId, setSelectedBranchId]);
 
     const total = useMemo(
-        () => products.reduce((s, p) => s + (Number(digitsOnly(p.qty)) || 0) * (Number(digitsOnly(p.price)) || 0), 0),
+        () => products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.price) || 0), 0),
         [products]
     );
 
@@ -93,7 +93,7 @@ export default function SaleForm({
                 is_sale: true,
                 customerName: customerName.trim(),
                 customerPhone: customerPhone.trim(),
-                products: valid.map((p) => ({ name: p.name.trim(), qty: Number(digitsOnly(p.qty)) || 1, price: Number(digitsOnly(p.price)) || 0 })),
+                products: valid.map((p) => ({ name: p.name.trim(), qty: parseFloat(p.qty) || 1, price: parseFloat(p.price) || 0 })),
             }];
 
             if (editReportId) {
@@ -189,8 +189,8 @@ export default function SaleForm({
                         </thead>
                         <tbody>
                             {validProducts.map((p, i) => {
-                                const q = Number(digitsOnly(p.qty)) || 0;
-                                const pr = Number(digitsOnly(p.price)) || 0;
+                                const q = parseFloat(p.qty) || 0;
+                                const pr = parseFloat(p.price) || 0;
                                 return (
                                     <tr key={i}>
                                         <td className="p-2 border border-gray-400">{p.name}</td>
@@ -275,11 +275,11 @@ export default function SaleForm({
                                 </div>
                                 <div className="w-full sm:w-24 space-y-1">
                                     {i === 0 && <label className="text-xs text-muted-foreground">الكمية</label>}
-                                    <input type="text" inputMode="numeric" value={withCommas(p.qty)} onChange={(e) => updateProduct(i, "qty", digitsOnly(e.target.value))} placeholder="1" className="input-field w-full text-center" />
+                                    <input type="text" inputMode="decimal" value={withCommasDecimal(p.qty)} onChange={(e) => updateProduct(i, "qty", decimalsOnly(e.target.value))} placeholder="1" className="input-field w-full text-center" />
                                 </div>
                                 <div className="w-full sm:w-32 space-y-1">
                                     {i === 0 && <label className="text-xs text-muted-foreground">السعر</label>}
-                                    <input type="text" inputMode="numeric" value={withCommas(p.price)} onChange={(e) => updateProduct(i, "price", digitsOnly(e.target.value))} placeholder="0" className="input-field w-full text-center" />
+                                    <input type="text" inputMode="decimal" value={withCommasDecimal(p.price)} onChange={(e) => updateProduct(i, "price", decimalsOnly(e.target.value))} placeholder="0" className="input-field w-full text-center" />
                                 </div>
                                 <button onClick={() => removeProduct(i)} disabled={products.length === 1} className="p-2.5 bg-rose-600/10 text-rose-400 border border-rose-500/20 rounded-xl hover:bg-rose-600 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0" title="حذف">
                                     <Trash2 size={18} />
