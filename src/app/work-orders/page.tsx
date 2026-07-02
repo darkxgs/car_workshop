@@ -188,9 +188,13 @@ export default function WorkOrdersListPage() {
                             const isTimerDanger = remainingSeconds <= 0;
                             
                             const absRemaining = Math.abs(remainingSeconds);
-                            const mins = Math.floor(absRemaining / 60);
-                            const secs = absRemaining % 60;
-                            const timeString = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                            const fmtHMS = (total: number) => {
+                                const s = Math.max(0, Math.floor(total));
+                                const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+                                const pad = (n: number) => n.toString().padStart(2, '0');
+                                return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+                            };
+                            const timeString = fmtHMS(absRemaining);
                             
                             return (
                             <div key={order.id} className="glass-card p-6 rounded-2xl border-border relative group overflow-hidden transition-all hover:border-blue-500/30 flex flex-col justify-between">
@@ -243,7 +247,7 @@ export default function WorkOrdersListPage() {
                                                 {order.status === 'قيد العمل' ? (
                                                     remainingSeconds > 0 ? timeString : `-${timeString}`
                                                 ) : (
-                                                    `${order.estimated_duration.toString().padStart(2, '0')}:00`
+                                                    order.estimated_duration > 0 ? fmtHMS(order.estimated_duration * 60) : '—'
                                                 )}
                                             </div>
                                         </div>

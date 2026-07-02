@@ -10,6 +10,25 @@ import { useAuth } from "@/lib/AuthProvider";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 import { showSuccess, showError } from "@/lib/alerts";
 
+// Format a duration in seconds as H:MM:SS (or MM:SS when under an hour).
+function fmtHMS(totalSeconds: number): string {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+}
+// Format a duration in minutes as "1س 30د" / "45د" / "2س".
+function fmtDurationMin(minutes: number): string {
+    const m = Math.max(0, Math.floor(minutes || 0));
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    if (h > 0 && mm > 0) return `${h}س ${mm}د`;
+    if (h > 0) return `${h}س`;
+    return `${mm}د`;
+}
+
 type WorkOrder = {
     id: string;
     report_number: number;
@@ -274,6 +293,10 @@ export default function WorkOrderDetailPage() {
             showError("تنبيه", "يرجى كتابة اسم الفني أولاً للبدء بالعمل!");
             return;
         }
+        // Pre-fill the modal with any estimate carried from reception; the supervisor adjusts it.
+        const est = order.estimated_duration || 0;
+        setEstHours(String(Math.floor(est / 60)));
+        setEstMinutes(String(est % 60));
         setStartError("");
         setShowStartModal(true);
     };
@@ -382,6 +405,14 @@ export default function WorkOrderDetailPage() {
                 elapsed_time: finalElapsed,
                 is_delayed: isDelayed,
                 completed_at: new Date().toISOString(),
+                // Persist the current form details on finish too, so the rating/notes/unit
+                // aren't lost when the supervisor finishes without pressing "حفظ التفاصيل فقط".
+                bay_number: bayNum || null,
+                notes: maintNotes || null,
+                odometer_reading: odometer ? parseInt(odometer) : (order?.odometer_reading || 0),
+                odometer_unit: odometerUnit,
+                technician_rating: rating || null,
+                technician_rating_notes: ratingNotes || null,
                 selected_services: updatedServices
             })
             .eq('id', id);
@@ -470,10 +501,10 @@ export default function WorkOrderDetailPage() {
 
     const totalEstimatedSeconds = order.estimated_duration * 60;
     const isOverdue = order.status !== 'تم الانتهاء' && liveSeconds > totalEstimatedSeconds;
-    
-    const displayLiveMins = Math.floor(liveSeconds / 60);
-    const displayLiveSecs = liveSeconds % 60;
-    const liveTimeString = `${displayLiveMins.toString().padStart(2, '0')}:${displayLiveSecs.toString().padStart(2, '0')}`;
+
+    const liveTimeString = fmtHMS(liveSeconds);
+    const remainingSeconds = totalEstimatedSeconds - liveSeconds; // negative => overtime
+    const progressPct = totalEstimatedSeconds > 0 ? Math.min(100, (liveSeconds / totalEstimatedSeconds) * 100) : 0;
 
     return (
         <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto" dir="rtl">
@@ -553,15 +584,27 @@ export default function WorkOrderDetailPage() {
                         </div>
                         <p className="text-muted-foreground font-bold mb-2 uppercase text-xs tracking-wider">الزمن المستغرق (Live Timing)</p>
                         <p className={`text-6xl font-display font-black font-mono mb-2 ${order.status === 'تم الانتهاء' ? 'text-emerald-500' : isOverdue ? 'text-rose-500' : 'text-blue-500'}`}>
-                            {order.status === 'تم الانتهاء' ? `${order.elapsed_time}:00` : liveTimeString}
+                            {order.status === 'تم الانتهاء' ? fmtHMS((order.elapsed_time || 0) * 60) : liveTimeString}
                         </p>
                         <p className="text-muted-foreground text-sm font-medium flex items-center justify-center gap-2">
-                            من أصل <span className="text-foreground font-bold bg-muted px-2 py-0.5 rounded border border-border">{order.estimated_duration}m</span> مقدرة
+                            من أصل <span className="text-foreground font-bold bg-muted px-2 py-0.5 rounded border border-border">{fmtDurationMin(order.estimated_duration)}</span> مقدرة
                             {order.status !== 'تم الانتهاء' && (
                                 <button onClick={handleEditTime} className="text-blue-500 hover:text-blue-400 p-1 bg-blue-500/10 rounded">تعديل</button>
                             )}
                         </p>
-                        
+
+                        {/* Remaining time + progress (while in progress) */}
+                        {order.status === 'قيد العمل' && (
+                            <div className="w-full mt-3">
+                                <p className={`text-sm font-bold mb-1.5 ${isOverdue ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {isOverdue ? `تجاوز الوقت بـ ${fmtHMS(-remainingSeconds)}` : `المتبقي ${fmtHMS(remainingSeconds)}`}
+                                </p>
+                                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all ${isOverdue ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${progressPct}%` }} />
+                                </div>
+                            </div>
+                        )}
+
                         {isOverdue && order.status !== 'تم الانتهاء' && (
                             <div className="absolute top-0 w-full bg-rose-500 text-white text-xs font-bold py-1">⚠️ تأخير عن الموعد!</div>
                         )}
