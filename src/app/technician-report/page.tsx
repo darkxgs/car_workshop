@@ -3,13 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { Wrench, Loader2, Car, ClipboardCheck, Users, Printer, ChevronLeft, Search } from "lucide-react";
+import { Wrench, Loader2, Car, ClipboardCheck, Users, Printer, ChevronLeft, Search, Download } from "lucide-react";
+import * as XLSX from 'xlsx';
+
+// Supervisor rating levels, worst -> best (used for the ratings breakdown/export).
+const RATING_LEVELS = ['رديء', 'متوسط', 'جيد', 'جيد جداً', 'ممتاز'];
 
 type ReportRow = {
     id: string;
     report_number: number;
     status: string;
     created_at: string;
+    technician_rating: string | null;
     selected_services: any[] | null;
     vehicles: { make: string; model: string; plate_number: string | null } | { make: string; model: string; plate_number: string | null }[] | null;
 };
@@ -29,6 +34,7 @@ type TechGroup = {
     services: number;
     completed: number;
     orders: OrderItem[];
+    ratings: Record<string, number>;
 };
 
 function monthStr() {
@@ -148,7 +154,7 @@ export default function TechnicianReportPage() {
 
             let query = supabase
                 .from("inspection_reports")
-                .select("id, report_number, status, created_at, selected_services, vehicles (make, model, plate_number)")
+                .select("id, report_number, status, created_at, technician_rating, selected_services, vehicles (make, model, plate_number)")
                 .neq("order_type", "sale")
                 .gte("created_at", monthStart.toISOString())
                 .lt("created_at", monthEnd.toISOString())
@@ -166,7 +172,7 @@ export default function TechnicianReportPage() {
 
     const { groups, totalCars, totalServices } = useMemo(() => {
         const UNSET = "غير محدد";
-        type Acc = { cars: number; services: number; completed: number; orders: OrderItem[]; spellings: Map<string, number> };
+        type Acc = { cars: number; services: number; completed: number; orders: OrderItem[]; spellings: Map<string, number>; ratings: Map<string, number> };
         const byKey = new Map<string, Acc>(); // keyed by normalized name
         let totalCars = 0;
         let totalServices = 0;
@@ -199,13 +205,14 @@ export default function TechnicianReportPage() {
                 seen.add(key);
                 let a = byKey.get(key);
                 if (!a) {
-                    a = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map() };
+                    a = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map() };
                     byKey.set(key, a);
                 }
                 a.cars += 1;
                 a.services += sc;
                 if (r.status === "تم الانتهاء") a.completed += 1;
                 a.orders.push(order);
+                if (r.technician_rating) a.ratings.set(r.technician_rating, (a.ratings.get(r.technician_rating) || 0) + 1);
                 if (name !== UNSET) a.spellings.set(name, (a.spellings.get(name) || 0) + 1);
             }
         }
@@ -234,7 +241,7 @@ export default function TechnicianReportPage() {
             const root = k === UNSET ? UNSET : find(k);
             let c = clusters.get(root);
             if (!c) {
-                c = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map() };
+                c = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map() };
                 clusters.set(root, c);
             }
             const a = byKey.get(k)!;
@@ -243,6 +250,7 @@ export default function TechnicianReportPage() {
             c.completed += a.completed;
             c.orders.push(...a.orders);
             a.spellings.forEach((cnt, sp) => c!.spellings.set(sp, (c!.spellings.get(sp) || 0) + cnt));
+            a.ratings.forEach((cnt, rt) => c!.ratings.set(rt, (c!.ratings.get(rt) || 0) + cnt));
         }
 
         const groups: TechGroup[] = [...clusters.entries()].map(([root, c]) => {
@@ -252,7 +260,7 @@ export default function TechnicianReportPage() {
                 c.spellings.forEach((cnt, sp) => { if (cnt > bestN) { bestN = cnt; best = sp; } });
                 name = best || root;
             }
-            return { name, cars: c.cars, services: c.services, completed: c.completed, orders: c.orders };
+            return { name, cars: c.cars, services: c.services, completed: c.completed, orders: c.orders, ratings: Object.fromEntries(c.ratings) };
         }).sort((a, b) => b.cars - a.cars);
 
         return { groups, totalCars, totalServices };
@@ -263,6 +271,25 @@ export default function TechnicianReportPage() {
         const q = techSearch.trim().toLowerCase();
         return q ? groups.filter((g) => g.name.toLowerCase().includes(q)) : groups;
     }, [groups, techSearch]);
+
+    const downloadRatingsExcel = () => {
+        const realGroups = groups.filter((g) => g.name !== "غير محدد");
+        if (realGroups.length === 0) return;
+        const header = ["الفني", "عدد السيارات", "عدد الخدمات", "عدد التقييمات", ...RATING_LEVELS, "التقييم الغالب"];
+        const aoa = [header, ...realGroups.map((g) => {
+            const ratedCount = RATING_LEVELS.reduce((s, lvl) => s + (g.ratings[lvl] || 0), 0);
+            let dom = "—", domN = 0;
+            RATING_LEVELS.forEach((lvl) => { const n = g.ratings[lvl] || 0; if (n > domN) { domN = n; dom = lvl; } });
+            return [g.name, g.cars, g.services, ratedCount, ...RATING_LEVELS.map((lvl) => g.ratings[lvl] || 0), ratedCount ? dom : "—"];
+        })];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws["!cols"] = [{ wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 16 }];
+        if (!ws["!opts"]) ws["!opts"] = {};
+        (ws as any)["!opts"].RTL = true;
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "تقييمات الفنيين");
+        XLSX.writeFile(wb, `technician_ratings_${month}.xlsx`);
+    };
 
     if (authLoading) {
         return <div className="min-h-screen bg-[#08080d] flex items-center justify-center"><Loader2 className="animate-spin text-rose-500 w-12 h-12" /></div>;
@@ -298,6 +325,12 @@ export default function TechnicianReportPage() {
                             </select>
                         )}
                         <input type="month" value={month} onChange={(e) => setMonth(e.target.value || monthStr())} className="bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50" />
+                        <button
+                            onClick={downloadRatingsExcel}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
+                        >
+                            <Download size={16} /> تصدير التقييمات (Excel)
+                        </button>
                     </div>
                 </div>
 
