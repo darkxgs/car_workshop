@@ -815,7 +815,9 @@ export default function StandardReception({
 
     const handleSaveDraft = async () => saveWorkOrder('تم الاستلام', null, false);
     const handleSaveOnly = async () => saveWorkOrder('تم الاستلام', null, true);
-    const handleStartWorkOrder = async () => saveWorkOrder('قيد العمل', new Date().toISOString(), false);
+    // Hand the car over to the workshop floor as "received" — the timer does NOT start here.
+    // The supervisor starts the service (and sets its estimated time) from ساحة الورشة.
+    const handleStartWorkOrder = async () => saveWorkOrder('تم الاستلام', null, false);
 
     const saveWorkOrder = async (status: 'تم الاستلام' | 'قيد العمل', startTime: string | null, skipStep3 = false) => {
         setLoading(true); setError(null);
@@ -1878,7 +1880,7 @@ export default function StandardReception({
                             </button>
                             <button onClick={handleStartWorkOrder} disabled={loading} className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2 font-ibm">
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Play size={20} />}
-                                تسليم للفني (Start)
+                                تسليم للورشة
                             </button>
                         </div>
                     </div>

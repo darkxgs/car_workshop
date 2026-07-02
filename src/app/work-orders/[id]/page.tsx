@@ -27,7 +27,10 @@ type WorkOrder = {
     vehicles: { make: string; model: string; plate_number: string; booklet_serial?: string | null; clients?: { name: string; phone: string } };
     bay_number: string | null;
     odometer_reading: number;
+    odometer_unit?: string;
     technician_id: string | null;
+    technician_rating?: string | null;
+    technician_rating_notes?: string | null;
     branch_id: string | null;
     notes: string | null;
 };
@@ -113,8 +116,20 @@ export default function WorkOrderDetailPage() {
     const [supervisorName, setSupervisorName] = useState("");
     const [bayNum, setBayNum] = useState("");
     const [odometer, setOdometer] = useState("");
+    const [odometerUnit, setOdometerUnit] = useState<'km' | 'mi'>('km');
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+    // Technician performance rating (by the supervisor)
+    const RATING_OPTIONS = ['رديء', 'متوسط', 'جيد', 'جيد جداً', 'ممتاز'];
+    const [rating, setRating] = useState("");
+    const [ratingNotes, setRatingNotes] = useState("");
+
+    // "بدء الخدمة" flow: pick an estimated duration (hours + minutes) before the timer starts.
+    const [showStartModal, setShowStartModal] = useState(false);
+    const [estHours, setEstHours] = useState("0");
+    const [estMinutes, setEstMinutes] = useState("30");
+    const [startError, setStartError] = useState("");
 
     // Add Dynamic Service States
     const [selectedCatalogId, setSelectedCatalogId] = useState("");
@@ -146,7 +161,7 @@ export default function WorkOrderDetailPage() {
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, order_type, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, order_type, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, odometer_unit, technician_rating, technician_rating_notes, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -164,6 +179,9 @@ export default function WorkOrderDetailPage() {
             setSupervisorName(firstSvc?.shiftSupervisor || "");
             setBayNum(data.bay_number || "");
             setOdometer(data.odometer_reading?.toString() || "");
+            setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
+            setRating((data as { technician_rating?: string }).technician_rating || "");
+            setRatingNotes((data as { technician_rating_notes?: string }).technician_rating_notes || "");
             setMaintNotes(data.notes || "");
 
             // Fetch suggestions for this order's branch
@@ -231,6 +249,9 @@ export default function WorkOrderDetailPage() {
                     bay_number: bayNum || null,
                     notes: maintNotes || null,
                     odometer_reading: odometer ? parseInt(odometer) : 0,
+                    odometer_unit: odometerUnit,
+                    technician_rating: rating || null,
+                    technician_rating_notes: ratingNotes || null,
                     selected_services: updatedServices
                 })
                 .eq('id', id);
@@ -246,10 +267,25 @@ export default function WorkOrderDetailPage() {
         }
     };
 
-    const handleStart = async () => {
+    // Step 1: open the mandatory "estimated service time" modal. The timer does NOT start yet.
+    const handleStart = () => {
         if (!order) return;
         if (!techName.trim()) {
             showError("تنبيه", "يرجى كتابة اسم الفني أولاً للبدء بالعمل!");
+            return;
+        }
+        setStartError("");
+        setShowStartModal(true);
+    };
+
+    // Step 2: confirm the estimate → set estimated_duration and start the timer.
+    const confirmStartService = async () => {
+        if (!order) return;
+        const h = parseInt(estHours || "0") || 0;
+        const m = parseInt(estMinutes || "0") || 0;
+        const totalMinutes = h * 60 + m;
+        if (totalMinutes <= 0) {
+            setStartError("يجب تحديد وقت الخدمة المتوقع (ساعة و/أو دقائق).");
             return;
         }
 
@@ -272,18 +308,21 @@ export default function WorkOrderDetailPage() {
 
             const { error } = await supabase
                 .from('inspection_reports')
-                .update({ 
-                    status: 'قيد العمل', 
+                .update({
+                    status: 'قيد العمل',
                     start_time: new Date().toISOString(),
+                    estimated_duration: totalMinutes,
                     bay_number: bayNum || null,
                     notes: maintNotes || null,
                     odometer_reading: odometer ? parseInt(odometer) : 0,
+                    odometer_unit: odometerUnit,
                     selected_services: updatedServices
                 })
                 .eq('id', id);
 
             if (error) throw error;
-            showSuccess("تم البدء", "تم بدء العمل على المركبة بنجاح!");
+            setShowStartModal(false);
+            showSuccess("تم البدء", "تم بدء الخدمة والعداد يعمل الآن!");
             fetchOrder();
         } catch (err) {
             console.error(err);
@@ -481,7 +520,7 @@ export default function WorkOrderDetailPage() {
                     )}
                     {order.status === 'تم الاستلام' && (
                         <button onClick={handleStart} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20">
-                            <Play size={18} /> بدء التشغيل (Start Check)
+                            <Play size={18} /> بدء الخدمة
                         </button>
                     )}
                     {order.status === 'قيد العمل' && (
@@ -586,15 +625,23 @@ export default function WorkOrderDetailPage() {
 
                             <div>
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">عداد السيارة (Odometer)</label>
-                                <input
-                                    type="number"
-                                    value={odometer}
-                                    onChange={(e) => setOdometer(e.target.value)}
-                                    placeholder="أدخل قراءة العداد بالكم..."
-                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        dir="ltr"
+                                        value={odometer}
+                                        onChange={(e) => setOdometer(e.target.value.replace(/[^\d]/g, ''))}
+                                        placeholder="0"
+                                        className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground text-right focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                    />
+                                    <div className="flex rounded-xl border border-border overflow-hidden shrink-0">
+                                        <button type="button" onClick={() => setOdometerUnit('km')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'km' ? 'bg-blue-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>كم</button>
+                                        <button type="button" onClick={() => setOdometerUnit('mi')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'mi' ? 'bg-blue-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>ميل</button>
+                                    </div>
+                                </div>
                             </div>
-                            
+
                             <div>
                                 <label className="text-xs font-bold text-muted-foreground block mb-1">ملاحظات الصيانة العامة</label>
                                 <textarea
@@ -605,6 +652,27 @@ export default function WorkOrderDetailPage() {
                                     className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors resize-none font-ibm"
                                 />
                             </div>
+
+                            {/* Technician performance rating (by the supervisor) */}
+                            <div className="pt-3 border-t border-border">
+                                <label className="text-xs font-bold text-muted-foreground block mb-2">⭐ تقييم أداء الفني (من المشرف)</label>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {RATING_OPTIONS.map(opt => (
+                                        <button key={opt} type="button" onClick={() => setRating(rating === opt ? "" : opt)}
+                                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${rating === opt ? 'bg-amber-500 border-amber-400 text-white' : 'bg-muted border-border text-muted-foreground hover:border-amber-500/50'}`}>
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={ratingNotes}
+                                    onChange={(e) => setRatingNotes(e.target.value)}
+                                    placeholder="ملاحظات حول أداء الفني (اختياري)..."
+                                    rows={2}
+                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none transition-colors resize-none font-ibm"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">اضغط "حفظ التفاصيل فقط" لحفظ التقييم.</p>
+                            </div>
                         </div>
                         
                         {order.status === 'تم الاستلام' && (
@@ -612,7 +680,7 @@ export default function WorkOrderDetailPage() {
                                 onClick={handleStart}
                                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 font-ibm"
                             >
-                                <Play size={16} /> حفظ وابدأ بالعمل
+                                <Play size={16} /> بدء الخدمة
                             </button>
                         )}
                         
@@ -1035,6 +1103,37 @@ export default function WorkOrderDetailPage() {
                             )}
                         </div>
                         
+                    </div>
+                </div>
+            )}
+
+            {/* Mandatory "estimated service time" modal — the timer starts only after this is confirmed */}
+            {showStartModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm font-ibm" dir="rtl">
+                    <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><Clock size={22} /></div>
+                            <div>
+                                <h3 className="text-lg font-bold text-foreground">وقت الخدمة المتوقع</h3>
+                                <p className="text-xs text-muted-foreground">حدّد المدة المتوقعة قبل بدء الخدمة (إجباري)</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-center gap-3 my-6">
+                            <div className="text-center">
+                                <input type="text" inputMode="numeric" value={estHours} onChange={(e) => { setEstHours(e.target.value.replace(/[^\d]/g, '')); setStartError(''); }} className="w-24 bg-background border border-border rounded-2xl p-3 text-center text-3xl font-black text-foreground focus:border-blue-500 focus:outline-none" />
+                                <p className="text-xs text-muted-foreground mt-1">ساعات</p>
+                            </div>
+                            <span className="text-3xl font-black text-muted-foreground pb-6">:</span>
+                            <div className="text-center">
+                                <input type="text" inputMode="numeric" value={estMinutes} onChange={(e) => { setEstMinutes(e.target.value.replace(/[^\d]/g, '')); setStartError(''); }} className="w-24 bg-background border border-border rounded-2xl p-3 text-center text-3xl font-black text-foreground focus:border-blue-500 focus:outline-none" />
+                                <p className="text-xs text-muted-foreground mt-1">دقائق</p>
+                            </div>
+                        </div>
+                        {startError && <p className="text-rose-500 text-sm text-center mb-3 font-bold">{startError}</p>}
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowStartModal(false)} className="flex-1 py-3 bg-muted hover:bg-muted/70 text-foreground font-bold rounded-xl transition-colors">إلغاء</button>
+                            <button onClick={confirmStartService} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"><Play size={16} /> بدء الخدمة</button>
+                        </div>
                     </div>
                 </div>
             )}
