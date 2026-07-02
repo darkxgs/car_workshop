@@ -174,6 +174,8 @@ export interface Database {
           is_delayed: boolean
           bay_number: string | null
           technician_id: string | null
+          technician_rating: string | null
+          technician_rating_notes: string | null
           selected_services: any[]
         }
         Insert: {
@@ -198,6 +200,8 @@ export interface Database {
           is_delayed?: boolean
           bay_number?: string | null
           technician_id?: string | null
+          technician_rating?: string | null
+          technician_rating_notes?: string | null
           selected_services?: any[]
         }
         Update: {
@@ -222,6 +226,8 @@ export interface Database {
           is_delayed?: boolean
           bay_number?: string | null
           technician_id?: string | null
+          technician_rating?: string | null
+          technician_rating_notes?: string | null
           selected_services?: any[]
         }
         Relationships: [
