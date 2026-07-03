@@ -395,6 +395,15 @@ export default function StandardReception({
     const [engineSize, setEngineSize] = useState("");
     const [odometer, setOdometer] = useState("");
     const [odometerUnit, setOdometerUnit] = useState<'km' | 'mi'>('km');
+    // Future odometer = current reading + a service interval. Quick buttons add the interval
+    // in km; if the unit is miles the increment is converted (km × 0.6214).
+    const [futureOdometer, setFutureOdometer] = useState("");
+    const FUTURE_INTERVALS = [3000, 5000, 8000, 10000];
+    const addFutureKm = (km: number) => {
+        const base = parseInt(odometer || "0") || 0;
+        const inc = odometerUnit === 'mi' ? Math.round(km * 0.6214) : km;
+        setFutureOdometer(String(base + inc));
+    };
     const [plateNumber, setPlateNumber] = useState("");
 
     // ---------- STEP 2: Services ----------
@@ -539,6 +548,7 @@ export default function StandardReception({
                 
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
                 if (payload) {
+                    setFutureOdometer(payload.futureOdometer || "");
                     if (payload.freeServices) setFreeServices(payload.freeServices);
                     if (payload.services) setServices({ ...initServices(), ...payload.services });
                     if (payload.customServices) setCustomServices(payload.customServices);
@@ -984,6 +994,7 @@ export default function StandardReception({
                 booklet: { type: bookletType, changes: bookletChanges, serial: finalBookletSerial },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
+                futureOdometer: futureOdometer || "",
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -1052,7 +1063,7 @@ export default function StandardReception({
 
     const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
-        setOdometer(""); setOdometerUnit('km'); setPlateNumber(""); setNotes(""); setBayNumber("");
+        setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -1207,6 +1218,20 @@ export default function StandardReception({
                                         <button type="button" onClick={() => setOdometerUnit('km')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'km' ? 'bg-rose-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>كم</button>
                                         <button type="button" onClick={() => setOdometerUnit('mi')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'mi' ? 'bg-rose-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>ميل</button>
                                     </div>
+                                </div>
+                                {/* Future odometer: current reading + a service interval (km auto-converted to miles). */}
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                    {FUTURE_INTERVALS.map(km => (
+                                        <button type="button" key={km} onClick={() => addFutureKm(km)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border bg-card text-muted-foreground hover:border-rose-500/60 hover:text-rose-400 transition-colors">
+                                            +{km.toLocaleString('en-US')}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">العداد المستقبلي</label>
+                                    <input type="text" inputMode="numeric" dir="ltr" placeholder="0" className="input-field text-right flex-1" value={withCommas(futureOdometer)} onChange={e => setFutureOdometer(digitsOnly(e.target.value))} />
+                                    <span className="text-xs text-muted-foreground shrink-0 w-8 text-center">{odometerUnit === 'mi' ? 'ميل' : 'كم'}</span>
                                 </div>
                             </div>
                         </div>

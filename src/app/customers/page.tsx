@@ -514,6 +514,15 @@ export default function CustomersPage() {
                 booklet: bookletStr,
                 total_price: r.total_price || 0,
                 status: STATUS_MAP[r.status] || r.status || "",
+                // Fields shaped to match the team's database Google Sheet (16-column layout).
+                created_ymd: (() => { const d = new Date(r.created_at); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; })(),
+                db_car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
+                db_oil_type_visc: (isSale ? [saleOilType, saleOilVisc] : [oilType, oilVisc]).filter(Boolean).join(" "),
+                db_liters: isSale ? saleOilLiters : (oilLiters || ""),
+                db_odometer: isSale ? "" : (odometer || ""),
+                db_future: payload?.futureOdometer || "",
+                db_booklet_type: bookletObj.type || "",
+                db_booklet_changes: bookletObj.changes || "",
             };
         });
 
@@ -539,8 +548,32 @@ export default function CustomersPage() {
         if (!ws["!opts"]) ws["!opts"] = {};
         (ws as any)["!opts"].RTL = true;
 
+        // Second sheet: exact 16-column layout matching the team's database Google Sheet,
+        // so rows can be pasted/uploaded straight into it.
+        const dbData = [
+            ["التسلسل", "اسم الزبون", "رقم الهاتف", "نوع السيارة", "التاريخ", "نوع الخدمة",
+             "نوع الزيت واللزوجة", "عدد اللترات", "العداد الحالي", "العداد المستقبلي", "السعر",
+             "دفتر الخدمة", "عدد التبديلات", "الشفت", "اسم موظف الاستقبال", "مشرف الشفت"],
+            ...mapped.map(r => [
+                r.seq, r.client_name, r.client_phone, r.db_car, r.created_ymd, r.service_type,
+                r.db_oil_type_visc, r.db_liters, r.db_odometer, r.db_future, r.total_price,
+                r.db_booklet_type, r.db_booklet_changes, r.shift_name === "—" ? "" : r.shift_name,
+                r.receptionist_name === "—" ? "" : r.receptionist_name,
+                r.supervisor_name === "—" ? "" : r.supervisor_name,
+            ])
+        ];
+        const wsDb = XLSX.utils.aoa_to_sheet(dbData);
+        wsDb["!cols"] = [
+            {wch:7}, {wch:22}, {wch:16}, {wch:18}, {wch:13}, {wch:20},
+            {wch:22}, {wch:11}, {wch:13}, {wch:15}, {wch:12},
+            {wch:12}, {wch:12}, {wch:10}, {wch:18}, {wch:18},
+        ];
+        if (!wsDb["!opts"]) wsDb["!opts"] = {};
+        (wsDb as any)["!opts"].RTL = true;
+
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "طلبات الصيانة");
+        XLSX.utils.book_append_sheet(wb, wsDb, "قاعدة البيانات");
+        XLSX.utils.book_append_sheet(wb, ws, "تفاصيل كاملة");
         XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
