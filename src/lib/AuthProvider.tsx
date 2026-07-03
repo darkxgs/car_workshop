@@ -48,8 +48,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [employeeRole, setEmployeeRole] = useState<UserRole | null>(null);
     const [employeeName, setEmployeeName] = useState<string | null>(null);
-    const [employeeBranchId, setEmployeeBranchId] = useState<string | null>(null);
+    const [employeeBranchId, setRawBranchId] = useState<string | null>(null);
     const [employeeId, setEmployeeId] = useState<string | null>(null);
+
+    const setEmployeeBranchId = (id: string | null) => {
+        setRawBranchId(id);
+        if (typeof window !== "undefined") {
+            if (id === null || id === undefined) {
+                localStorage.removeItem("sticky_employee_branch_id");
+            } else {
+                localStorage.setItem("sticky_employee_branch_id", id);
+            }
+        }
+    };
     const [permissionDashboard, setPermissionDashboard] = useState<boolean | null>(null);
     const [permissionReception, setPermissionReception] = useState<boolean | null>(null);
     const [permissionWorkOrders, setPermissionWorkOrders] = useState<boolean | null>(null);
@@ -99,7 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Set name manually inside fetch since we have the data
             setEmployeeName(data[0].name);
-            setEmployeeBranchId(data[0].branch_id);
+            const userRole = data[0].role as UserRole;
+            let finalBranchId = data[0].branch_id;
+            
+            if (userRole === 'Owner' || userRole === 'Admin') {
+                if (typeof window !== 'undefined') {
+                    const sticky = localStorage.getItem("sticky_employee_branch_id");
+                    if (sticky !== null) {
+                        finalBranchId = sticky === "" ? "" : sticky;
+                    }
+                }
+            }
+            setRawBranchId(finalBranchId);
             setEmployeeId(data[0].id);
             
             setPermissionDashboard(data[0].permission_dashboard);
@@ -221,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!newSession?.user) {
                     setEmployeeRole(null);
                     setEmployeeName(null);
-                    setEmployeeBranchId(null);
+                    setRawBranchId(null);
                     setEmployeeId(null);
                     setPermissionDashboard(null);
                     setPermissionReception(null);
@@ -281,6 +303,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [loading, debugError]);
 
     const signOut = async () => {
+        if (typeof window !== "undefined") {
+            localStorage.removeItem("sticky_employee_branch_id");
+        }
         await supabase.auth.signOut();
     };
 
