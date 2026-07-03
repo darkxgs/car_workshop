@@ -78,11 +78,12 @@ function ReceptionContainer() {
         branchQuery.then(({ data, error }) => {
             if (!error && data) {
                 setBranches(data);
-                // Pre-select branch if only one is available or employeeBranchId is set
-                if (data.length === 1 || employeeBranchId) {
-                    setSelectedBranchId(employeeBranchId || data[0].id);
-                } else if (data.length > 0 && !selectedBranchId) {
+                if (data.length === 1) {
                     setSelectedBranchId(data[0].id);
+                } else if (employeeBranchId !== null && employeeBranchId !== undefined) {
+                    setSelectedBranchId(employeeBranchId);
+                } else {
+                    setSelectedBranchId("");
                 }
             }
         });
@@ -251,6 +252,7 @@ function ReceptionContainer() {
                                 onChange={e => { setSelectedBranchId(e.target.value); setPage(1); }}
                                 className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
                             >
+                                <option value="">كل الفروع</option>
                                 {branches.map(b => (
                                     <option key={b.id} value={b.id}>{b.name}</option>
                                 ))}

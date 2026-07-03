@@ -174,7 +174,7 @@ const SECTOR_BRANCH_SERVICES = [
             { key: "octaneBooster", label: "أوكتان بنزين", guide: "أساسي للوقود", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
             { key: "battery", label: "البطارية", guide: "فحص دوري", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
             { key: "batteryFilter", label: "فلتر البطارية", guide: "حسب الصيانة", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
-            { key: "wipers", label: "مساحات زجاج", guide: "موسمي", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
+            { key: "wipers", label: "مساحات زجاج", guide: "موسمي", detailFields: [{ key: "type", label: "نوع الماسحات" }, { key: "size", label: "حجم الماسحات" }, { key: "notes", label: "ملاحظات" }] },
             { key: "windshieldFluid", label: "سائل غسيل جام", guide: "عند النقص", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
         ]
     }
@@ -1557,13 +1557,43 @@ export default function SectorReception({
                                                                 return (
                                                                     <select 
                                                                         key={df.key} 
-                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
+                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
                                                                         value={entry.details[df.key] || ""}
                                                                         onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
                                                                     >
                                                                         <option value="">اختر الحجم</option>
                                                                         <option value="دبة 1 لتر">دبة 1 لتر</option>
                                                                         <option value="دبة 4 لتر">دبة 4 لتر</option>
+                                                                    </select>
+                                                                );
+                                                            }
+                                                            if (svc.key === 'wipers' && df.key === 'type') {
+                                                                return (
+                                                                    <select 
+                                                                        key={df.key} 
+                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
+                                                                        value={entry.details[df.key] || ""}
+                                                                        onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
+                                                                    >
+                                                                        <option value="">نوع الماسحات...</option>
+                                                                        <option value="VH">VH</option>
+                                                                        <option value="VP">VP</option>
+                                                                        <option value="VS">VS</option>
+                                                                    </select>
+                                                                );
+                                                            }
+                                                            if (svc.key === 'wipers' && df.key === 'size') {
+                                                                return (
+                                                                    <select 
+                                                                        key={df.key} 
+                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
+                                                                        value={entry.details[df.key] || ""}
+                                                                        onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
+                                                                    >
+                                                                        <option value="">حجم الماسحات...</option>
+                                                                        {["14", "16", "18", "20", "22", "24", "26", "28"].map(sz => (
+                                                                            <option key={sz} value={`${sz} Inch`}>{sz} Inch</option>
+                                                                        ))}
                                                                     </select>
                                                                 );
                                                             }
@@ -1644,15 +1674,13 @@ export default function SectorReception({
                                     </span>
                                     <span className="font-bold text-sm min-w-[140px]">أحداث الصيانة (خدمات إضافية)</span>
                                 </div>
-                                {customServices.length === 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={addCustomService}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
-                                    >
-                                        <span className="text-base leading-none">+</span> إضافة حدث صيانة
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={addCustomService}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
+                                >
+                                    <span className="text-base leading-none">+</span> إضافة حدث صيانة
+                                </button>
                             </div>
 
                             {customServices.length > 0 && (
@@ -1702,16 +1730,6 @@ export default function SectorReception({
                                             </button>
                                         </div>
                                     ))}
-                                    
-                                    <div className="pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={addCustomService}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
-                                        >
-                                            <span className="text-base leading-none">+</span> إضافة حدث صيانة آخر
-                                        </button>
-                                    </div>
                                 </div>
                             )}
                         </div>

@@ -177,7 +177,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'octaneBooster', label: 'أوكتان بنزين', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
         { key: 'battery', label: 'البطارية', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
         { key: 'batteryFilter', label: 'فلتر البطارية', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
-        { key: 'wipers', label: 'مساحات زجاج', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'العدد' }] },
+        { key: 'wipers', label: 'مساحات زجاج', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'windshieldFluid', label: 'سائل غسيل جام', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
     ];
 
@@ -194,7 +194,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
         { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'wipers', label: 'الماسحات', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'wipers', label: 'الماسحات', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'additives', label: 'المضافات والمحسنات', fields: [] },
     ];
 
