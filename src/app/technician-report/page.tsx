@@ -363,6 +363,23 @@ export default function TechnicianReportPage() {
                             </div>
                         </div>
 
+                        {/* Ratings breakdown for this technician (notes are intentionally excluded) */}
+                        <div className="glass-card p-6 rounded-3xl border border-border">
+                            <h3 className="text-sm font-bold text-muted-foreground mb-3">⭐ تقييمات الأداء</h3>
+                            {RATING_LEVELS.reduce((s, lvl) => s + (profile.ratings[lvl] || 0), 0) === 0 ? (
+                                <p className="text-sm text-muted-foreground">لا توجد تقييمات لهذا الفني بعد.</p>
+                            ) : (
+                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                                    {RATING_LEVELS.map((lvl) => (
+                                        <div key={lvl} className="text-center bg-muted/40 rounded-xl p-3 border border-border">
+                                            <p className="text-2xl font-black text-amber-400">{profile.ratings[lvl] || 0}</p>
+                                            <p className="text-xs text-muted-foreground">{lvl}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="glass-card rounded-3xl border border-border/50 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-right border-collapse">
@@ -467,6 +484,18 @@ export default function TechnicianReportPage() {
                             <span>المنجزة: {profile.completed}</span>
                         </div>
                     </div>
+
+                    {/* Ratings breakdown (notes are intentionally excluded from the report) */}
+                    {RATING_LEVELS.reduce((s, lvl) => s + (profile.ratings[lvl] || 0), 0) > 0 && (
+                        <div className="mb-6 border border-gray-400 rounded p-3">
+                            <h3 className="font-black mb-2">تقييمات الأداء:</h3>
+                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm font-bold">
+                                {RATING_LEVELS.map((lvl) => (
+                                    <span key={lvl}>{lvl}: {profile.ratings[lvl] || 0}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <table className="w-full text-right border-collapse text-sm">
                         <thead>

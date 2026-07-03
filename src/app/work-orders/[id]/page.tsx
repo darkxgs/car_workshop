@@ -377,8 +377,8 @@ export default function WorkOrderDetailPage() {
     const handleComplete = async () => {
         // Sale orders ("بيع منتج") have no technician, so they are exempt from this lock.
         // For maintenance orders, the task cannot be finished without a technician AND a supervisor.
-        if (order?.order_type !== 'sale' && (!techName.trim() || !supervisorName.trim())) {
-            showError("لا يمكن إنهاء المهمة", "يجب إدخال اسم الفني واسم المشرف قبل إنهاء الصيانة. اكتبهما في بطاقة \"تفاصيل الصيانة والفني\" ثم اضغط \"حفظ التفاصيل فقط\".");
+        if (order?.order_type !== 'sale' && (!techName.trim() || !supervisorName.trim() || !rating)) {
+            showError("لا يمكن إنهاء المهمة", "يجب إدخال اسم الفني واسم المشرف واختيار تقييم أداء الفني قبل إنهاء الصيانة. (الملاحظات اختيارية)");
             return;
         }
         let finalElapsed = order?.elapsed_time || 0;
@@ -512,7 +512,7 @@ export default function WorkOrderDetailPage() {
             <div className="print:hidden flex flex-col md:flex-row justify-between gap-4 items-start md:items-center bg-card p-6 rounded-3xl border border-border shadow-sm">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <Link href="/work-orders" className="text-muted-foreground hover:text-foreground transition-colors p-1 bg-muted rounded-md border border-border"><ArrowRight size={16}/></Link>
+                        <button onClick={() => router.back()} className="text-muted-foreground hover:text-foreground transition-colors p-1 bg-muted rounded-md border border-border" title="رجوع خطوة"><ArrowRight size={16}/></button>
                         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
                             تفاصيل أمر العمل <span className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-xl text-lg flex items-center font-mono font-black">#{order.report_number}</span>
                         </h1>

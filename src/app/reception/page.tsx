@@ -330,7 +330,11 @@ function ReceptionContainer() {
                                                 </td>
                                                 <td className="p-4 font-bold">{isSale ? (salePayload?.customerName || 'عميل نقدي') : (client?.name || 'عميل نقدي')}</td>
                                                 <td className="p-4 text-muted-foreground font-mono">{isSale ? (salePayload?.customerPhone || '-') : (client?.phone || '-')}</td>
-                                                <td className="p-4 font-bold">{isSale ? <span className="text-emerald-400">بيع منتج</span> : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
+                                                <td className="p-4 font-bold">{isSale
+                                                    ? <span className="text-emerald-400">{(Array.isArray(salePayload?.products) && salePayload.products.length
+                                                        ? salePayload.products.map((p: any) => p?.name).filter(Boolean).join('، ')
+                                                        : '') || '—'}</span>
+                                                    : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
                                                 <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
                                                 <td className="p-4">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
