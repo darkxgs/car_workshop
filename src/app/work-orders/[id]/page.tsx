@@ -29,6 +29,15 @@ function fmtDurationMin(minutes: number): string {
     return `${mm}د`;
 }
 
+// One technician's entry on a work order: name + their own performance rating + notes.
+type TechEntry = { name: string; rating: string; notes: string };
+
+// Split an old joined technician-name string ("أحمد + علي"، "أحمد، علي"، "أحمد / علي")
+// into individual names — used only to migrate legacy orders into the per-technician list.
+function splitTechNames(raw: string): string[] {
+    return (raw || "").split(/[+،,\n/]/).map(s => s.trim()).filter(Boolean);
+}
+
 type WorkOrder = {
     id: string;
     report_number: number;
@@ -131,7 +140,6 @@ export default function WorkOrderDetailPage() {
     const [previewMode, setPreviewMode] = useState<'full' | 'short'>('short');
 
     // Technician & Bay Details States
-    const [techName, setTechName] = useState("");
     const [supervisorName, setSupervisorName] = useState("");
     const [bayNum, setBayNum] = useState("");
     const [odometer, setOdometer] = useState("");
@@ -139,10 +147,27 @@ export default function WorkOrderDetailPage() {
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
 
-    // Technician performance rating (by the supervisor)
+    // Technician performance rating (by the supervisor).
+    // Several technicians can work the SAME car; each keeps its OWN rating + notes.
     const RATING_OPTIONS = ['رديء', 'متوسط', 'جيد', 'جيد جداً', 'ممتاز'];
-    const [rating, setRating] = useState("");
-    const [ratingNotes, setRatingNotes] = useState("");
+    const [technicians, setTechnicians] = useState<TechEntry[]>([{ name: "", rating: "", notes: "" }]);
+    const addTechnician = () => setTechnicians(prev => [...prev, { name: "", rating: "", notes: "" }]);
+    const removeTechnician = (i: number) => setTechnicians(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+    const updateTechnician = (i: number, field: keyof TechEntry, value: string) =>
+        setTechnicians(prev => prev.map((t, idx) => idx === i ? { ...t, [field]: value } : t));
+    // Derived: only technicians that actually have a name, and their joined label for legacy displays.
+    const validTechs = technicians.filter(t => t.name.trim());
+    const techNameJoined = validTechs.map(t => t.name.trim()).join(' + ');
+    // Merge the technician list into selected_services[0]: keeps a joined technicianName for
+    // backward-compatible displays (lists, print, booklet) plus the structured per-technician array.
+    const withTechnicians = (base: any[]): any[] => {
+        const arr = [...(base || [])];
+        const techArr = validTechs.map(t => ({ name: t.name.trim(), rating: t.rating || "", notes: t.notes || "" }));
+        const merged = { technicianName: techNameJoined, shiftSupervisor: supervisorName, technicians: techArr };
+        if (arr.length > 0) arr[0] = { ...arr[0], ...merged };
+        else arr.push({ is_paper_v2_format: true, ...merged, services: {} });
+        return arr;
+    };
 
     // "بدء الخدمة" flow: pick an estimated duration (hours + minutes) before the timer starts.
     const [showStartModal, setShowStartModal] = useState(false);
@@ -194,13 +219,23 @@ export default function WorkOrderDetailPage() {
             
             // Initialize details states
             const firstSvc = data.selected_services?.[0];
-            setTechName(firstSvc?.technicianName || "");
+            // Multi-technician: prefer the structured array; fall back to the old single name + rating.
+            if (Array.isArray(firstSvc?.technicians) && firstSvc.technicians.length > 0) {
+                setTechnicians(firstSvc.technicians.map((t: any) => ({
+                    name: t?.name || "", rating: t?.rating || "", notes: t?.notes || ""
+                })));
+            } else {
+                const names = splitTechNames(firstSvc?.technicianName || "");
+                const r0 = (data as { technician_rating?: string }).technician_rating || "";
+                const n0 = (data as { technician_rating_notes?: string }).technician_rating_notes || "";
+                setTechnicians(names.length > 0
+                    ? names.map((nm, i) => ({ name: nm, rating: i === 0 ? r0 : "", notes: i === 0 ? n0 : "" }))
+                    : [{ name: "", rating: "", notes: "" }]);
+            }
             setSupervisorName(firstSvc?.shiftSupervisor || "");
             setBayNum(data.bay_number || "");
             setOdometer(data.odometer_reading?.toString() || "");
             setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
-            setRating((data as { technician_rating?: string }).technician_rating || "");
-            setRatingNotes((data as { technician_rating_notes?: string }).technician_rating_notes || "");
             setMaintNotes(data.notes || "");
 
             // Fetch suggestions for this order's branch
@@ -246,21 +281,7 @@ export default function WorkOrderDetailPage() {
         if (!order) return;
         setIsSavingDetails(true);
         try {
-            const updatedServices = [...(order.selected_services || [])];
-            if (updatedServices.length > 0) {
-                updatedServices[0] = {
-                    ...updatedServices[0],
-                    technicianName: techName,
-                    shiftSupervisor: supervisorName
-                };
-            } else {
-                updatedServices.push({
-                    is_paper_v2_format: true,
-                    technicianName: techName,
-                    shiftSupervisor: supervisorName,
-                    services: {}
-                });
-            }
+            const updatedServices = withTechnicians(order.selected_services || []);
 
             const { error } = await supabase
                 .from('inspection_reports')
@@ -269,8 +290,8 @@ export default function WorkOrderDetailPage() {
                     notes: maintNotes || null,
                     odometer_reading: odometer ? parseInt(odometer) : 0,
                     odometer_unit: odometerUnit,
-                    technician_rating: rating || null,
-                    technician_rating_notes: ratingNotes || null,
+                    technician_rating: validTechs[0]?.rating || null,
+                    technician_rating_notes: validTechs[0]?.notes || null,
                     selected_services: updatedServices
                 })
                 .eq('id', id);
@@ -289,8 +310,8 @@ export default function WorkOrderDetailPage() {
     // Step 1: open the mandatory "estimated service time" modal. The timer does NOT start yet.
     const handleStart = () => {
         if (!order) return;
-        if (!techName.trim()) {
-            showError("تنبيه", "يرجى كتابة اسم الفني أولاً للبدء بالعمل!");
+        if (validTechs.length === 0) {
+            showError("تنبيه", "يرجى إضافة اسم فني واحد على الأقل للبدء بالعمل!");
             return;
         }
         // Pre-fill the modal with any estimate carried from reception; the supervisor adjusts it.
@@ -313,21 +334,7 @@ export default function WorkOrderDetailPage() {
         }
 
         try {
-            const updatedServices = [...(order.selected_services || [])];
-            if (updatedServices.length > 0) {
-                updatedServices[0] = {
-                    ...updatedServices[0],
-                    technicianName: techName,
-                    shiftSupervisor: supervisorName
-                };
-            } else {
-                updatedServices.push({
-                    is_paper_v2_format: true,
-                    technicianName: techName,
-                    shiftSupervisor: supervisorName,
-                    services: {}
-                });
-            }
+            const updatedServices = withTechnicians(order.selected_services || []);
 
             const { error } = await supabase
                 .from('inspection_reports')
@@ -376,10 +383,17 @@ export default function WorkOrderDetailPage() {
 
     const handleComplete = async () => {
         // Sale orders ("بيع منتج") have no technician, so they are exempt from this lock.
-        // For maintenance orders, the task cannot be finished without a technician AND a supervisor.
-        if (order?.order_type !== 'sale' && (!techName.trim() || !supervisorName.trim() || !rating)) {
-            showError("لا يمكن إنهاء المهمة", "يجب إدخال اسم الفني واسم المشرف واختيار تقييم أداء الفني قبل إنهاء الصيانة. (الملاحظات اختيارية)");
-            return;
+        // For maintenance orders: at least one technician + a supervisor, and EVERY technician
+        // must have a rating (notes stay optional).
+        if (order?.order_type !== 'sale') {
+            if (validTechs.length === 0 || !supervisorName.trim()) {
+                showError("لا يمكن إنهاء المهمة", "يجب إضافة فني واحد على الأقل واسم المشرف قبل إنهاء الصيانة.");
+                return;
+            }
+            if (!validTechs.every(t => t.rating)) {
+                showError("لا يمكن إنهاء المهمة", "يجب اختيار تقييم أداء لكل فني قبل إنهاء الصيانة. (الملاحظات اختيارية)");
+                return;
+            }
         }
         let finalElapsed = order?.elapsed_time || 0;
         if (order?.start_time) {
@@ -390,14 +404,9 @@ export default function WorkOrderDetailPage() {
 
         // Persist the technician/supervisor names on finish so the daily technician
         // report always has the data, even if "حفظ التفاصيل فقط" was never pressed.
-        const updatedServices = [...(order?.selected_services || [])];
-        if (order?.order_type !== 'sale') {
-            if (updatedServices.length > 0) {
-                updatedServices[0] = { ...updatedServices[0], technicianName: techName, shiftSupervisor: supervisorName };
-            } else {
-                updatedServices.push({ is_paper_v2_format: true, technicianName: techName, shiftSupervisor: supervisorName, services: {} });
-            }
-        }
+        const updatedServices = order?.order_type !== 'sale'
+            ? withTechnicians(order?.selected_services || [])
+            : [...(order?.selected_services || [])];
 
         await supabase.from('inspection_reports')
             .update({
@@ -411,8 +420,8 @@ export default function WorkOrderDetailPage() {
                 notes: maintNotes || null,
                 odometer_reading: odometer ? parseInt(odometer) : (order?.odometer_reading || 0),
                 odometer_unit: odometerUnit,
-                technician_rating: rating || null,
-                technician_rating_notes: ratingNotes || null,
+                technician_rating: validTechs[0]?.rating || null,
+                technician_rating_notes: validTechs[0]?.notes || null,
                 selected_services: updatedServices
             })
             .eq('id', id);
@@ -637,18 +646,54 @@ export default function WorkOrderDetailPage() {
                             </div>
                             
                             <div>
-                                <label className="text-xs font-bold text-muted-foreground block mb-1">اسم الفني</label>
-                                <input
-                                    type="text"
-                                    list="wo-tech-list"
-                                    value={techName}
-                                    onChange={(e) => setTechName(e.target.value)}
-                                    placeholder="أدخل اسم الفني المسؤول..."
-                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
-                                />
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground">الفنيون وتقييماتهم</label>
+                                    <button type="button" onClick={addTechnician}
+                                        className="text-[11px] font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1">
+                                        <Plus size={13} /> إضافة فني
+                                    </button>
+                                </div>
+                                <div className="space-y-2.5">
+                                    {technicians.map((t, i) => (
+                                        <div key={i} className="bg-muted/40 border border-border rounded-xl p-2.5 space-y-2">
+                                            <div className="flex gap-2 items-center">
+                                                <input
+                                                    type="text"
+                                                    list="wo-tech-list"
+                                                    value={t.name}
+                                                    onChange={(e) => updateTechnician(i, 'name', e.target.value)}
+                                                    placeholder={`اسم الفني ${i + 1}...`}
+                                                    className="flex-1 bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                                />
+                                                {technicians.length > 1 && (
+                                                    <button type="button" onClick={() => removeTechnician(i)}
+                                                        className="shrink-0 p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors" title="إزالة الفني">
+                                                        <X size={15} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {RATING_OPTIONS.map(opt => (
+                                                    <button key={opt} type="button" onClick={() => updateTechnician(i, 'rating', t.rating === opt ? "" : opt)}
+                                                        className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all ${t.rating === opt ? 'bg-amber-500 border-amber-400 text-white' : 'bg-card border-border text-muted-foreground hover:border-amber-500/50'}`}>
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={t.notes}
+                                                onChange={(e) => updateTechnician(i, 'notes', e.target.value)}
+                                                placeholder="ملاحظات أداء هذا الفني (اختياري)..."
+                                                className="w-full bg-card border border-border rounded-xl p-2 text-xs text-foreground focus:border-amber-500 focus:outline-none transition-colors font-ibm"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                                 <datalist id="wo-tech-list">
                                     {suggLists.technicianNames.map((n, i) => <option key={i} value={typeof n === 'object' && n !== null ? (n as any).name : n} />)}
                                 </datalist>
+                                <p className="text-[10px] text-muted-foreground mt-1">لكل فني تقييم أداء خاص به. اضغط "حفظ التفاصيل فقط" لحفظ التغييرات.</p>
                             </div>
                             
                             <div>
@@ -696,26 +741,6 @@ export default function WorkOrderDetailPage() {
                                 />
                             </div>
 
-                            {/* Technician performance rating (by the supervisor) */}
-                            <div className="pt-3 border-t border-border">
-                                <label className="text-xs font-bold text-muted-foreground block mb-2">⭐ تقييم أداء الفني (من المشرف)</label>
-                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {RATING_OPTIONS.map(opt => (
-                                        <button key={opt} type="button" onClick={() => setRating(rating === opt ? "" : opt)}
-                                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${rating === opt ? 'bg-amber-500 border-amber-400 text-white' : 'bg-muted border-border text-muted-foreground hover:border-amber-500/50'}`}>
-                                            {opt}
-                                        </button>
-                                    ))}
-                                </div>
-                                <textarea
-                                    value={ratingNotes}
-                                    onChange={(e) => setRatingNotes(e.target.value)}
-                                    placeholder="ملاحظات حول أداء الفني (اختياري)..."
-                                    rows={2}
-                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-amber-500 focus:outline-none transition-colors resize-none font-ibm"
-                                />
-                                <p className="text-[10px] text-muted-foreground mt-1">اضغط "حفظ التفاصيل فقط" لحفظ التقييم.</p>
-                            </div>
                         </div>
                         
                         {order.status === 'تم الاستلام' && (

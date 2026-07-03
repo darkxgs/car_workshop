@@ -185,8 +185,14 @@ export default function TechnicianReportPage() {
             totalCars += 1;
             totalServices += sc;
 
-            const techs = splitTechnicians(payload?.technicianName);
-            const names = techs.length ? techs : [UNSET];
+            // Multi-technician: prefer the structured array (each tech carries its OWN rating);
+            // fall back to the old joined name + single column rating for legacy orders.
+            const techEntries: { name: string; rating: string }[] = Array.isArray(payload?.technicians) && payload.technicians.length
+                ? payload.technicians
+                    .map((t: any) => ({ name: (t?.name || "").trim(), rating: t?.rating || "" }))
+                    .filter((t: { name: string }) => t.name)
+                : splitTechnicians(payload?.technicianName).map((n: string) => ({ name: n, rating: r.technician_rating || "" }));
+            const entries = techEntries.length ? techEntries : [{ name: UNSET, rating: "" }];
             const order: OrderItem = {
                 id: r.id,
                 report_number: r.report_number,
@@ -199,7 +205,8 @@ export default function TechnicianReportPage() {
             // Credit the car to each technician; near-duplicate spellings on the same
             // card collapse to one credit via the normalized key.
             const seen = new Set<string>();
-            for (const name of names) {
+            for (const entry of entries) {
+                const name = entry.name;
                 const key = name === UNSET ? UNSET : normalizeName(name);
                 if (!key || seen.has(key)) continue;
                 seen.add(key);
@@ -212,7 +219,7 @@ export default function TechnicianReportPage() {
                 a.services += sc;
                 if (r.status === "تم الانتهاء") a.completed += 1;
                 a.orders.push(order);
-                if (r.technician_rating) a.ratings.set(r.technician_rating, (a.ratings.get(r.technician_rating) || 0) + 1);
+                if (entry.rating) a.ratings.set(entry.rating, (a.ratings.get(entry.rating) || 0) + 1);
                 if (name !== UNSET) a.spellings.set(name, (a.spellings.get(name) || 0) + 1);
             }
         }
