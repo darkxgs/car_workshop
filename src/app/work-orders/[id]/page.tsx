@@ -144,6 +144,14 @@ export default function WorkOrderDetailPage() {
     const [bayNum, setBayNum] = useState("");
     const [odometer, setOdometer] = useState("");
     const [odometerUnit, setOdometerUnit] = useState<'km' | 'mi'>('km');
+    // Future odometer = current reading + a service interval (km auto-converted to miles).
+    const [futureOdometer, setFutureOdometer] = useState("");
+    const FUTURE_INTERVALS = [3000, 5000, 8000, 10000];
+    const addFutureKm = (km: number) => {
+        const base = parseInt(odometer || "0") || 0;
+        const inc = odometerUnit === 'mi' ? Math.round(km * 0.6214) : km;
+        setFutureOdometer(String(base + inc));
+    };
     const [maintNotes, setMaintNotes] = useState("");
     const [isSavingDetails, setIsSavingDetails] = useState(false);
 
@@ -163,7 +171,7 @@ export default function WorkOrderDetailPage() {
     const withTechnicians = (base: any[]): any[] => {
         const arr = [...(base || [])];
         const techArr = validTechs.map(t => ({ name: t.name.trim(), rating: t.rating || "", notes: t.notes || "" }));
-        const merged = { technicianName: techNameJoined, shiftSupervisor: supervisorName, technicians: techArr };
+        const merged = { technicianName: techNameJoined, shiftSupervisor: supervisorName, technicians: techArr, futureOdometer: futureOdometer || "" };
         if (arr.length > 0) arr[0] = { ...arr[0], ...merged };
         else arr.push({ is_paper_v2_format: true, ...merged, services: {} });
         return arr;
@@ -233,6 +241,7 @@ export default function WorkOrderDetailPage() {
                     : [{ name: "", rating: "", notes: "" }]);
             }
             setSupervisorName(firstSvc?.shiftSupervisor || "");
+            setFutureOdometer(firstSvc?.futureOdometer || "");
             setBayNum(data.bay_number || "");
             setOdometer(data.odometer_reading?.toString() || "");
             setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
@@ -727,6 +736,26 @@ export default function WorkOrderDetailPage() {
                                         <button type="button" onClick={() => setOdometerUnit('km')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'km' ? 'bg-blue-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>كم</button>
                                         <button type="button" onClick={() => setOdometerUnit('mi')} className={`px-3 text-sm font-bold transition-colors ${odometerUnit === 'mi' ? 'bg-blue-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}>ميل</button>
                                     </div>
+                                </div>
+                                {/* Future odometer: current reading + a service interval (km auto-converted to miles). */}
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {FUTURE_INTERVALS.map(km => (
+                                        <button type="button" key={km} onClick={() => addFutureKm(km)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border bg-card text-muted-foreground hover:border-blue-500/60 hover:text-blue-400 transition-colors">
+                                            +{km.toLocaleString('en-US')}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2 items-center mt-2">
+                                    <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">العداد المستقبلي</label>
+                                    <input
+                                        type="text" inputMode="numeric" dir="ltr"
+                                        value={futureOdometer}
+                                        onChange={(e) => setFutureOdometer(e.target.value.replace(/[^\d]/g, ''))}
+                                        placeholder="0"
+                                        className="flex-1 bg-card border border-border rounded-xl p-2.5 text-sm text-foreground text-right focus:border-blue-500 focus:outline-none transition-colors font-ibm"
+                                    />
+                                    <span className="text-xs text-muted-foreground shrink-0 w-8 text-center">{odometerUnit === 'mi' ? 'ميل' : 'كم'}</span>
                                 </div>
                             </div>
 
