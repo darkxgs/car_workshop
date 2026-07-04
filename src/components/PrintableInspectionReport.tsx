@@ -128,32 +128,11 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                 <td style={{ padding: '3px 5px', verticalAlign: 'middle', overflow: 'hidden' }}>
                     {svcKey === 'additives' ? (
                         <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11px' }}>
-                            {Object.keys(svc.details || {}).filter(k => k.startsWith('prod_')).map((k) => {
-                                const suf = k.replace('prod_', '');
-                                const name = svc.details?.[k] || "";
-                                const qty = svc.details?.['qty_' + suf] || "1";
-                                const price = svc.details?.['price_' + suf] || "0";
-                                return (
-                                    <span key={k} style={{ whiteSpace: 'nowrap', fontSize: '11px' }}>
-                                        {name} (×{qty} - {parseFloat(price).toLocaleString()} د.ع)
-                                    </span>
-                                );
-                            })}
-                        </span>
-                    ) : svcKey === 'wipers' ? (
-                        <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11px' }}>
-                            {Object.keys(svc.details || {}).filter(k => k.startsWith('type_')).map((k) => {
-                                const suf = k.replace('type_', '');
-                                const type = svc.details?.[k] || "";
-                                const size = svc.details?.['size_' + suf] || "";
-                                const qty = svc.details?.['qty_' + suf] || "1";
-                                const price = svc.details?.['price_' + suf] || "0";
-                                return (
-                                    <span key={k} style={{ whiteSpace: 'nowrap', fontSize: '11px' }}>
-                                        مساحات {type} {size} (×{qty} - {parseFloat(price).toLocaleString()} د.ع)
-                                    </span>
-                                );
-                            })}
+                            {Object.keys(svc.details || {}).filter(k => k.startsWith('prod_')).map((k) => (
+                                <span key={k} style={{ whiteSpace: 'nowrap', fontSize: '11px' }}>
+                                    <Val v={svc.details?.[k]} w={60} />
+                                </span>
+                            ))}
                         </span>
                     ) : (fields && fields.length > 0 && (
                         <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap', fontSize: '11px' }}>
@@ -198,7 +177,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'octaneBooster', label: 'أوكتان بنزين', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
         { key: 'battery', label: 'البطارية', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
         { key: 'batteryFilter', label: 'فلتر البطارية', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
-        { key: 'wipers', label: 'مساحات زجاج', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'wipers', label: 'مساحات زجاج', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'العدد' }] },
         { key: 'windshieldFluid', label: 'سائل غسيل جام', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
     ];
 
@@ -215,7 +194,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'sparkPlugs', label: 'شمعات الاحتراق', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'num', label: 'الرقم' }] },
         { key: 'gearboxHydraulic', label: 'هايدروليك الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'اللترات' }] },
         { key: 'gearboxFilter', label: 'فلتر الكير', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'filterNum', label: 'الرقم' }] },
-        { key: 'wipers', label: 'الماسحات', fields: [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
+        { key: 'wipers', label: 'الماسحات', fields: isIndustrialBranch ? [{ key: 'type', label: 'النوع' }, { key: 'qty', label: 'العدد' }] : [{ key: 'type', label: 'النوع' }, { key: 'size', label: 'الحجم' }] },
         { key: 'additives', label: 'المضافات والمحسنات', fields: [] },
     ];
 

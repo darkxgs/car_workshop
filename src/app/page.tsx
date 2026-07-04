@@ -24,18 +24,6 @@ import {
 } from "recharts";
 import NotificationBell from "@/components/NotificationBell";
 
-const formatTimeAgo = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "الآن";
-    if (diffMins < 60) return `منذ ${diffMins} د`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-    return d.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' });
-};
-
 type WorkOrder = {
     id: string;
     report_number: number;
@@ -62,6 +50,7 @@ export default function Home() {
     });
     const [chartData, setChartData] = useState<any[]>([]);
     const [pieData, setPieData] = useState<any[]>([]);
+    const [liveOrders, setLiveOrders] = useState<WorkOrder[]>([]);
     const [alerts, setAlerts] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
@@ -101,6 +90,9 @@ export default function Home() {
             // Inventory fetch removed
 
             if (allReports) {
+                // Map to Work Orders (first 6 active)
+                const mappedOrders = allReports as any as WorkOrder[];
+                setLiveOrders(mappedOrders.filter(o => o.status !== 'تم الانتهاء' && o.status !== 'ملغى').slice(0, 6));
 
                 const isToday = (dateStr: string) => {
                     const d = new Date(dateStr);
@@ -143,78 +135,29 @@ export default function Home() {
 
                 setPieData(statusCounts.length > 0 ? statusCounts : [{ name: 'لا يوجد', value: 1 }]);
 
-                // 2. Dynamic Live Alerts from Recent Operations
-                const recentReports = allReports.slice(0, 8);
-                const generatedAlerts = recentReports.map(r => {
-                    const timeAgo = formatTimeAgo(r.created_at);
-                    const vehicleName = `${r.vehicles?.make || ''} ${r.vehicles?.model || ''}`.trim() || 'مركبة غير محددة';
-                    const plateNo = r.vehicles?.plate_number || '';
-                    
-                    let icon = Bell;
-                    let color = "text-blue-400";
-                    let bg = "bg-blue-500/10";
-                    let border = "border-transparent";
-                    let title = "";
-                    let desc = "";
-                    let printAction: { label: string, mode: 'short' | 'full', id: string } | null = null;
-                    
-                    if (r.status === 'تم الاستلام') {
-                        icon = Plus;
-                        color = "text-sky-400";
-                        bg = "bg-sky-500/10";
-                        border = "border-sky-500/20";
-                        title = "مركبة جديدة مسجلة";
-                        desc = `تم تسجيل ${vehicleName} (لوحة: ${plateNo}) برقم #${r.report_number}.`;
-                        printAction = { label: "طباعة كرت الفني", mode: 'short', id: r.id };
-                    } else if (r.status === 'قيد العمل') {
-                        icon = Wrench;
-                        color = "text-amber-400";
-                        bg = "bg-amber-500/15";
-                        border = "border-amber-500/20";
-                        title = "بدء الصيانة";
-                        desc = `السيارة ${vehicleName} (لوحة: ${plateNo}) دخلت خانة العمل وهي قيد الصيانة الآن.`;
-                    } else if (r.status === 'تم الانتهاء') {
-                        icon = CheckCircle2;
-                        color = "text-emerald-400";
-                        bg = "bg-emerald-500/10";
-                        border = "border-emerald-500/20";
-                        title = "اكتملت الصيانة وجاهزة للتسليم";
-                        desc = `تم الانتهاء من صيانة ${vehicleName} (لوحة: ${plateNo}) برقم #${r.report_number}.`;
-                        printAction = { label: "طباعة الفاتورة النهائية", mode: 'full', id: r.id };
-                    } else if (r.status === 'متأخر' || r.is_delayed) {
-                        icon = Clock;
-                        color = "text-rose-500";
-                        bg = "bg-rose-500/10";
-                        border = "border-rose-500/30";
-                        title = "تأخير في الصيانة";
-                        desc = `المركبة ${vehicleName} (رقم #${r.report_number}) تجاوزت الوقت المحدد للصيانة!`;
-                    } else {
-                        icon = Bell;
-                        color = "text-slate-400";
-                        bg = "bg-slate-500/10";
-                        title = `تحديث أمر العمل #${r.report_number}`;
-                        desc = `المركبة ${vehicleName} في حالة: ${r.status}.`;
-                    }
-                    
-                    return {
-                        id: r.id,
-                        icon,
-                        color,
-                        bg,
-                        border,
-                        title,
-                        desc,
-                        time: timeAgo,
-                        printAction
-                    };
-                });
-
+                // 2. Alerts
+                const generatedAlerts = [];
+                const delayedOrders = allReports.filter(r => r.is_delayed || r.status === 'متأخر').length;
+                if (delayedOrders > 0) {
+                    generatedAlerts.push({
+                        icon: Activity, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/50",
+                        title: "تأخير في الصيانة",
+                        desc: `يوجد ${delayedOrders} مركبات متأخرة عن الوقت المقدر!`,
+                        time: "عاجل"
+                    });
+                }
+                if (revenue > 0) {
+                    generatedAlerts.push({
+                        icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-transparent",
+                        title: "ملخص مالي مبدئي",
+                        desc: `التحصيل اليومي وصل إلى ${formatCurrency(revenue)} د.ع`,
+                        time: "اليوم"
+                    });
+                }
                 if (generatedAlerts.length === 0) {
                     generatedAlerts.push({
-                        id: "stable-operations",
                         icon: CheckCircle2, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-transparent",
-                        title: "العمليات مستقرة", desc: "جميع المهام تسير بانتظام", time: "الآن",
-                        printAction: null
+                        title: "العمليات مستقرة", desc: "جميع المهام تسير بانتظام", time: "الآن"
                     });
                 }
                 setAlerts(generatedAlerts);
@@ -524,26 +467,89 @@ export default function Home() {
                                         <h4 className="text-foreground text-base font-bold group-hover:text-foreground transition-colors">{alert.title}</h4>
                                         <span className="text-muted-foreground text-xs whitespace-nowrap bg-background px-2 py-1 rounded-md">{alert.time}</span>
                                     </div>
-                                    <p className="text-muted-foreground text-sm leading-snug mb-3">{alert.desc}</p>
-                                    {alert.printAction && (
-                                        <button
-                                            onClick={() => window.open(`/print/${alert.printAction.id}?mode=${alert.printAction.mode}`, '_blank')}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                                                alert.printAction.mode === 'short'
-                                                    ? 'bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500 hover:text-white hover:border-sky-500'
-                                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:border-emerald-500'
-                                            }`}
-                                        >
-                                            <FileText size={14} />
-                                            {alert.printAction.label}
-                                        </button>
-                                    )}
+                                    <p className="text-muted-foreground text-sm leading-snug">{alert.desc}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
+            </div>
+        </div>
+    );
+}
+
+// ------ Live Timer Card Component ------
+function WorkOrderCard({ order }: { order: WorkOrder }) {
+    const [liveMinutes, setLiveMinutes] = useState(order.elapsed_time || 0);
+
+    let statusColor = "border-border bg-card/50 text-muted-foreground"; // New / Default
+    let statusLabel = order.status;
+
+    if (order.status === 'قيد العمل') statusColor = "border-blue-500/50 bg-blue-900/20 text-blue-400"; // In Progress
+    if (order.status === 'متأخر' || order.is_delayed) statusColor = "border-rose-500/50 bg-rose-900/20 text-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.2)]"; // Delayed
+
+    // Calculate live timer only if IN PROGRESS
+    useEffect(() => {
+        if (order.status !== 'قيد العمل' || !order.start_time) return;
+
+        const interval = setInterval(() => {
+            const startMs = new Date(order.start_time!).getTime();
+            const nowMs = Date.now();
+            const diffMins = Math.floor((nowMs - startMs) / 60000);
+
+            setLiveMinutes((order.elapsed_time || 0) + diffMins);
+        }, 10000); // Check every 10s
+
+        return () => clearInterval(interval);
+    }, [order.status, order.start_time, order.elapsed_time]);
+
+    const isOverdue = order.estimated_duration > 0 && liveMinutes > order.estimated_duration;
+    // Override visual if dynamically overdue right now
+    if (isOverdue && order.status === 'قيد العمل') {
+        statusColor = "border-rose-500/50 bg-rose-900/20 text-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.2)]";
+        statusLabel = "متأخر (تلقائي)";
+    }
+
+    return (
+        <div className={`p-4 rounded-xl relative overflow-hidden group border transition-all duration-300 flex flex-col justify-between h-full bg-muted hover:bg-muted/80 ${statusColor.split(' ')[0]}`}>
+            <div className="mb-3">
+                <div className="flex justify-between items-start mb-2">
+                    <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${statusColor}`}>
+                        {statusLabel}
+                    </div>
+                    <span className="font-mono text-muted-foreground text-xs">#{order.report_number}</span>
+                </div>
+
+                <h3 className="text-foreground font-bold text-sm mb-1 truncate flex items-center gap-1">
+                    <Car size={12} className="text-muted-foreground" /> {order.vehicles?.make} {order.vehicles?.model}
+                </h3>
+            </div>
+
+            <div className="border-t border-border pt-3 mt-auto">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="text-right w-1/2">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">المقدر</p>
+                        <p className="text-foreground font-mono font-bold text-sm">{order.estimated_duration || 0}m</p>
+                    </div>
+                    <div className="text-left w-1/2">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">الحي</p>
+                        <p className={`font-mono font-bold text-sm ${isOverdue ? 'text-rose-500 animate-pulse' : 'text-blue-400'}`}>
+                            {liveMinutes}m
+                        </p>
+                    </div>
+                </div>
+
+                <div className="h-1 w-full bg-card rounded-full overflow-hidden mb-3">
+                    <div
+                        className={`h-full rounded-full transition-all duration-1000 ${isOverdue ? 'bg-rose-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min((liveMinutes / (order.estimated_duration || 1)) * 100, 100)}%` }}
+                    />
+                </div>
+
+                <Link href={`/work-orders/${order.id}`} className="w-full py-1.5 bg-card hover:bg-muted rounded-lg text-center text-xs font-bold text-muted-foreground hover:text-foreground transition-colors block border border-border">
+                    تفاصيل التذكرة
+                </Link>
             </div>
         </div>
     );

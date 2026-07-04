@@ -9,7 +9,6 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 import { showSuccess, showError } from "@/lib/alerts";
-import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
 // Format a duration in seconds as H:MM:SS (or MM:SS when under an hour).
 function fmtHMS(totalSeconds: number): string {
@@ -183,23 +182,6 @@ export default function WorkOrderDetailPage() {
     const [dynamicSvcDuration, setDynamicSvcDuration] = useState("30");
     const [dynamicSvcDetails, setDynamicSvcDetails] = useState("");
     const [dynamicSvcCategory, setDynamicSvcCategory] = useState("إضافة لاحقة");
-    const [selectedSvcKey, setSelectedSvcKey] = useState("");
-    const [svcBrand, setSvcBrand] = useState("");
-    const [svcViscosity, setSvcViscosity] = useState("");
-    const [svcLiters, setSvcLiters] = useState("");
-    const [svcType, setSvcType] = useState("");
-    const [svcFilterNum, setSvcFilterNum] = useState("");
-    const [svcNum, setSvcNum] = useState("");
-    const [svcQty, setSvcQty] = useState("1");
-    const [svcSize, setSvcSize] = useState("");
-    const [svcPrice, setSvcPrice] = useState("");
-    const [svcNotes, setSvcNotes] = useState("");
-    const [wipersList, setWipersList] = useState<{ id: string; type: string; size: string; qty: string; price: string; notes: string }[]>([
-        { id: "1", type: "", size: "", qty: "1", price: "", notes: "" }
-    ]);
-    const [additivesList, setAdditivesList] = useState<{ id: string; name: string; qty: string; price: string; notes: string }[]>([
-        { id: "1", name: "", qty: "1", price: "", notes: "" }
-    ]);
 
     // Suggestion lists (technicians, supervisors, bay numbers)
     const [suggLists, setSuggLists] = useState<Record<string, string[]>>({
@@ -317,7 +299,6 @@ export default function WorkOrderDetailPage() {
             if (error) throw error;
             showSuccess("تم الحفظ", "تم تحديث تفاصيل الصيانة بنجاح!");
             fetchOrder();
-            syncOrderToGoogleSheets(id);
         } catch (err) {
             console.error(err);
             showError("خطأ", "فشل حفظ التفاصيل");
@@ -445,96 +426,22 @@ export default function WorkOrderDetailPage() {
             })
             .eq('id', id);
         fetchOrder();
-        syncOrderToGoogleSheets(id);
     };
 
-    const handleAddDynamicService = async (svcKey: string, customSvc?: any) => {
+    const handleAddDynamicService = async (svc: any) => {
         if (!order) return;
-        let updatedServices = [...(order.selected_services || [])];
-        let priceToAdd = 0;
-        let durationToAdd = 30;
-
-        if (svcKey === 'custom') {
-            if (!customSvc) return;
-            updatedServices.push(customSvc);
-            priceToAdd = customSvc.price || 0;
-            durationToAdd = customSvc.estimatedMinutes || 30;
-        } else {
-            const payload = { ...updatedServices[0] };
-            if (!payload.services) payload.services = {};
-            
-            let svcPriceVal = "0";
-            let svcDetails: any = {};
-
-            if (svcKey === 'wipers') {
-                const wipersDetails: any = {};
-                wipersList.forEach((w, idx) => {
-                    const suf = idx === 0 ? "1" : `extra_${Date.now()}_${idx}`;
-                    wipersDetails[`type_${suf}`] = w.type;
-                    wipersDetails[`size_${suf}`] = w.size;
-                    wipersDetails[`qty_${suf}`] = w.qty;
-                    wipersDetails[`price_${suf}`] = w.price;
-                    wipersDetails[`notes_${suf}`] = w.notes;
-                });
-                const totalWipersPrice = wipersList.reduce((sum, w) => sum + (parseFloat(w.price) || 0) * (parseFloat(w.qty) || 1), 0);
-                svcPriceVal = String(totalWipersPrice);
-                svcDetails = wipersDetails;
-                priceToAdd = totalWipersPrice;
-                durationToAdd = 15;
-            } else if (svcKey === 'additives') {
-                const additivesDetails: any = {};
-                additivesList.forEach((a, idx) => {
-                    const suf = idx === 0 ? "1" : `extra_${Date.now()}_${idx}`;
-                    additivesDetails[`prod_${suf}`] = a.name;
-                    additivesDetails[`qty_${suf}`] = a.qty;
-                    additivesDetails[`price_${suf}`] = a.price;
-                    additivesDetails[`notes_prod_${suf}`] = a.notes;
-                });
-                const totalAdditivesPrice = additivesList.reduce((sum, a) => sum + (parseFloat(a.price) || 0) * (parseFloat(a.qty) || 1), 0);
-                svcPriceVal = String(totalAdditivesPrice);
-                svcDetails = additivesDetails;
-                priceToAdd = totalAdditivesPrice;
-                durationToAdd = 10;
-            } else {
-                svcDetails = {
-                    brand: svcBrand || undefined,
-                    viscosity: svcViscosity || undefined,
-                    liters: svcLiters || undefined,
-                    type: svcType || undefined,
-                    filterNum: svcFilterNum || undefined,
-                    num: svcNum || undefined,
-                    qty: svcQty || undefined,
-                    size: svcSize || undefined,
-                    notes: svcNotes || undefined
-                };
-                Object.keys(svcDetails).forEach(k => svcDetails[k] === undefined && delete svcDetails[k]);
-                svcPriceVal = svcPrice || "0";
-                
-                const qVal = parseFloat(svcQty || svcLiters || "1") || 1;
-                priceToAdd = (parseFloat(svcPriceVal) || 0) * qVal;
-                durationToAdd = 30;
-            }
-
-            payload.services[svcKey] = {
-                status: 'يحتاج تغيير',
-                price: svcPriceVal,
-                details: svcDetails
-            };
-            updatedServices[0] = payload;
-        }
-
-        const newEstimated = order.estimated_duration + durationToAdd;
-        const newTotalPrice = (order.total_price || 0) + priceToAdd;
-
-        await supabase.from('inspection_reports').update({
-            selected_services: updatedServices,
+        const updatedServices = [...(order.selected_services || []), svc];
+        const newEstimated = order.estimated_duration + (svc.estimatedMinutes || 0);
+        const newTotalPrice = (order.total_price || 0) + (svc.price || 0);
+        
+        await supabase.from('inspection_reports').update({ 
+            selected_services: updatedServices, 
             estimated_duration: newEstimated,
             total_price: newTotalPrice
         }).eq('id', id);
-
+        
         setIsAddingSvc(false);
         fetchOrder();
-        syncOrderToGoogleSheets(id);
     };
 
     const handleAddDiagnosis = async () => {
@@ -876,85 +783,47 @@ export default function WorkOrderDetailPage() {
                         </div>
 
                         {isAddingSvc && (
-                            <div className="mb-4 p-5 bg-muted/60 rounded-2xl border border-border space-y-4 font-ibm text-right" dir="rtl">
-                                <h3 className="text-sm font-bold text-foreground mb-2">إضافة خدمة جديدة من الكتالوج، الخدمات القياسية، أو مخصصة:</h3>
+                            <div className="mb-4 p-4 bg-muted/50 rounded-2xl border border-border space-y-4 font-ibm text-right" dir="rtl">
+                                <h3 className="text-sm font-bold text-foreground">إضافة خدمة جديدة من الكتالوج أو مخصصة:</h3>
                                 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="text-xs text-muted-foreground block mb-1">اختر الخدمة:</label>
                                         <select
-                                            value={selectedSvcKey}
+                                            value={selectedCatalogId}
                                             onChange={(e) => {
                                                 const val = e.target.value;
-                                                setSelectedSvcKey(val);
-                                                // Reset standard states
-                                                setSvcBrand(""); setSvcViscosity(""); setSvcLiters(""); setSvcType("");
-                                                setSvcFilterNum(""); setSvcNum(""); setSvcQty("1"); setSvcSize(""); setSvcPrice(""); setSvcNotes("");
-                                                setWipersList([{ id: "1", type: "", size: "", qty: "1", price: "", notes: "" }]);
-                                                setAdditivesList([{ id: "1", name: "", qty: "1", price: "", notes: "" }]);
-                                                setSelectedCatalogId("");
-
+                                                setSelectedCatalogId(val);
                                                 if (val === "custom") {
                                                     setDynamicSvcName("");
                                                     setDynamicSvcPrice("");
                                                     setDynamicSvcDuration("30");
                                                     setDynamicSvcCategory("خدمة مخصصة");
-                                                } else if (val.startsWith("catalog_")) {
-                                                    const catId = val.replace("catalog_", "");
-                                                    setSelectedCatalogId(catId);
+                                                } else {
                                                     const catalog = [...(catalogRaw.services || []), ...(catalogRaw.inspections || [])];
-                                                    const selected = catalog.find(item => item.id === catId);
+                                                    const selected = catalog.find(item => item.id === val);
                                                     if (selected) {
                                                         setDynamicSvcName(selected.name);
                                                         setDynamicSvcPrice(selected.defaultPrice?.toString() || "");
                                                         setDynamicSvcDuration(selected.estimatedMinutes?.toString() || "30");
                                                         setDynamicSvcCategory(selected.category || "إضافة لاحقة");
                                                     }
-                                                    setSelectedSvcKey("custom");
-                                                } else {
-                                                    // Standard service mapping
-                                                    const standardNames: Record<string, string> = {
-                                                        engineOil: "زيت المحرك", oilFilter: "فلتر زيت المحرك",
-                                                        airFilter: "فلتر الهواء", acFilter: "فلتر التبريد",
-                                                        brakeFluid: "زيت المكابح", coolant: "ماء الراديتر",
-                                                        battery: "البطارية", engineBelts: "قايش المحرك",
-                                                        brakePads: "دسكات السيارة", sparkPlugs: "شمعات الاحتراق",
-                                                        gearboxOil: "هايدروليك الكير", gearboxFilter: "فلتر الكير",
-                                                        wipers: "الماسحات", additives: "المضافات والمحسنات"
-                                                    };
-                                                    setDynamicSvcName(standardNames[val] || val);
                                                 }
                                             }}
                                             className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
                                         >
                                             <option value="">-- اختر خدمة --</option>
                                             <option value="custom">✍️ خدمة مخصصة (كتابة يدوية)</option>
-                                            <optgroup label="الخدمات القياسية (أصلية)">
-                                                <option value="engineOil">🛢️ زيت المحرك</option>
-                                                <option value="oilFilter">⚙️ فلتر زيت المحرك</option>
-                                                <option value="airFilter">🌪️ فلتر الهواء</option>
-                                                <option value="acFilter">❄️ فلتر التبريد</option>
-                                                <option value="brakeFluid">🛑 زيت المكابح</option>
-                                                <option value="coolant">💧 ماء الراديتر</option>
-                                                <option value="battery">🔋 البطارية</option>
-                                                <option value="engineBelts">⛓️ قايش المحرك</option>
-                                                <option value="brakePads">💿 دسكات السيارة</option>
-                                                <option value="sparkPlugs">🔌 شمعات الاحتراق</option>
-                                                <option value="gearboxOil">⚙️ هايدروليك الكير</option>
-                                                <option value="gearboxFilter">⚙️ فلتر الكير</option>
-                                                <option value="wipers">🧹 الماسحات</option>
-                                                <option value="additives">🧪 المضافات والمحسنات</option>
+                                            <optgroup label="الخدمات الرئيسية">
+                                                {(catalogRaw.services || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                             </optgroup>
-                                            <optgroup label="خدمات الكتالوج">
-                                                {(catalogRaw.services || []).map(s => <option key={s.id} value={`catalog_${s.id}`}>{s.name}</option>)}
-                                            </optgroup>
-                                            <optgroup label="الفحوصات والتشخيص بالكتالوج">
-                                                {(catalogRaw.inspections || []).map(i => <option key={i.id} value={`catalog_${i.id}`}>{i.name}</option>)}
+                                            <optgroup label="الفحوصات والتشخيص">
+                                                {(catalogRaw.inspections || []).map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                                             </optgroup>
                                         </select>
                                     </div>
 
-                                    {selectedSvcKey === "custom" && (
+                                    {selectedCatalogId && (
                                         <div>
                                             <label className="text-xs text-muted-foreground block mb-1">اسم الخدمة:</label>
                                             <input
@@ -968,287 +837,44 @@ export default function WorkOrderDetailPage() {
                                     )}
                                 </div>
 
-                                {selectedSvcKey && selectedSvcKey !== "custom" && (
-                                    <div className="p-4 bg-card rounded-2xl border border-border/80 space-y-4 animate-fade-in">
-                                        <h4 className="text-xs font-bold text-blue-500">حقول الخدمة القياسية:</h4>
-                                        
-                                        {selectedSvcKey === "engineOil" && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">الماركة/النوع:</label>
-                                                    <input type="text" value={svcBrand} onChange={e=>setSvcBrand(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="مثال: ليكوي مولي"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">اللزوجة:</label>
-                                                    <input type="text" value={svcViscosity} onChange={e=>setSvcViscosity(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="مثال: 5W-30"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">عدد اللترات:</label>
-                                                    <input type="text" value={svcLiters} onChange={e=>setSvcLiters(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="4.5"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر الإجمالي (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {["oilFilter", "airFilter", "acFilter", "gearboxFilter"].includes(selectedSvcKey) && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">النوع/الماركة:</label>
-                                                    <input type="text" value={svcType} onChange={e=>setSvcType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">رقم الفلتر:</label>
-                                                    <input type="text" value={svcFilterNum} onChange={e=>setSvcFilterNum(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {["brakeFluid", "gearboxOil"].includes(selectedSvcKey) && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">النوع/الماركة:</label>
-                                                    <input type="text" value={svcType} onChange={e=>setSvcType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">الكمية/العدد:</label>
-                                                    <input type="text" value={svcQty} onChange={e=>setSvcQty(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="1"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر المفرد (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedSvcKey === "coolant" && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">النوع/الماركة:</label>
-                                                    <input type="text" value={svcType} onChange={e=>setSvcType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">الحجم:</label>
-                                                    <select value={svcSize} onChange={e=>setSvcSize(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500 bg-card">
-                                                        <option value="">اختر الحجم</option>
-                                                        <option value="دبة 1 لتر">دبة 1 لتر</option>
-                                                        <option value="دبة 4 لتر">دبة 4 لتر</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">العدد:</label>
-                                                    <input type="text" value={svcQty} onChange={e=>setSvcQty(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="1"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر المفرد (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedSvcKey === "battery" && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">النوع والسعة:</label>
-                                                    <input type="text" value={svcType} onChange={e=>setSvcType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="مثال: 60 أمبير كوريا"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {["engineBelts", "brakePads", "sparkPlugs"].includes(selectedSvcKey) && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">النوع/الماركة:</label>
-                                                    <input type="text" value={svcType} onChange={e=>setSvcType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">الرقم/التسلسل:</label>
-                                                    <input type="text" value={svcNum} onChange={e=>setSvcNum(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر (د.ع):</label>
-                                                    <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {selectedSvcKey === "wipers" && (
-                                            <div className="space-y-2">
-                                                <label className="text-xs text-muted-foreground block">قائمة المساحات المضافة:</label>
-                                                {wipersList.map((w, idx) => (
-                                                    <div key={w.id} className="flex flex-wrap items-center gap-2 border-b border-border/40 pb-2">
-                                                        <select
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 bg-card w-28"
-                                                            value={w.type}
-                                                            onChange={e => {
-                                                                const updated = [...wipersList];
-                                                                updated[idx].type = e.target.value;
-                                                                setWipersList(updated);
-                                                            }}
-                                                        >
-                                                            <option value="">النوع...</option>
-                                                            <option value="VH">VH</option>
-                                                            <option value="VP">VP</option>
-                                                            <option value="VS">VS</option>
-                                                        </select>
-                                                        <select
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 bg-card w-28"
-                                                            value={w.size}
-                                                            onChange={e => {
-                                                                const updated = [...wipersList];
-                                                                updated[idx].size = e.target.value;
-                                                                setWipersList(updated);
-                                                            }}
-                                                        >
-                                                            <option value="">الحجم...</option>
-                                                            {["14", "16", "18", "20", "22", "24", "26", "28"].map(sz => (
-                                                                <option key={sz} value={`${sz} Inch`}>{sz} Inch</option>
-                                                            ))}
-                                                        </select>
-                                                        <input
-                                                            type="number"
-                                                            placeholder="العدد"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 w-16 text-center"
-                                                            value={w.qty}
-                                                            onChange={e => {
-                                                                const updated = [...wipersList];
-                                                                updated[idx].qty = e.target.value;
-                                                                setWipersList(updated);
-                                                            }}
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            placeholder="السعر المفرد"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 w-24 text-left"
-                                                            value={w.price}
-                                                            onChange={e => {
-                                                                const updated = [...wipersList];
-                                                                updated[idx].price = e.target.value;
-                                                                setWipersList(updated);
-                                                            }}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="ملاحظات"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 flex-1 min-w-[100px]"
-                                                            value={w.notes}
-                                                            onChange={e => {
-                                                                const updated = [...wipersList];
-                                                                updated[idx].notes = e.target.value;
-                                                                setWipersList(updated);
-                                                            }}
-                                                        />
-                                                        {idx > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setWipersList(prev => prev.filter(item => item.id !== w.id))}
-                                                                className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg"
-                                                            >✕</button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setWipersList(prev => [...prev, { id: Date.now().toString(), type: "", size: "", qty: "1", price: "", notes: "" }])}
-                                                    className="text-xs text-blue-500 font-bold border border-blue-500/30 rounded-lg py-1.5 hover:bg-blue-500/10 transition-colors px-3 w-max block"
-                                                >
-                                                    + إضافة ماسحة أخرى
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {selectedSvcKey === "additives" && (
-                                            <div className="space-y-2">
-                                                <label className="text-xs text-muted-foreground block">قائمة المضافات المضافة:</label>
-                                                {additivesList.map((a, idx) => (
-                                                    <div key={a.id} className="flex flex-wrap items-center gap-2 border-b border-border/40 pb-2">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="اسم المضاف/المحسن"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 flex-1 min-w-[150px]"
-                                                            value={a.name}
-                                                            onChange={e => {
-                                                                const updated = [...additivesList];
-                                                                updated[idx].name = e.target.value;
-                                                                setAdditivesList(updated);
-                                                            }}
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            placeholder="العدد"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 w-16 text-center"
-                                                            value={a.qty}
-                                                            onChange={e => {
-                                                                const updated = [...additivesList];
-                                                                updated[idx].qty = e.target.value;
-                                                                setAdditivesList(updated);
-                                                            }}
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            placeholder="السعر المفرد"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 w-24 text-left"
-                                                            value={a.price}
-                                                            onChange={e => {
-                                                                const updated = [...additivesList];
-                                                                updated[idx].price = e.target.value;
-                                                                setAdditivesList(updated);
-                                                            }}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="ملاحظات"
-                                                            className="bg-muted/50 border border-border rounded-xl p-2 text-xs focus:outline-none focus:border-blue-500 w-32"
-                                                            value={a.notes}
-                                                            onChange={e => {
-                                                                const updated = [...additivesList];
-                                                                updated[idx].notes = e.target.value;
-                                                                setAdditivesList(updated);
-                                                            }}
-                                                        />
-                                                        {idx > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setAdditivesList(prev => prev.filter(item => item.id !== a.id))}
-                                                                className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg"
-                                                            >✕</button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAdditivesList(prev => [...prev, { id: Date.now().toString(), name: "", qty: "1", price: "", notes: "" }])}
-                                                    className="text-xs text-blue-500 font-bold border border-blue-500/30 rounded-lg py-1.5 hover:bg-blue-500/10 transition-colors px-3 w-max block"
-                                                >
-                                                    + إضافة منتج آخر
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {selectedSvcKey !== "wipers" && selectedSvcKey !== "additives" && (
+                                {selectedCatalogId && (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div>
-                                                <label className="text-xs text-muted-foreground block mb-1">ملاحظة عامة عن الخدمة:</label>
-                                                <input type="text" value={svcNotes} onChange={e=>setSvcNotes(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="مثال: يحتاج تبديل عاجل، أو تهريب خفيف..."/>
+                                                <label className="text-xs text-muted-foreground block mb-1">السعر (د.ع):</label>
+                                                <input
+                                                    type="number"
+                                                    value={dynamicSvcPrice}
+                                                    onChange={e => setDynamicSvcPrice(e.target.value)}
+                                                    placeholder="0"
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                            <div>
+                                                <label className="text-xs text-muted-foreground block mb-1">الوقت المقدر (بالدقائق):</label>
+                                                <input
+                                                    type="number"
+                                                    value={dynamicSvcDuration}
+                                                    onChange={e => setDynamicSvcDuration(e.target.value)}
+                                                    placeholder="30"
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-muted-foreground block mb-1">التفاصيل/الملاحظة:</label>
+                                                <input
+                                                    type="text"
+                                                    value={dynamicSvcDetails}
+                                                    onChange={e => setDynamicSvcDetails(e.target.value)}
+                                                    placeholder="الشركة المصنعة، الملاحظات..."
+                                                    className="w-full bg-card border border-border rounded-xl p-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
 
-                                {selectedSvcKey && (
-                                    <div className="flex gap-2 mt-2">
-                                        <button
-                                            onClick={async () => {
-                                                if (selectedSvcKey === "custom") {
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={async () => {
                                                     if (!dynamicSvcName) {
                                                         showError("تنبيه", "يرجى كتابة اسم الخدمة!");
                                                         return;
@@ -1260,40 +886,31 @@ export default function WorkOrderDetailPage() {
                                                         price: parseFloat(dynamicSvcPrice) || 0,
                                                         details: dynamicSvcDetails
                                                     };
-                                                    await handleAddDynamicService("custom", newSvc);
-                                                } else {
-                                                    await handleAddDynamicService(selectedSvcKey);
-                                                }
-                                                setSelectedSvcKey("");
-                                                setSelectedCatalogId("");
-                                                setDynamicSvcName("");
-                                                setDynamicSvcPrice("");
-                                                setDynamicSvcDuration("30");
-                                                setDynamicSvcDetails("");
-                                            }}
-                                            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors font-ibm"
-                                        >
-                                            إضافة الخدمة
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setIsAddingSvc(false);
-                                                setSelectedSvcKey("");
-                                                setSelectedCatalogId("");
-                                                setDynamicSvcName("");
-                                                setDynamicSvcPrice("");
-                                                setDynamicSvcDuration("30");
-                                                setDynamicSvcDetails("");
-                                            }}
-                                            className="flex-1 py-2.5 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-sm font-bold transition-colors font-ibm"
-                                        >
-                                            إلغاء
-                                        </button>
-                                    </div>
+                                                    await handleAddDynamicService(newSvc);
+                                                    setSelectedCatalogId("");
+                                                    setDynamicSvcName("");
+                                                    setDynamicSvcPrice("");
+                                                    setDynamicSvcDuration("30");
+                                                    setDynamicSvcDetails("");
+                                                }}
+                                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors font-ibm"
+                                            >
+                                                إضافة الخدمة
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsAddingSvc(false);
+                                                    setSelectedCatalogId("");
+                                                }}
+                                                className="px-5 py-2.5 bg-background border border-border text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-colors font-ibm"
+                                            >
+                                                إلغاء
+                                            </button>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         )}
-
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {(() => {
@@ -1303,48 +920,6 @@ export default function WorkOrderDetailPage() {
                                     if (svc.is_paper_v2_format) {
                                         const services = svc.services || {};
                                         Object.entries(services).forEach(([key, value]: [string, any]) => {
-                                            if (key === 'additives') {
-                                                Object.keys(value.details || {}).filter(dk => dk.startsWith('prod_')).forEach(dk => {
-                                                    const suffix = dk.replace('prod_', '');
-                                                    const prodName = value.details[dk];
-                                                    const pr = value.details['price_' + suffix] || 0;
-                                                    const q = value.details['qty_' + suffix] || 1;
-                                                    const nt = value.details['notes_prod_' + suffix] || value.details['notes_' + dk] || "";
-                                                    if (prodName) {
-                                                        svcs.push({
-                                                            name: prodName,
-                                                            category: "المضافات والمحسنات",
-                                                            estimatedMinutes: 10,
-                                                            qty: q,
-                                                            price: pr,
-                                                            notes: nt
-                                                        });
-                                                    }
-                                                });
-                                                return;
-                                            }
-                                            if (key === 'wipers') {
-                                                Object.keys(value.details || {}).filter(dk => dk.startsWith('type_')).forEach(dk => {
-                                                    const suffix = dk.replace('type_', '');
-                                                    const type = value.details[dk];
-                                                    const size = value.details['size_' + suffix] || "";
-                                                    const pr = value.details['price_' + suffix] || 0;
-                                                    const q = value.details['qty_' + suffix] || 1;
-                                                    const nt = value.details['notes_' + suffix] || "";
-                                                    if (type || size) {
-                                                        svcs.push({
-                                                            name: `مساحات زجاج ${type} ${size}`.trim(),
-                                                            category: "الماسحات",
-                                                            estimatedMinutes: 15,
-                                                            qty: q,
-                                                            price: pr,
-                                                            notes: nt
-                                                        });
-                                                    }
-                                                });
-                                                return;
-                                            }
-
                                             const def = PAPER_V2_SERVICE_DEFS[key];
                                             if (!def || !value) return;
                                             if (value.status === 'جيد') return;
