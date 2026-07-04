@@ -132,6 +132,16 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
     },
 ];
 
+// Extra detail fields so EVERY service gets العدد × سعر الوحدة (price auto-computes as qty × unitPrice
+// in setServiceDetail). Skips العدد when the service already has a qty/liters field.
+function priceFields(svc: { detailFields: { key: string }[] }): { key: string; label: string; listId?: string }[] {
+    const keys = new Set(svc.detailFields.map(f => f.key));
+    const extra: { key: string; label: string; listId?: string }[] = [];
+    if (!keys.has('qty') && !keys.has('liters')) extra.push({ key: 'qty', label: 'العدد' });
+    if (!keys.has('unitPrice')) extra.push({ key: 'unitPrice', label: 'سعر الوحدة' });
+    return extra;
+}
+
 // Sum a multi-product service (additives): line total = price × quantity, quantity defaults to 1.
 function sumMultiProduct(details: Record<string, any>): number {
     let sum = 0;
@@ -1397,7 +1407,7 @@ export default function StandardReception({
                                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
                                                             {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                                    {svc.detailFields.map(df => {
+                                                                    {[...svc.detailFields, ...priceFields(svc)].map(df => {
                                                                         const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                                         const fieldKey = svc.key + "_" + df.key;
                                                                         const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
@@ -1628,7 +1638,7 @@ export default function StandardReception({
                                                                     + منتج آخر
                                                                 </button>
                                                             </div>
-                                                        ) : svc.detailFields.map(df => {
+                                                        ) : [...svc.detailFields, ...priceFields(svc)].map(df => {
                                                             if (df.key === 'size') {
                                                                 return (
                                                                     <select 
