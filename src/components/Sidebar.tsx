@@ -20,6 +20,7 @@ import {
     Users,
     ClipboardList,
     FileSpreadsheet,
+    ClipboardCheck,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
@@ -72,6 +73,7 @@ export function Sidebar() {
                 { href: "/suggestions", label: "إدارة الاقتراحات", icon: <FileSpreadsheet size={20} /> },
                 // { href: "/services", label: "الفحص والصيانة", icon: <Hammer size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
                 { href: "/work-orders", label: "ساحة الورشة (العمل الحي)", icon: <Wrench size={20} /> },
+                { href: "/audit", label: "التدقيق والمحاسبة", icon: <ClipboardCheck size={20} />, roles: ["Owner", "Admin", "Supervisor"] },
                 // { href: "/status", label: "متابعة وإنجاز العمل", icon: <Activity size={20} /> }
             ]
         },
@@ -135,6 +137,7 @@ export function Sidebar() {
             if (item.href === '/assistant') return employeeRole === 'Admin';
             if (item.href === '/reception') return !!permissionReception;
             if (item.href === '/work-orders') return !!permissionWorkOrders;
+            if (item.href === '/audit') return employeeRole === 'Admin' || employeeRole === 'Supervisor' || !!permissionWorkOrders || !!permissionReception;
             if (item.href === '/customers') return !!permissionCustomers;
             if (item.href === '/reports') return !!permissionReports;
             if (item.href === '/technician-report') return employeeRole === 'Admin' || employeeRole === 'Supervisor' || !!permissionReports;
