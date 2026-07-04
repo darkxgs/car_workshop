@@ -365,15 +365,31 @@ export default function SuggestionsPage() {
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
 
-                const newItems: {name: string, price: string}[] = [];
-                for (let i = 8; i < data.length; i++) {
-                    const row = data[i];
-                    if (!row || !row[8]) continue; // Name missing
-                    
-                    const name = String(row[8]).trim();
-                    if (!name) continue;
+                // Auto-detect the name (and optional price) column + where data starts, so ANY
+                // reasonable sheet works: the app's own export (المادة at col 8 / row 9) as well
+                // as a plain list with the names in the first column.
+                let nameCol = -1, priceCol = -1, startRow = 0;
+                for (let i = 0; i < Math.min(data.length, 20); i++) {
+                    const row = data[i] || [];
+                    for (let c = 0; c < row.length; c++) {
+                        const cell = String(row[c] ?? '').trim();
+                        if (nameCol === -1 && /^(اسم|الاسم|المادة|الصنف|المنتج|name)/i.test(cell)) { nameCol = c; startRow = i + 1; }
+                        if (priceCol === -1 && /(سعر|السعر|price|الكلفة|الثمن)/i.test(cell)) priceCol = c;
+                    }
+                    if (nameCol !== -1) break;
+                }
+                // No header row found → assume col A = name, col B = price, data from the first row.
+                if (nameCol === -1) { nameCol = 0; if (priceCol === -1) priceCol = 1; startRow = 0; }
 
-                    newItems.push({ name, price: "" });
+                const HEADER_WORDS = new Set(['المادة', 'اسم', 'الاسم', 'العدد', 'تـ', 'ت', 'السعر', 'سعر', 'name', 'price']);
+                const newItems: {name: string, price: string}[] = [];
+                for (let i = startRow; i < data.length; i++) {
+                    const row = data[i];
+                    if (!row) continue;
+                    const name = String(row[nameCol] ?? '').trim();
+                    if (!name || HEADER_WORDS.has(name)) continue; // skip empty / header cells
+                    const price = priceCol >= 0 ? String(row[priceCol] ?? '').replace(/[^\d.]/g, '') : '';
+                    newItems.push({ name, price });
                 }
 
                 if (newItems.length === 0) {
