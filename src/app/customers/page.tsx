@@ -416,7 +416,11 @@ export default function CustomersPage() {
             maintenanceUnits: 'وحدات الصيانة'
         };
 
-        const mapped = filteredReports.map((r: any, idx: number) => {
+        // Export oldest → newest so التسلسل (seq) counts up with the date (1-7, 2-7, 3-7 …).
+        const sortedReports = [...filteredReports].sort((a: any, b: any) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        const mapped = sortedReports.map((r: any, idx: number) => {
             const vehicle = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
             const client  = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
             const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
@@ -514,8 +518,25 @@ export default function CustomersPage() {
                 booklet: bookletStr,
                 total_price: r.total_price || 0,
                 status: STATUS_MAP[r.status] || r.status || "",
-                // Fields shaped to match the team's database Google Sheet (16-column layout).
+                // Fields shaped to match the team's database Google Sheet layout.
                 created_ymd: (() => { const d = new Date(r.created_at); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; })(),
+                // نوع الخدمة for the DB sheet: the actual services performed — for category
+                // services (المضافات/المنظفات) the products INSIDE are listed, not the heading.
+                db_service: isSale ? "بيع منتج" : (() => {
+                    const performed = Object.entries(services as Record<string, any>)
+                        .filter(([, v]) => v?.status === "يحتاج تغيير")
+                        .flatMap(([k, v]) => {
+                            if (k === 'additives' || k === 'cleaners') {
+                                const prods = Object.keys(v?.details || {})
+                                    .filter(dk => dk.startsWith('prod_') && v.details[dk])
+                                    .map(dk => String(v.details[dk]).trim());
+                                return prods.length ? prods : [SERVICE_LABELS[k] || k];
+                            }
+                            return [SERVICE_LABELS[k] || k];
+                        });
+                    return [...performed, ...customLabels].join("، ") || "فحص بالجهاز";
+                })(),
+                db_technician: isSale ? "" : (technicianName || ""),
                 db_car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
                 db_oil_type_visc: (isSale ? [saleOilType, saleOilVisc] : [oilType, oilVisc]).filter(Boolean).join(" "),
                 db_liters: isSale ? saleOilLiters : (oilLiters || ""),
@@ -553,20 +574,21 @@ export default function CustomersPage() {
         const dbData = [
             ["التسلسل", "اسم الزبون", "رقم الهاتف", "نوع السيارة", "التاريخ", "نوع الخدمة",
              "نوع الزيت واللزوجة", "عدد اللترات", "العداد الحالي", "العداد المستقبلي", "السعر",
-             "دفتر الخدمة", "عدد التبديلات", "الشفت", "اسم موظف الاستقبال", "مشرف الشفت"],
+             "دفتر الخدمة", "عدد التبديلات", "الشفت", "اسم موظف الاستقبال", "مشرف الشفت", "اسم الفني"],
             ...mapped.map(r => [
-                r.seq, r.client_name, r.client_phone, r.db_car, r.created_ymd, r.service_type,
+                r.seq, r.client_name, r.client_phone, r.db_car, r.created_ymd, r.db_service,
                 r.db_oil_type_visc, r.db_liters, r.db_odometer, r.db_future, r.total_price,
                 r.db_booklet_type, r.db_booklet_changes, r.shift_name === "—" ? "" : r.shift_name,
                 r.receptionist_name === "—" ? "" : r.receptionist_name,
                 r.supervisor_name === "—" ? "" : r.supervisor_name,
+                r.db_technician,
             ])
         ];
         const wsDb = XLSX.utils.aoa_to_sheet(dbData);
         wsDb["!cols"] = [
             {wch:7}, {wch:22}, {wch:16}, {wch:18}, {wch:13}, {wch:20},
             {wch:22}, {wch:11}, {wch:13}, {wch:15}, {wch:12},
-            {wch:12}, {wch:12}, {wch:10}, {wch:18}, {wch:18},
+            {wch:12}, {wch:12}, {wch:10}, {wch:18}, {wch:18}, {wch:18},
         ];
         if (!wsDb["!opts"]) wsDb["!opts"] = {};
         (wsDb as any)["!opts"].RTL = true;
