@@ -453,7 +453,9 @@ export default function WorkOrderDetailPage() {
                 selected_services: updatedServices
             })
             .eq('id', id);
-        fetchOrder();
+        // After finishing, hand the order over to the accountant (تدقيق والمحاسب).
+        showSuccess("تم إنهاء الخدمة", "المركبة جاهزة للتدقيق والمحاسبة.");
+        router.push('/audit');
     };
 
     const handleAddDynamicService = async (svcKey: string, customSvc?: any) => {
@@ -461,10 +463,13 @@ export default function WorkOrderDetailPage() {
         let updatedServices = [...(order.selected_services || [])];
         let priceToAdd = 0;
         let durationToAdd = 30;
+        // Services added while the car is already on the floor are flagged so the
+        // accountant (تدقيق والمحاسب) can see what was added after the service started.
+        const addedDuringWork = order.status === 'قيد العمل';
 
         if (svcKey === 'custom') {
             if (!customSvc) return;
-            updatedServices.push(customSvc);
+            updatedServices.push({ ...customSvc, addedDuringWork });
             priceToAdd = customSvc.price || 0;
             durationToAdd = customSvc.estimatedMinutes || 30;
         } else {
@@ -526,7 +531,8 @@ export default function WorkOrderDetailPage() {
             payload.services[svcKey] = {
                 status: 'يحتاج تغيير',
                 price: svcPriceVal,
-                details: svcDetails
+                details: svcDetails,
+                addedDuringWork
             };
             updatedServices[0] = payload;
         }
