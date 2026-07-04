@@ -20,9 +20,6 @@ export default function SettingsPage() {
 
     // Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [webhookUrl, setWebhookUrl] = useState("");
-    const [syncEnabled, setSyncEnabled] = useState(false);
-    const [isSavingGoogle, setIsSavingGoogle] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
@@ -69,17 +66,6 @@ export default function SettingsPage() {
                 .order('created_at', { ascending: true });
             if (!bErr && bData) setBranches(bData);
 
-            // Fetch Google Sheets settings
-            const { data: settingsData } = await supabase
-                .from('workshop_settings')
-                .select('*');
-            if (settingsData) {
-                const urlVal = settingsData.find(s => s.setting_key === 'google_sheets_webhook_url')?.setting_value || "";
-                const enabledVal = settingsData.find(s => s.setting_key === 'google_sheets_sync_enabled')?.setting_value === 'true';
-                setWebhookUrl(urlVal);
-                setSyncEnabled(enabledVal);
-            }
-
         } catch (e) {
             console.error("Exception fetching settings data:", e);
         } finally {
@@ -95,29 +81,6 @@ export default function SettingsPage() {
             setLoadingEnv(false);
         }
     }, [employeeRole, permissionEmployees]);
-
-    const handleSaveGoogleSettings = async () => {
-        setIsSavingGoogle(true);
-        try {
-            // Upsert webhook URL
-            const { error: err1 } = await supabase
-                .from('workshop_settings')
-                .upsert({ setting_key: 'google_sheets_webhook_url', setting_value: webhookUrl }, { onConflict: 'setting_key' });
-            
-            // Upsert enabled toggle
-            const { error: err2 } = await supabase
-                .from('workshop_settings')
-                .upsert({ setting_key: 'google_sheets_sync_enabled', setting_value: String(syncEnabled) }, { onConflict: 'setting_key' });
-                
-            if (err1 || err2) throw err1 || err2;
-            showSuccess("تم الحفظ", "تم حفظ إعدادات مزامنة Google Sheets بنجاح!");
-        } catch (err: any) {
-            console.error(err);
-            showError("خطأ", "فشل حفظ إعدادات Google Sheets");
-        } finally {
-            setIsSavingGoogle(false);
-        }
-    };
 
     const handleDeleteBranch = async (id: string, name: string) => {
         const isConfirmed = await showConfirm(
@@ -376,45 +339,6 @@ export default function SettingsPage() {
                         )}
                         <button onClick={() => setIsBranchModalOpen(true)} className="w-full py-3 rounded-xl border border-dashed border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm font-medium hover:border-rose-500/50">
                             + إضافة فرع جديد للنظام
-                        </button>
-                    </div>
-                </div>
-
-                {/* Google Sheets Integration */}
-                <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
-                    <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2 border-b border-emerald-500/20 pb-4">
-                        <span className="text-emerald-400">📊</span>
-                        ربط Google Sheets للمزامنة التلقائية
-                    </h2>
-                    
-                    <div className="space-y-5">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-muted-foreground">تفعيل المزامنة التلقائية للبيانات:</span>
-                            <button
-                                onClick={() => setSyncEnabled(!syncEnabled)}
-                                className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${syncEnabled ? 'bg-emerald-600' : 'bg-muted border border-border'}`}
-                            >
-                                <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ${syncEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                            </button>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground ml-1">رابط الويب هوك الخاص بـ Google Web App (Webhook URL)</label>
-                            <input 
-                                type="text" 
-                                value={webhookUrl}
-                                onChange={e => setWebhookUrl(e.target.value)}
-                                placeholder="https://script.google.com/macros/s/.../exec"
-                                className="input-field text-left"
-                                dir="ltr"
-                            />
-                        </div>
-                        <button 
-                            onClick={handleSaveGoogleSettings}
-                            disabled={isSavingGoogle}
-                            className="w-full py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 transition flex items-center justify-center gap-2 font-bold font-ibm"
-                        >
-                            {isSavingGoogle ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                            حفظ إعدادات المزامنة
                         </button>
                     </div>
                 </div>
