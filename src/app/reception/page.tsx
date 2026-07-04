@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Loader2,
-    FileText, Printer, Edit2, X, Trash2, ShoppingCart
+    FileText, Printer, Edit2, X, Trash2, ShoppingCart, RefreshCcw
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
@@ -163,6 +163,34 @@ function ReceptionContainer() {
         } catch (err: any) {
             console.error(err);
             showError("خطأ في الحذف", err.message || "تعذر حذف أمر العمل.");
+        }
+    };
+
+    const handleReopenOrder = async (orderId: string, orderNumber: number) => {
+        const confirm = await showConfirm(
+            "إرجاع السيارة للعمل",
+            `هل أنت متأكد من رغبتك في إرجاع المركبة في الفاتورة #${orderNumber} إلى ساحة العمل (قيد العمل)؟`,
+            "نعم، إرجاع للعمل",
+            false
+        );
+        if (!confirm) return;
+
+        try {
+            const { error } = await supabase
+                .from('inspection_reports')
+                .update({ 
+                    status: 'قيد العمل', 
+                    start_time: new Date().toISOString(),
+                    completed_at: null
+                })
+                .eq('id', orderId);
+
+            if (error) throw error;
+            showSuccess("تمت إعادة الفتح", "تمت إعادة المركبة إلى قيد العمل بنجاح.");
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'قيد العمل' } : o));
+        } catch (err: any) {
+            console.error(err);
+            showError("خطأ", `فشل إعادة فتح المركبة: ${err.message}`);
         }
     };
 
@@ -333,9 +361,36 @@ function ReceptionContainer() {
                                                 <td className="p-4 font-bold">{isSale ? (salePayload?.customerName || 'عميل نقدي') : (client?.name || 'عميل نقدي')}</td>
                                                 <td className="p-4 text-muted-foreground font-mono">{isSale ? (salePayload?.customerPhone || '-') : (client?.phone || '-')}</td>
                                                 <td className="p-4 font-bold">{isSale
-                                                    ? <span className="text-emerald-400">{(Array.isArray(salePayload?.products) && salePayload.products.length
-                                                        ? salePayload.products.map((p: any) => p?.name).filter(Boolean).join('، ')
-                                                        : '') || '—'}</span>
+                                                    ? <span className="text-emerald-400">
+                                                        {(() => {
+                                                            if (Array.isArray(salePayload?.products) && salePayload.products.length > 0) {
+                                                                return salePayload.products.map((p: any) => p?.name).filter(Boolean).join('، ');
+                                                            }
+                                                            const names: string[] = [];
+                                                            if (salePayload?.services) {
+                                                                Object.entries(salePayload.services).forEach(([key, val]: [string, any]) => {
+                                                                    if (val && val.status === 'يحتاج تغيير') {
+                                                                        const labelMap: Record<string, string> = {
+                                                                            engineOil: 'زيت محرك', oilFilter: 'فلتر زيت',
+                                                                            airFilter: 'فلتر هواء', acFilter: 'فلتر تبريد',
+                                                                            brakeFluid: 'زيت بريك', coolant: 'ماء راديتر',
+                                                                            battery: 'بطارية', engineBelts: 'قايش محرك',
+                                                                            brakePads: 'دسكات', sparkPlugs: 'شمعات',
+                                                                            gearboxHydraulic: 'هيدروليك كير', gearboxFilter: 'فلتر كير',
+                                                                            wipers: 'ماسحات', additives: 'مضافات ومحسنات'
+                                                                        };
+                                                                        names.push(labelMap[key] || key);
+                                                                    }
+                                                                });
+                                                            }
+                                                            if (Array.isArray(salePayload?.customServices)) {
+                                                                salePayload.customServices.forEach((cs: any) => {
+                                                                    if (cs.label) names.push(cs.label);
+                                                                });
+                                                            }
+                                                            return names.join('، ') || 'بيع منتج مباشر';
+                                                        })()}
+                                                      </span>
                                                     : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
                                                 <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
                                                 <td className="p-4">
@@ -367,6 +422,15 @@ function ReceptionContainer() {
                                                                     <FileText size={16} />
                                                                 </button>
                                                             </>
+                                                        )}
+                                                        {o.status === 'تم الانتهاء' && !isSale && (
+                                                            <button
+                                                                onClick={() => handleReopenOrder(o.id, o.report_number)}
+                                                                className="p-2 bg-amber-600/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
+                                                                title="إرجاع السيارة للعمل"
+                                                            >
+                                                                <RefreshCcw size={16} />
+                                                            </button>
                                                         )}
                                                         <button
                                                             onClick={() => {
