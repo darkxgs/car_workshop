@@ -1094,7 +1094,7 @@ export default function StandardReception({
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <button onClick={onClose} className="p-2 bg-muted hover:bg-rose-500 hover:text-white rounded-xl transition-colors border border-border" title="رجوع إلى قائمة أوامر العمل">
+                    <button onClick={() => { if (step > 1) setStep((step - 1) as Step); else onClose(); }} className="p-2 bg-muted hover:bg-rose-500 hover:text-white rounded-xl transition-colors border border-border" title={step > 1 ? "رجوع خطوة واحدة" : "رجوع إلى قائمة أوامر العمل"}>
                         <ArrowRight size={24} />
                     </button>
                     <div>
