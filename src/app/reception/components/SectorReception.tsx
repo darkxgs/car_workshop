@@ -12,6 +12,7 @@ import {
 import { showSuccess } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
 type Step = 1 | 2 | 3;
 
@@ -968,8 +969,9 @@ export default function SectorReception({
                         estimated_duration: calculatedDuration,
                     })
                     .eq('id', editReportId);
-                
+
                 if (re) throw re;
+                syncOrderToGoogleSheets(editReportId); // fire-and-forget Google Sheets sync
 
                 if (skipStep3) {
                     showSuccess("تم التعديل", "تم حفظ التعديلات بنجاح.");
@@ -999,6 +1001,7 @@ export default function SectorReception({
                 .select('id, report_number').single();
 
             if (re) throw re;
+            if (rd) syncOrderToGoogleSheets(rd.id); // fire-and-forget Google Sheets sync
 
             if (skipStep3) {
                 showSuccess("تم الحفظ", "تم إنشاء أمر العمل بنجاح.");
