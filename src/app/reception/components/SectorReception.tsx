@@ -122,10 +122,8 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
     },
     {
         key: "wipers",
-        label: "الماسحات",
-        detailFields: [
-            { key: "type", label: "نوع الماسحات", listId: "wiperBrands" },
-            { key: "size", label: "حجم الماسحات", listId: "wiperSizes" }, { key: "notes", label: "ملاحظات" }],
+        label: "المساحات",
+        detailFields: [], // multi-product like additives (add more than one wiper)
     },
     {
         key: "additives",
@@ -691,7 +689,7 @@ export default function SectorReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'additives' || key === 'cleaners') {
+            if (key === 'additives' || key === 'cleaners' || key === 'wipers') {
                 const sum = sumMultiProduct(newDet);
                 newPrice = sum > 0 ? String(sum) : '';
             } else {
@@ -1449,9 +1447,9 @@ export default function SectorReception({
                                                 </div>
 
                                                 {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives') && (
+                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives' || svc.key === 'wipers') && (
                                                     <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                        {svc.key === 'additives' ? (
+                                                        {(svc.key === 'additives' || svc.key === 'wipers') ? (
                                                             <div className="flex flex-col gap-2 w-full max-w-sm">
                                                                 {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                     const priceKey = k.replace('prod_', 'price_');
