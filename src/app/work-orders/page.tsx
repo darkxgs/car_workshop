@@ -57,13 +57,7 @@ export default function WorkOrdersListPage() {
             const { data } = await supabase.from('branches').select('id, name');
             if (data && data.length > 0) {
                 setBranches(data);
-                if (data.length === 1) {
-                    setSelectedBranchId(data[0].id);
-                } else if (employeeBranchId !== null && employeeBranchId !== undefined) {
-                    setSelectedBranchId(employeeBranchId);
-                } else {
-                    setSelectedBranchId("");
-                }
+                setSelectedBranchId(employeeBranchId || data[0].id);
             }
         };
         fetchBranches();
@@ -151,7 +145,6 @@ export default function WorkOrdersListPage() {
                                     onChange={(e) => setSelectedBranchId(e.target.value)}
                                     className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500/50 cursor-pointer hover:border-border/80 transition-colors"
                                 >
-                                    <option value="">كل الفروع</option>
                                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                             </div>
@@ -204,61 +197,53 @@ export default function WorkOrdersListPage() {
                             const timeString = fmtHMS(absRemaining);
                             
                             return (
-                            <div key={order.id} className="glass-card p-6 rounded-3xl border border-border/80 relative group overflow-hidden transition-all hover:border-blue-500/50 flex flex-col justify-between shadow-lg hover:shadow-blue-900/10">
+                            <div key={order.id} className="glass-card p-6 rounded-2xl border-border relative group overflow-hidden transition-all hover:border-blue-500/30 flex flex-col justify-between">
                                 <div>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <span className={`text-xs font-black px-3.5 py-1.5 rounded-xl border ${
-                                            order.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                            order.status === 'قيد العمل' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                        }`}>
-                                            {order.status}
-                                        </span>
-                                        <span className="font-mono text-muted-foreground font-black text-xl">#{order.report_number}</span>
-                                    </div>
-                                    
-                                    {/* PROMINENT BAY NUMBER & TECHNICIAN NAME */}
-                                    <div className="flex gap-2.5 mb-5">
-                                        <div className="flex-1 px-3 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-center flex flex-col items-center justify-center">
-                                            <span className="text-[10px] text-emerald-500/70 font-bold mb-0.5">الخانة (Bay)</span>
-                                            <span className="font-extrabold text-base">{order.bay_number || 'غير حدد'}</span>
-                                        </div>
-                                        <div className="flex-1 px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-center flex flex-col items-center justify-center min-w-0">
-                                            <span className="text-[10px] text-blue-500/70 font-bold mb-0.5">الفني المسؤول</span>
-                                            <span className="font-extrabold text-base truncate w-full" title={order.selected_services?.[0]?.technicianName || 'غير محدد'}>
-                                                {order.selected_services?.[0]?.technicianName || 'غير محدد'}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex flex-col gap-2">
+                                            <span className={`text-xs font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1 w-max ${
+                                                order.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-500' :
+                                                order.status === 'قيد العمل' ? 'bg-blue-500/10 text-blue-500' :
+                                                'bg-amber-500/10 text-amber-500'
+                                            }`}>
+                                                {order.status}
                                             </span>
                                         </div>
+                                        <span className="font-mono text-muted-foreground font-bold text-lg">#{order.report_number}</span>
                                     </div>
-
-                                    {/* Vehicle Info */}
-                                    <div className="flex items-center gap-4 mb-5 border-b border-border/40 pb-4">
-                                        <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
-                                            <Car size={28} />
+                                    
+                                    <div className="flex items-center gap-4 mb-5">
+                                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+                                            <Car size={24} />
                                         </div>
-                                        <div className="min-w-0">
-                                            <h3 className="font-black text-xl text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
-                                            <p className="text-sm font-bold text-muted-foreground font-mono mt-1 truncate" dir="ltr">
+                                        <div>
+                                            <h3 className="font-bold text-lg text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
+                                            <p className="text-sm text-muted-foreground font-mono mt-1" dir="ltr">
                                                 {order.vehicles?.plate_number} 
                                                 {order.vehicles?.clients && (Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name) ? ` • ${Array.isArray(order.vehicles.clients) ? order.vehicles.clients[0]?.name : order.vehicles.clients.name}` : ''}
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* Other info */}
-                                    <div className="flex flex-col gap-2 mb-5 text-sm font-bold text-muted-foreground pb-4 border-b border-border/40">
+                                    <div className="flex flex-col gap-1.5 mb-4 text-sm font-bold text-muted-foreground border-b border-border/50 pb-3">
                                         <div className="flex items-center gap-2">
-                                            <Shield className="text-rose-400 shrink-0" size={18} /> المشرف: <span className="text-foreground text-sm font-extrabold">{order.selected_services?.[0]?.shiftSupervisor || 'غير محدد'}</span>
+                                            <Shield className="text-rose-400" size={16} /> المشرف: <span className="text-foreground">{order.selected_services?.[0]?.shiftSupervisor || 'غير محدد'}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Gauge className="text-cyan-400 shrink-0" size={18} /> عداد السيارة: <span className="text-foreground text-sm font-extrabold">{order.odometer_reading ? `${order.odometer_reading.toLocaleString()} ${order.odometer_unit === 'mi' ? 'ميل' : 'كم'}` : 'غير محدد'}</span>
+                                            <Wrench className="text-blue-400" size={16} /> الفني: <span className="text-foreground">{order.selected_services?.[0]?.technicianName || 'غير محدد'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Activity className="text-emerald-400" size={16} /> رقم الخانة: <span className="text-foreground">{order.bay_number || 'غير محدد'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Gauge className="text-cyan-400" size={16} /> عداد السيارة: <span className="text-foreground">{order.odometer_reading ? `${order.odometer_reading.toLocaleString()} ${order.odometer_unit === 'mi' ? 'ميل' : 'كم'}` : 'غير محدد'}</span>
                                         </div>
                                     </div>
 
                                     <div className="space-y-3 mb-6">
-                                        <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-background/60 border border-border shadow-inner">
-                                            <span className="text-xs font-bold text-muted-foreground mb-1.5">الوقت المتبقي لانتهاء العمل</span>
-                                            <div className={`text-5xl font-black font-mono tracking-wider ${isTimerDanger ? 'text-rose-500 animate-pulse' : 'text-emerald-400'}`}>
+                                        <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-background/50 border border-border">
+                                            <span className="text-sm text-muted-foreground mb-1">الوقت المتبقي</span>
+                                            <div className={`text-4xl font-black font-mono tracking-wider ${isTimerDanger ? 'text-rose-500' : 'text-emerald-500'}`}>
                                                 {order.status === 'قيد العمل' ? (
                                                     remainingSeconds > 0 ? timeString : `-${timeString}`
                                                 ) : (
@@ -268,8 +253,8 @@ export default function WorkOrdersListPage() {
                                         </div>
                                         {/* Delay Warning */}
                                         {(order.is_delayed || order.status === 'متأخر' || isTimerDanger) && order.status === 'قيد العمل' && (
-                                            <div className="flex justify-center items-center gap-2 text-rose-500 text-sm font-bold bg-rose-500/10 px-4 py-2.5 rounded-xl border border-rose-500/20">
-                                                <ShieldAlert size={18} /> تجاوز الوقت المحدد!
+                                            <div className="flex justify-center items-center gap-1 text-rose-500 text-sm font-bold bg-rose-500/10 px-3 py-2 rounded-lg">
+                                                <ShieldAlert size={16} /> تجاوز الوقت المحدد!
                                             </div>
                                         )}
                                     </div>

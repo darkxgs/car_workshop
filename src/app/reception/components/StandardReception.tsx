@@ -12,7 +12,6 @@ import {
 import { showSuccess } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
-import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
 type Step = 1 | 2 | 3;
 
@@ -133,6 +132,19 @@ const MAIN_SERVICES: { key: string; label: string; detailFields: { key: string; 
         detailFields: [], // Rendered custom below
     },
 ];
+
+// Sum a multi-product service (additives): line total = price × quantity, quantity defaults to 1.
+function sumMultiProduct(details: Record<string, any>): number {
+    let sum = 0;
+    for (const dk of Object.keys(details)) {
+        if (dk.startsWith('price_')) {
+            const price = Number(details[dk] || 0);
+            const qty = Number(details[dk.replace('price_', 'qty_')] || 0) || 1;
+            sum += price * qty;
+        }
+    }
+    return sum;
+}
 
 const SECTOR_BRANCH_SERVICES = [
     {
@@ -575,24 +587,8 @@ export default function StandardReception({
 
     // Real-time calculation of total price, discount, and owed amounts
     useEffect(() => {
-        const sumServices = Object.entries(services).reduce((acc, [key, svc]) => {
-            if (svc.status !== 'يحتاج تغيير') return acc;
-            const pr = parseFloat(svc.price) || 0;
-            if (key === 'additives' || key === 'wipers') {
-                return acc + pr;
-            } else {
-                const qtyVal = svc.details?.qty || svc.details?.liters || "1";
-                const q = parseFloat(qtyVal) || 1;
-                return acc + (pr * q);
-            }
-        }, 0);
-
-        const sumCustom = customServices.reduce((acc, svc) => {
-            const pr = parseFloat(svc.price) || 0;
-            const q = parseFloat((svc as any).qty || "1") || 1;
-            return acc + (pr * q);
-        }, 0);
-
+        const sumServices = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
+        const sumCustom = customServices.reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
         const subtotal = sumServices + sumCustom;
         
         const discVal = parseFloat(discount) || 0;
@@ -750,10 +746,7 @@ export default function StandardReception({
 
             // Recalculate totals for services with subtotal calculations
             if (key === 'additives' || key === 'cleaners') {
-                let sum = 0;
-                Object.keys(newDet).forEach(dk => {
-                    if (dk.startsWith('price_')) sum += Number(newDet[dk] || 0);
-                });
+                const sum = sumMultiProduct(newDet);
                 newPrice = sum > 0 ? String(sum) : '';
             } else {
                 const q = parseFloat(newDet.qty || newDet.liters);
@@ -1031,7 +1024,6 @@ export default function StandardReception({
                     .eq('id', editReportId);
                 
                 if (re) throw re;
-                syncOrderToGoogleSheets(editReportId);
 
                 if (skipStep3) {
                     showSuccess("تم التعديل", "تم حفظ التعديلات بنجاح.");
@@ -1061,7 +1053,6 @@ export default function StandardReception({
                 .select('id, report_number').single();
 
             if (re) throw re;
-            syncOrderToGoogleSheets(rd!.id);
 
             if (skipStep3) {
                 showSuccess("تم الحفظ", "تم إنشاء أمر العمل بنجاح.");
@@ -1103,7 +1094,7 @@ export default function StandardReception({
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => { if (step > 1) setStep((step - 1) as any); else onClose(); }} className="p-2 bg-muted hover:bg-rose-500 hover:text-white rounded-xl transition-colors border border-border" title="رجوع">
+                    <button onClick={onClose} className="p-2 bg-muted hover:bg-rose-500 hover:text-white rounded-xl transition-colors border border-border" title="رجوع إلى قائمة أوامر العمل">
                         <ArrowRight size={24} />
                     </button>
                     <div>
@@ -1507,126 +1498,11 @@ export default function StandardReception({
                                                         <span className="text-xs text-muted-foreground">د.ع</span>
                                                     </div>
                                                 </div>
+
                                                 {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives' || svc.key === 'wipers') && (
+                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives') && (
                                                     <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                         {svc.key === 'wipers' ? (
-                                                             <div className="flex flex-col gap-2 w-full max-w-xl">
-                                                                 {(Object.keys(entry.details).filter(k => k.startsWith('type_')).length === 0 ? ['type_1'] : Object.keys(entry.details).filter(k => k.startsWith('type_'))).map((k, i) => {
-                                                                     const suffix = k.replace('type_', '');
-                                                                     const sizeKey = 'size_' + suffix;
-                                                                     const qtyKey = 'qty_' + suffix;
-                                                                     const priceKey = 'price_' + suffix;
-                                                                     const notesKey = 'notes_' + suffix;
-                                                                     return (
-                                                                         <div key={k} className="flex flex-wrap items-center gap-2 animate-fade-in">
-                                                                             <span className="text-xs font-mono text-muted-foreground w-4 text-center">{i + 1}</span>
-                                                                             <select
-                                                                                 className="input-field text-xs py-1.5 w-28 bg-card"
-                                                                                 value={entry.details[k] || ""}
-                                                                                 onChange={e => setServiceDetail(svc.key, k, e.target.value)}
-                                                                             >
-                                                                                 <option value="">النوع...</option>
-                                                                                 <option value="VH">VH</option>
-                                                                                 <option value="VP">VP</option>
-                                                                                 <option value="VS">VS</option>
-                                                                             </select>
-                                                                             <select
-                                                                                 className="input-field text-xs py-1.5 w-28 bg-card"
-                                                                                 value={entry.details[sizeKey] || ""}
-                                                                                 onChange={e => setServiceDetail(svc.key, sizeKey, e.target.value)}
-                                                                             >
-                                                                                 <option value="">الحجم...</option>
-                                                                                 {["14", "16", "18", "20", "22", "24", "26", "28"].map(sz => (
-                                                                                     <option key={sz} value={`${sz} Inch`}>{sz} Inch</option>
-                                                                                 ))}
-                                                                             </select>
-                                                                             <input
-                                                                                 type="text" inputMode="numeric"
-                                                                                 placeholder="العدد"
-                                                                                 className="input-field text-xs py-1.5 w-16 text-center"
-                                                                                 value={entry.details[qtyKey] || "1"}
-                                                                                 onChange={e => {
-                                                                                     const newQty = digitsOnly(e.target.value);
-                                                                                     setServiceDetail(svc.key, qtyKey, newQty);
-                                                                                     setTimeout(() => {
-                                                                                         setServices(prev => {
-                                                                                             const svcData = prev[svc.key];
-                                                                                             const details = { ...svcData.details, [qtyKey]: newQty };
-                                                                                             let sum = 0;
-                                                                                             Object.keys(details).filter(dk => dk.startsWith('type_')).forEach(tk => {
-                                                                                                 const suf = tk.replace('type_', '');
-                                                                                                 const pr = parseFloat(details['price_' + suf] || "0") || 0;
-                                                                                                 const q = parseFloat(details['qty_' + suf] || "1") || 1;
-                                                                                                 sum += pr * q;
-                                                                                             });
-                                                                                             return { ...prev, [svc.key]: { ...svcData, details, price: sum > 0 ? String(sum) : "" } };
-                                                                                         });
-                                                                                     }, 50);
-                                                                                 }}
-                                                                             />
-                                                                             <input
-                                                                                 type="text" inputMode="numeric"
-                                                                                 placeholder="السعر"
-                                                                                 className="input-field text-xs py-1.5 w-24 text-left"
-                                                                                 dir="ltr"
-                                                                                 value={withCommas(entry.details[priceKey] || "")}
-                                                                                 onChange={e => {
-                                                                                     const newPrice = digitsOnly(e.target.value);
-                                                                                     setServiceDetail(svc.key, priceKey, newPrice);
-                                                                                     setTimeout(() => {
-                                                                                         setServices(prev => {
-                                                                                             const svcData = prev[svc.key];
-                                                                                             const details = { ...svcData.details, [priceKey]: newPrice };
-                                                                                             let sum = 0;
-                                                                                             Object.keys(details).filter(dk => dk.startsWith('type_')).forEach(tk => {
-                                                                                                 const suf = tk.replace('type_', '');
-                                                                                                 const pr = parseFloat(details['price_' + suf] || "0") || 0;
-                                                                                                 const q = parseFloat(details['qty_' + suf] || "1") || 1;
-                                                                                                 sum += pr * q;
-                                                                                             });
-                                                                                             return { ...prev, [svc.key]: { ...svcData, details, price: sum > 0 ? String(sum) : "" } };
-                                                                                         });
-                                                                                     }, 50);
-                                                                                 }}
-                                                                             />
-                                                                             <input
-                                                                                 type="text"
-                                                                                 placeholder="ملاحظات"
-                                                                                 className="input-field text-xs py-1.5 w-28 text-right"
-                                                                                 value={entry.details[notesKey] || ""}
-                                                                                 onChange={e => setServiceDetail(svc.key, notesKey, e.target.value)}
-                                                                             />
-                                                                             {i > 0 && (
-                                                                                 <button type="button" onClick={() => {
-                                                                                     const newDetails = { ...entry.details };
-                                                                                     delete newDetails[k];
-                                                                                     delete newDetails[sizeKey];
-                                                                                     delete newDetails[qtyKey];
-                                                                                     delete newDetails[priceKey];
-                                                                                     delete newDetails[notesKey];
-                                                                                     let sum = 0;
-                                                                                     Object.keys(newDetails).filter(dk => dk.startsWith('type_')).forEach(tk => {
-                                                                                         const suf = tk.replace('type_', '');
-                                                                                         const pr = parseFloat(newDetails['price_' + suf] || "0") || 0;
-                                                                                         const q = parseFloat(newDetails['qty_' + suf] || "1") || 1;
-                                                                                         sum += pr * q;
-                                                                                     });
-                                                                                     setServices(prev => ({ ...prev, [svc.key]: { ...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : "" } }));
-                                                                                 }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
-                                                                             )}
-                                                                         </div>
-                                                                     );
-                                                                 })}
-                                                                 <button
-                                                                     type="button"
-                                                                     onClick={() => setServiceDetail(svc.key, `type_${Date.now()}`, '')}
-                                                                     className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3 animate-fade-in mb-4"
-                                                                 >
-                                                                     + ماسحة أخرى
-                                                                 </button>
-                                                             </div>
-                                                         ) : svc.key === 'additives' ? (
+                                                        {svc.key === 'additives' ? (
                                                             <div className="flex flex-col gap-2 w-full max-w-sm">
                                                                 {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                     const priceKey = k.replace('prod_', 'price_');
@@ -1669,10 +1545,7 @@ export default function StandardReception({
                                                                                                             setServices(prev => {
                                                                                                                 const svcData = prev[svc.key];
                                                                                                                 const details = { ...svcData.details, [priceKey]: item.price, [k]: item.name };
-                                                                                                                let sum = 0;
-                                                                                                                Object.keys(details).forEach(dk => {
-                                                                                                                    if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
-                                                                                                                });
+                                                                                                                const sum = sumMultiProduct(details);
                                                                                                                 return { ...prev, [svc.key]: { ...svcData, details, price: sum > 0 ? String(sum) : "" } };
                                                                                                             });
                                                                                                         }, 50);
@@ -1695,7 +1568,7 @@ export default function StandardReception({
                                                                                 )}
                                                                             </div>
                                                                             <div className="flex items-center gap-1 w-24">
-                                                                                <input 
+                                                                                <input
                                                                                     type="text"
                                                                                     placeholder="ملاحظات"
                                                                                     className="input-field text-xs py-1.5 w-full text-right"
@@ -1703,10 +1576,20 @@ export default function StandardReception({
                                                                                     onChange={e => setServiceDetail(svc.key, `notes_${k}`, e.target.value)}
                                                                                 />
                                                                             </div>
-                                                                            <div className="flex items-center gap-1 w-24">
-                                                                                <input 
+                                                                            <div className="flex items-center gap-1 w-14">
+                                                                                <input
                                                                                     type="text" inputMode="numeric"
-                                                                                    placeholder="السعر"
+                                                                                    placeholder="العدد"
+                                                                                    className="input-field text-xs py-1.5 w-full text-center"
+                                                                                    dir="ltr"
+                                                                                    value={entry.details[k.replace('prod_', 'qty_')] || ""}
+                                                                                    onChange={e => setServiceDetail(svc.key, k.replace('prod_', 'qty_'), digitsOnly(e.target.value))}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1 w-24">
+                                                                                <input
+                                                                                    type="text" inputMode="numeric"
+                                                                                    placeholder="سعر الوحدة"
                                                                                     className="input-field text-xs py-1.5 w-full text-left"
                                                                                     dir="ltr"
                                                                                     value={withCommas(entry.details[priceKey] || "")}
@@ -1716,10 +1599,7 @@ export default function StandardReception({
                                                                                             setServices(prev => {
                                                                                                 const svcData = prev[svc.key];
                                                                                                 const details = svcData.details;
-                                                                                                let sum = 0;
-                                                                                                Object.keys(details).forEach(dk => {
-                                                                                                    if (dk.startsWith('price_')) sum += Number(details[dk] || 0);
-                                                                                                });
+                                                                                                const sum = sumMultiProduct(details);
                                                                                                 return { ...prev, [svc.key]: { ...svcData, price: sum > 0 ? String(sum) : "" } };
                                                                                             });
                                                                                         }, 50);
@@ -1731,10 +1611,8 @@ export default function StandardReception({
                                                                                     const newDetails = {...entry.details};
                                                                                     delete newDetails[k];
                                                                                     delete newDetails[priceKey];
-                                                                                    let sum = 0;
-                                                                                    Object.keys(newDetails).forEach(dk => {
-                                                                                        if (dk.startsWith('price_')) sum += Number(newDetails[dk] || 0);
-                                                                                    });
+                                                                                    delete newDetails[k.replace('prod_', 'qty_')];
+                                                                                    const sum = sumMultiProduct(newDetails);
                                                                                     setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : ""}}));
                                                                                 }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
                                                                             )}
@@ -1750,47 +1628,17 @@ export default function StandardReception({
                                                                 </button>
                                                             </div>
                                                         ) : svc.detailFields.map(df => {
-                                                            if (svc.key === 'coolant' && df.key === 'size') {
+                                                            if (df.key === 'size') {
                                                                 return (
                                                                     <select 
                                                                         key={df.key} 
-                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
+                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px]"
                                                                         value={entry.details[df.key] || ""}
                                                                         onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
                                                                     >
                                                                         <option value="">اختر الحجم</option>
                                                                         <option value="دبة 1 لتر">دبة 1 لتر</option>
                                                                         <option value="دبة 4 لتر">دبة 4 لتر</option>
-                                                                    </select>
-                                                                );
-                                                            }
-                                                            if (svc.key === 'wipers' && df.key === 'type') {
-                                                                return (
-                                                                    <select 
-                                                                        key={df.key} 
-                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
-                                                                        value={entry.details[df.key] || ""}
-                                                                        onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
-                                                                    >
-                                                                        <option value="">نوع الماسحات...</option>
-                                                                        <option value="VH">VH</option>
-                                                                        <option value="VP">VP</option>
-                                                                        <option value="VS">VS</option>
-                                                                    </select>
-                                                                );
-                                                            }
-                                                            if (svc.key === 'wipers' && df.key === 'size') {
-                                                                return (
-                                                                    <select 
-                                                                        key={df.key} 
-                                                                        className="input-field text-xs py-1.5 flex-1 min-w-[120px] bg-card"
-                                                                        value={entry.details[df.key] || ""}
-                                                                        onChange={e => setServiceDetail(svc.key, df.key, e.target.value)}
-                                                                    >
-                                                                        <option value="">حجم الماسحات...</option>
-                                                                        {["14", "16", "18", "20", "22", "24", "26", "28"].map(sz => (
-                                                                            <option key={sz} value={`${sz} Inch`}>{sz} Inch</option>
-                                                                        ))}
                                                                     </select>
                                                                 );
                                                             }
@@ -1871,13 +1719,15 @@ export default function StandardReception({
                                     </span>
                                     <span className="font-bold text-sm min-w-[140px]">أحداث الصيانة (خدمات إضافية)</span>
                                 </div>
-                                <button
-                                     type="button"
-                                     onClick={addCustomService}
-                                     className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
-                                 >
-                                     <span className="text-base leading-none">+</span> إضافة حدث صيانة
-                                 </button>
+                                {customServices.length === 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={addCustomService}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
+                                    >
+                                        <span className="text-base leading-none">+</span> إضافة حدث صيانة
+                                    </button>
+                                )}
                             </div>
 
                             {customServices.length > 0 && (
@@ -1927,6 +1777,16 @@ export default function StandardReception({
                                             </button>
                                         </div>
                                     ))}
+                                    
+                                    <div className="pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={addCustomService}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 text-rose-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold rounded-lg transition-all"
+                                        >
+                                            <span className="text-base leading-none">+</span> إضافة حدث صيانة آخر
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
