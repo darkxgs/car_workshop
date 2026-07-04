@@ -1450,7 +1450,7 @@ export default function SectorReception({
                                                 {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives' || svc.key === 'wipers') && (
                                                     <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
                                                         {(svc.key === 'additives' || svc.key === 'wipers') ? (
-                                                            <div className="flex flex-col gap-2 w-full max-w-sm">
+                                                            <div className="flex flex-col gap-2 w-full">
                                                                 {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                     const priceKey = k.replace('prod_', 'price_');
                                                                     return (
@@ -1514,7 +1514,7 @@ export default function SectorReception({
                                                                                     </div>
                                                                                 )}
                                                                             </div>
-                                                                            <div className="flex items-center gap-1 w-14">
+                                                                            <div className="flex items-center gap-1 w-16">
                                                                                 <input
                                                                                     type="text" inputMode="numeric"
                                                                                     placeholder="العدد"
