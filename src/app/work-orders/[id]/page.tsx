@@ -1015,7 +1015,7 @@ export default function WorkOrderDetailPage() {
                                                     <input type="text" value={svcLiters} onChange={e=>setSvcLiters(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="4.5"/>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-muted-foreground block mb-1">السعر الإجمالي (د.ع):</label>
+                                                    <label className="text-xs text-muted-foreground block mb-1">السعر المفرد (د.ع):</label>
                                                     <input type="text" value={svcPrice} onChange={e=>setSvcPrice(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-500" placeholder="0"/>
                                                 </div>
                                             </div>
@@ -1273,6 +1273,19 @@ export default function WorkOrderDetailPage() {
                                 )}
 
                                 {selectedSvcKey && (
+                                    <>
+                                    {selectedSvcKey !== "custom" && (() => {
+                                        let total = 0;
+                                        if (selectedSvcKey === "wipers") total = wipersList.reduce((s, w) => s + (parseFloat(w.price) || 0) * (parseFloat(w.qty) || 1), 0);
+                                        else if (selectedSvcKey === "additives") total = additivesList.reduce((s, a) => s + (parseFloat(a.price) || 0) * (parseFloat(a.qty) || 1), 0);
+                                        else total = (parseFloat(svcPrice) || 0) * (parseFloat(svcQty || svcLiters || "1") || 1);
+                                        return (
+                                            <div className="flex items-center justify-between px-1 mt-2 py-2 border-t border-border/60 text-sm">
+                                                <span className="font-bold text-muted-foreground">الإجمالي (العدد × السعر المفرد):</span>
+                                                <span className="font-black text-emerald-500">{total.toLocaleString('en-US')} د.ع</span>
+                                            </div>
+                                        );
+                                    })()}
                                     <div className="flex gap-2 mt-2">
                                         <button
                                             onClick={async () => {
@@ -1318,6 +1331,7 @@ export default function WorkOrderDetailPage() {
                                             إلغاء
                                         </button>
                                     </div>
+                                    </>
                                 )}
                             </div>
                         )}
