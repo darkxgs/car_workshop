@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Loader2,
-    FileText, Printer, Edit2, X, Trash2, ShoppingCart
+    FileText, Printer, Edit2, X, Trash2, ShoppingCart, RefreshCcw
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
@@ -162,6 +162,28 @@ function ReceptionContainer() {
         } catch (err: any) {
             console.error(err);
             showError("خطأ في الحذف", err.message || "تعذر حذف أمر العمل.");
+        }
+    };
+
+    // إرجاع للعمل: send a finished order back to "قيد العمل" (same behaviour as the customers page).
+    const handleReopenOrder = async (orderId: string, orderNumber: string) => {
+        const confirm = await showConfirm(
+            "إرجاع السيارة للعمل",
+            `هل أنت متأكد من إرجاع المركبة في أمر العمل #${orderNumber} إلى ساحة العمل (قيد العمل)؟`,
+            "نعم، إرجاع للعمل",
+            false
+        );
+        if (!confirm) return;
+        try {
+            const { error } = await supabase.from('inspection_reports')
+                .update({ status: 'قيد العمل', start_time: new Date().toISOString(), completed_at: null })
+                .eq('id', orderId);
+            if (error) throw error;
+            showSuccess("تمت إعادة الفتح", "تمت إعادة المركبة إلى قيد العمل بنجاح.");
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'قيد العمل' } : o));
+        } catch (err: any) {
+            console.error(err);
+            showError("خطأ", err.message || "تعذر إرجاع أمر العمل.");
         }
     };
 
@@ -376,6 +398,15 @@ function ReceptionContainer() {
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
+                                                        {o.status === 'تم الانتهاء' && (
+                                                            <button
+                                                                onClick={() => handleReopenOrder(o.id, o.report_number)}
+                                                                className="p-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-500 hover:text-white transition-all"
+                                                                title="إرجاع السيارة للعمل"
+                                                            >
+                                                                <RefreshCcw size={16} />
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleDeleteOrder(o.id, o.report_number)}
                                                             className="p-2 bg-rose-600/10 text-rose-400 border border-rose-500/20 rounded-xl hover:bg-rose-600 hover:text-white transition-all"
