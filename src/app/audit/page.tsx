@@ -145,10 +145,16 @@ export default function AuditPage() {
             if (resClosed.error) throw resClosed.error;
             if (resSales.error) throw resSales.error;
 
+            // De-duplicate by id: an order can match more than one query (e.g. an accounted sale
+            // shows in both the closed and the sales query), which would render — and delete — twice.
+            const dedupe = (arr: Order[]) => {
+                const seen = new Set<string>();
+                return arr.filter(o => (seen.has(o.id) ? false : (seen.add(o.id), true)));
+            };
             // Invoices manually removed from accounting are hidden from both lists + the income.
-            setPendingOrders((resPending.data || []).filter(o => !isAuditExcluded(o)));
+            setPendingOrders(dedupe((resPending.data || []).filter(o => !isAuditExcluded(o))));
             // Daily income = accounted maintenance invoices + product sales for the day.
-            setClosedOrders([...(resClosed.data || []), ...(resSales.data || [])].filter(o => !isAuditExcluded(o)));
+            setClosedOrders(dedupe([...(resClosed.data || []), ...(resSales.data || [])].filter(o => !isAuditExcluded(o))));
         } catch (err: any) {
             console.error("Error fetching orders:", err);
             showError("خطأ", err.message || "تعذر جلب البيانات.");
