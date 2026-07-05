@@ -305,8 +305,8 @@ export default function ReportsPage() {
                                                     'bg-blue-500/10 text-blue-400 border-border'
                                             }`}>
                                                 {report.status === 'تم الانتهاء'
-                                                    ? (isAccounted(report) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)')
-                                                    : report.status === 'قيد العمل' ? 'بدء الخدمة (قيد العمل)' : 'تم الاستلام (انتظار)'}
+                                                    ? (isAccounted(report) ? 'تم الانتهاء' : 'في انتظار المحاسبة')
+                                                    : report.status === 'قيد العمل' ? 'قيد العمل' : 'انتظار'}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1 pr-2">
