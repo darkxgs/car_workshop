@@ -3,11 +3,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { showSuccess, showError } from "@/lib/alerts";
+import { showSuccess, showError, showConfirm } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import {
     ClipboardCheck, Loader2, Car, User, Receipt, ChevronDown, ChevronUp,
-    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer,
+    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer, Trash2,
 } from "lucide-react";
 
 // Service key → Arabic label (mirrors the reception/customers service set).
@@ -33,6 +33,10 @@ const SERVICE_LABELS: Record<string, string> = {
 type Order = any;
 
 const num = (v: any) => parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
+
+// An invoice manually removed from the accounting page (excluded from pending, closed, income).
+const isAuditExcluded = (o: any) =>
+    (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing?.auditExcluded === true;
 
 const getLocalDateString = (date = new Date()) => {
     const year = date.getFullYear();
@@ -91,8 +95,9 @@ export default function AuditPage() {
             endDateLocal.setUTCHours(endDateLocal.getUTCHours() - 3);
             const endUTC = endDateLocal.toISOString();
 
-            // Closed = only invoices actually accounted, filtered by the ACCOUNTING date
-            // (pricing.accountedAt) — one day at a time — not the reception/creation date.
+            // Closed = only invoices actually accounted (pricing.accounted = true), filtered by the
+            // ACCOUNTING date (pricing.accountedAt) — one day at a time — because the money enters
+            // the income on the day it was collected/accounted, not the day the car was received.
             let qClosed = supabase.from('inspection_reports')
                 .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
                 .eq('status', 'تم الانتهاء')
@@ -124,9 +129,10 @@ export default function AuditPage() {
             if (resClosed.error) throw resClosed.error;
             if (resSales.error) throw resSales.error;
 
-            setPendingOrders(resPending.data || []);
+            // Invoices manually removed from accounting are hidden from both lists + the income.
+            setPendingOrders((resPending.data || []).filter(o => !isAuditExcluded(o)));
             // Daily income = accounted maintenance invoices + product sales for the day.
-            setClosedOrders([...(resClosed.data || []), ...(resSales.data || [])]);
+            setClosedOrders([...(resClosed.data || []), ...(resSales.data || [])].filter(o => !isAuditExcluded(o)));
         } catch (err: any) {
             console.error("Error fetching orders:", err);
             showError("خطأ", err.message || "تعذر جلب البيانات.");
@@ -253,6 +259,33 @@ export default function AuditPage() {
         } catch (err: any) {
             console.error(err);
             showError("خطأ", err.message || "تعذر حفظ المحاسبة.");
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+    // Remove an invoice from the accounting page (junk / wrong entries). Non-destructive: the work
+    // order itself is kept — it's just flagged so it drops out of pending, closed, and the income.
+    const removeFromAudit = async (o: Order) => {
+        const ok = await showConfirm(
+            "حذف من المحاسبة",
+            `حذف الفاتورة #${o.report_number} من صفحة المحاسبة؟ (لن تُحذف السيارة أو أمر العمل — فقط تُستبعد من التدقيق والدخل)`,
+            "نعم، حذف",
+            false
+        );
+        if (!ok) return;
+        setSavingId(o.id);
+        try {
+            const services = [...(Array.isArray(o.selected_services) ? o.selected_services : [o.selected_services])].filter(Boolean);
+            if (services.length === 0) services.push({ is_paper_v2_format: true, services: {} });
+            services[0] = { ...services[0], pricing: { ...(services[0]?.pricing || {}), auditExcluded: true } };
+            const { error } = await supabase.from('inspection_reports').update({ selected_services: services }).eq('id', o.id);
+            if (error) throw error;
+            showSuccess("تم الحذف", `تم حذف الفاتورة #${o.report_number} من المحاسبة.`);
+            fetchOrders();
+        } catch (err: any) {
+            console.error(err);
+            showError("خطأ", err.message || "تعذر حذف الفاتورة من المحاسبة.");
         } finally {
             setSavingId(null);
         }
@@ -390,6 +423,9 @@ export default function AuditPage() {
                                     </div>
                                     <button onClick={() => setExpanded(open ? null : o.id)} className="px-3 py-2 rounded-xl bg-muted hover:bg-muted/70 text-sm font-bold flex items-center gap-1 border border-border">
                                         <Receipt size={15} /> تفاصيل الفاتورة {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                    </button>
+                                    <button onClick={() => removeFromAudit(o)} disabled={savingId === o.id} title="حذف من المحاسبة" className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-60">
+                                        <Trash2 size={15} />
                                     </button>
                                 </div>
 
