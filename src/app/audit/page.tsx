@@ -80,15 +80,20 @@ export default function AuditPage() {
             }
 
             // 2. Fetch closed orders for the selected date (status = 'تم الانتهاء', and accountedAt is on the selected date)
-            const startUTC = `${selectedDate}T00:00:00.000Z`;
-            const endUTC = `${selectedDate}T23:59:59.999Z`;
+            // Calculate UTC range matching Iraq timezone (UTC+3) explicitly, independent of client device timezone
+            const startDateLocal = new Date(`${selectedDate}T00:00:00Z`);
+            startDateLocal.setUTCHours(startDateLocal.getUTCHours() - 3);
+            const startUTC = startDateLocal.toISOString();
+
+            const endDateLocal = new Date(`${selectedDate}T23:59:59.999Z`);
+            endDateLocal.setUTCHours(endDateLocal.getUTCHours() - 3);
+            const endUTC = endDateLocal.toISOString();
 
             let qClosed = supabase.from('inspection_reports')
                 .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
                 .eq('status', 'تم الانتهاء')
-                .neq('order_type', 'sale')
-                .gte('selected_services->0->pricing->>accountedAt', startUTC)
-                .lte('selected_services->0->pricing->>accountedAt', endUTC)
+                .gte('created_at', startUTC)
+                .lte('created_at', endUTC)
                 .order('completed_at', { ascending: false });
 
             if (activeBranchId) {
