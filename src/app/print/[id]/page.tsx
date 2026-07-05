@@ -235,55 +235,106 @@ export default function PrintPage() {
 // Product-sale ("بيع منتج") invoice — sales have no inspection/work sheet, so the generic
 // PrintableInspectionReport would print blank. This mirrors the invoice in SaleForm.
 function SaleInvoice({ report }: { report: any }) {
+    const num = (v: any) => parseFloat(String(v ?? '').replace(/[^\d.]/g, '')) || 0;
+    const fmt = (n: number) => n.toLocaleString('en-US');
     const payload = Array.isArray(report.selected_services) ? report.selected_services[0] : report.selected_services;
     const branch = Array.isArray(report.branches) ? report.branches[0] : report.branches;
     const products = Array.isArray(payload?.products) ? payload.products : [];
-    const total = products.reduce((s: number, p: any) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.price) || 0), 0) || report.total_price || 0;
+    const pricing = payload?.pricing || {};
+    const subtotal = products.reduce((s: number, p: any) => s + num(p.qty) * num(p.price), 0);
+    const grand = num(pricing.grandTotal) || subtotal || num(report.total_price);
+    const discount = num(pricing.discount);
+    const received = num(pricing.amountReceived);
+    const net = grand - discount;
+
+    const d = new Date(report.created_at);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    let hh = d.getHours(); const mm = pad(d.getMinutes()); const ap = hh >= 12 ? 'م' : 'ص'; hh = hh % 12 || 12;
+    const timeStr = `${hh}:${mm} ${ap}`;
+
+    const ACCENT = '#b91c1c', INK = '#111827', MUTED = '#6b7280', LINE = '#e5e7eb';
+    const exact = { WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties;
+
+    const TotalRow = ({ label, value, strong }: { label: string; value: number; strong?: boolean }) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 4px', fontSize: 14, color: strong ? INK : MUTED }}>
+            <span>{label}</span>
+            <span style={{ fontWeight: strong ? 800 : 700 }} dir="ltr">{fmt(value)} د.ع</span>
+        </div>
+    );
+
     return (
-        <div className="text-black bg-white p-8" dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", width: '800px' }}>
-            <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+        <div style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", width: '100%', background: '#fff', color: INK, direction: 'rtl', padding: '36px 40px', ...exact }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 18, borderBottom: `3px solid ${ACCENT}` }}>
                 <div>
-                    <h1 className="text-2xl font-black">هندسة السيارات</h1>
-                    <p className="text-sm">فاتورة بيع منتج — {branch?.name || ''}</p>
+                    <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.5px' }}>هندسة السيارات</div>
+                    <div style={{ fontSize: 13, color: MUTED, marginTop: 4 }}>مركز صيانة وخدمات السيارات{branch?.name ? ` — فرع ${branch.name}` : ''}</div>
                 </div>
-                <div className="text-left text-sm">
-                    <p>رقم الفاتورة: #{report.report_number}</p>
-                    <p>التاريخ: {new Date(report.created_at).toLocaleDateString("ar-EG")}</p>
+                <div style={{ textAlign: 'left' }}>
+                    <div style={{ display: 'inline-block', background: ACCENT, color: '#fff', fontWeight: 800, fontSize: 14, padding: '6px 16px', borderRadius: 8, ...exact }}>فاتورة بيع منتج</div>
+                    <div style={{ fontSize: 13, marginTop: 10, color: MUTED }}>رقم الفاتورة: <span style={{ color: INK, fontWeight: 800 }}>#{report.report_number}</span></div>
+                    <div style={{ fontSize: 13, color: MUTED }}>التاريخ: <span style={{ color: INK, fontWeight: 700 }}>{dateStr}</span> — {timeStr}</div>
                 </div>
             </div>
-            {(payload?.customerName || payload?.customerPhone) && (
-                <p className="mb-4 text-sm font-bold">العميل: {payload?.customerName || "—"}{payload?.customerPhone ? ` • ${payload.customerPhone}` : ""}</p>
-            )}
-            <table className="w-full text-right border-collapse text-sm">
+
+            {/* Customer */}
+            <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 16px', background: '#fafafa', margin: '22px 0', ...exact }}>
+                <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>العميل</div>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>
+                    {payload?.customerName || 'عميل نقدي'}
+                    {payload?.customerPhone ? <span style={{ fontSize: 13, color: MUTED, fontWeight: 600, marginRight: 10 }} dir="ltr">{payload.customerPhone}</span> : null}
+                </div>
+            </div>
+
+            {/* Products */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
-                    <tr className="border-b-2 border-black">
-                        <th className="p-2 border border-gray-400">المنتج</th>
-                        <th className="p-2 border border-gray-400">الكمية</th>
-                        <th className="p-2 border border-gray-400">السعر</th>
-                        <th className="p-2 border border-gray-400">الإجمالي</th>
+                    <tr style={{ background: INK, color: '#fff', ...exact }}>
+                        <th style={{ padding: '11px 12px', textAlign: 'center', width: 40, fontWeight: 700 }}>#</th>
+                        <th style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 700 }}>المنتج</th>
+                        <th style={{ padding: '11px 12px', textAlign: 'center', width: 70, fontWeight: 700 }}>الكمية</th>
+                        <th style={{ padding: '11px 12px', textAlign: 'center', width: 120, fontWeight: 700 }}>السعر المفرد</th>
+                        <th style={{ padding: '11px 12px', textAlign: 'center', width: 130, fontWeight: 700 }}>الإجمالي</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {products.length === 0 && (
+                        <tr><td colSpan={5} style={{ padding: 18, textAlign: 'center', color: MUTED, border: `1px solid ${LINE}` }}>لا توجد منتجات</td></tr>
+                    )}
                     {products.map((p: any, i: number) => {
-                        const q = parseFloat(p.qty) || 0;
-                        const pr = parseFloat(p.price) || 0;
+                        const q = num(p.qty), pr = num(p.price);
                         return (
-                            <tr key={i}>
-                                <td className="p-2 border border-gray-400">{p.name}</td>
-                                <td className="p-2 border border-gray-400 text-center">{q.toLocaleString()}</td>
-                                <td className="p-2 border border-gray-400 text-center">{pr.toLocaleString()}</td>
-                                <td className="p-2 border border-gray-400 text-center">{(q * pr).toLocaleString()}</td>
+                            <tr key={i} style={{ background: i % 2 ? '#f9fafb' : '#fff', ...exact }}>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', color: MUTED, borderBottom: `1px solid ${LINE}` }}>{i + 1}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, borderBottom: `1px solid ${LINE}` }}>{p.name}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${LINE}` }} dir="ltr">{fmt(q)}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: `1px solid ${LINE}` }} dir="ltr">{fmt(pr)}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 800, borderBottom: `1px solid ${LINE}` }} dir="ltr">{fmt(q * pr)}</td>
                             </tr>
                         );
                     })}
                 </tbody>
-                <tfoot>
-                    <tr className="border-t-2 border-black font-black">
-                        <td className="p-2 border border-gray-400" colSpan={3}>الإجمالي الكلي</td>
-                        <td className="p-2 border border-gray-400 text-center">{total.toLocaleString()}</td>
-                    </tr>
-                </tfoot>
             </table>
+
+            {/* Totals */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 22 }}>
+                <div style={{ width: 320 }}>
+                    {discount > 0 && <TotalRow label="المجموع الفرعي" value={grand} />}
+                    {discount > 0 && <TotalRow label="الخصم" value={-discount} />}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ACCENT, color: '#fff', padding: '12px 16px', borderRadius: 10, marginTop: 8, ...exact }}>
+                        <span style={{ fontWeight: 800, fontSize: 15 }}>الإجمالي الكلي</span>
+                        <span style={{ fontWeight: 900, fontSize: 19 }} dir="ltr">{fmt(net)} د.ع</span>
+                    </div>
+                    {received > 0 && <TotalRow label="الواصل" value={received} />}
+                    {received > 0 && net - received !== 0 && <TotalRow label="المتبقي" value={net - received} strong />}
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: 44, paddingTop: 16, borderTop: `1px solid ${LINE}`, textAlign: 'center', color: MUTED, fontSize: 12 }}>
+                شكراً لتعاملكم معنا — هندسة السيارات
+            </div>
         </div>
     );
 }
