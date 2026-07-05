@@ -58,7 +58,14 @@ export default function PrintPage() {
     useEffect(() => {
         // Auto-trigger print once data is loaded
         if (!loading && report) {
+            const handleAfterPrint = () => {
+                window.parent.postMessage({ type: 'print_complete' }, '*');
+            };
+            window.addEventListener("afterprint", handleAfterPrint);
             setTimeout(() => window.print(), 500);
+            return () => {
+                window.removeEventListener("afterprint", handleAfterPrint);
+            };
         }
     }, [loading, report]);
 

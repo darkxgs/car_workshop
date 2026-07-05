@@ -7,27 +7,45 @@ import { showSuccess, showError } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import {
     ClipboardCheck, Loader2, Car, User, Receipt, ChevronDown, ChevronUp,
-    CheckCircle2, Wallet, Percent, HandCoins, Plus,
+    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer,
 } from "lucide-react";
 
 // Service key → Arabic label (mirrors the reception/customers service set).
 const SERVICE_LABELS: Record<string, string> = {
     engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك', airFilter: 'فلتر الهواء',
     acFilter: 'فلتر التبريد', brakeFluid: 'زيت المكابح', coolant: 'ماء الراديتر',
-    battery: 'البطارية', engineBelts: 'قايش المحرك', brakePads: 'دسكات السيارة',
-    sparkPlugs: 'شمعات الاحتراق', gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
-    wipers: 'المساحات', windshieldFluid: 'سائل غسيل جام', additives: 'المضافات والمحسنات',
-    cleaners: 'المنظفات', transOil: 'زيت ناقل الحركة', differentialOil: 'زيت الدبل / البكك',
-    maintenanceUnits: 'وحدات الصيانة',
+    battery: 'البطارية', engineBelts: 'قايش المحرك',
+    brakePads: 'دسكات السيارة', sparkPlugs: 'شمعات الاحتراق',
+    gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
+    wipers: 'مساحات زجاج', windshieldFluid: 'سائل غسيل جام',
+    battery2: 'البطارية فحص دوري', batteryFilter: 'فلتر البطارية',
+    engineFlash: 'فلاش المحرك', engineCeramic: 'سيراميك محرك',
+    linerCleaner: 'منظف بطانة (جكجكة)', oilLeakPreventer: 'مانع تسريب زيت',
+    smokePreventer: 'مانع دخان', gearboxFlash: 'فلاش كير',
+    gearboxCeramic: 'سيراميك كير', gearboxAntiSlip: 'مانع انزلاق كير',
+    acCleaner: 'منظف دورة تبريد', injectorCleaner: 'منظف بخاخات',
+    fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
+    additives: 'معالجات ومحسنات', cleaners: 'منظفات وأساسيات',
+    transOil: 'زيت ناقل الحركة', differentialOil: 'زيت الدبل / البكك',
+    maintenanceUnits: 'وحدات الصيانة'
 };
 
 type Order = any;
 
 const num = (v: any) => parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export default function AuditPage() {
     const { employeeBranchId, employeeRole, loading: authLoading } = useAuth();
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+    const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+    const [closedOrders, setClosedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'pending' | 'closed'>('pending');
     const [expanded, setExpanded] = useState<string | null>(null);
@@ -35,45 +53,100 @@ export default function AuditPage() {
     // Per-order accounting inputs, keyed by order id.
     const [inputs, setInputs] = useState<Record<string, { discount: string; received: string }>>({});
 
+    const fetchOrders = async () => {
+        setLoading(true);
+        try {
+            // 1. Fetch pending orders (status = 'تم الانتهاء', order_type !== 'sale', and accounted is not true)
+            let qPending = supabase.from('inspection_reports')
+                .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
+                .eq('status', 'تم الانتهاء')
+                .neq('order_type', 'sale')
+                .not('selected_services->0->pricing->>accounted', 'eq', 'true')
+                .order('completed_at', { ascending: false });
+
+            if (employeeBranchId && employeeRole !== 'Owner') {
+                qPending = qPending.eq('branch_id', employeeBranchId);
+            }
+
+            // 2. Fetch closed orders for the selected date (status = 'تم الانتهاء', and accountedAt is on the selected date)
+            let qClosed = supabase.from('inspection_reports')
+                .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
+                .eq('status', 'تم الانتهاء')
+                .neq('order_type', 'sale')
+                .gte('selected_services->0->pricing->>accountedAt', `${selectedDate}T00:00:00`)
+                .lte('selected_services->0->pricing->>accountedAt', `${selectedDate}T23:59:59.999Z`)
+                .order('completed_at', { ascending: false });
+
+            if (employeeBranchId && employeeRole !== 'Owner') {
+                qClosed = qClosed.eq('branch_id', employeeBranchId);
+            }
+
+            const [resPending, resClosed] = await Promise.all([qPending, qClosed]);
+
+            if (resPending.error) throw resPending.error;
+            if (resClosed.error) throw resClosed.error;
+
+            setPendingOrders(resPending.data || []);
+            setClosedOrders(resClosed.data || []);
+        } catch (err: any) {
+            console.error("Error fetching orders:", err);
+            showError("خطأ", err.message || "تعذر جلب البيانات.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (authLoading) return;
         fetchOrders();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authLoading, employeeBranchId]);
 
-    const fetchOrders = async () => {
-        setLoading(true);
-        let q = supabase.from('inspection_reports')
-            .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
-            .eq('status', 'تم الانتهاء')
-            .order('completed_at', { ascending: false })
-            .limit(300);
-        if (employeeBranchId && employeeRole !== 'Owner') q = q.eq('branch_id', employeeBranchId);
-        const { data } = await q;
-        setOrders((data as Order[]) || []);
-        setLoading(false);
-    };
+        const channel = supabase.channel('audit_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                fetchOrders();
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [authLoading, employeeBranchId, selectedDate]);
+
+    useEffect(() => {
+        const handleMessage = (e: MessageEvent) => {
+            if (e.data?.type === 'print_complete') {
+                const el = document.getElementById('print-iframe');
+                if (el) {
+                    try {
+                        document.body.removeChild(el);
+                    } catch (err) {
+                        console.error("Error removing print iframe:", err);
+                    }
+                }
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
     // Split into pending (not yet accounted) vs closed (accounted).
     const isAccounted = (o: Order) => {
+        if (o.order_type === 'sale') return true;
         const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
         return p?.accounted === true;
     };
-    const pending = useMemo(() => orders.filter(o => !isAccounted(o)), [orders]);
-    const closed = useMemo(() => orders.filter(o => isAccounted(o)), [orders]);
-    const list = tab === 'pending' ? pending : closed;
+    
+    const list = tab === 'pending' ? pendingOrders : closedOrders;
 
     // Financial summary for the closed orders (المحاسبة): totals + collected vs discounted.
     const summary = useMemo(() => {
         let grand = 0, discount = 0, received = 0;
-        closed.forEach(o => {
+        closedOrders.forEach(o => {
             const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing || {};
             grand += num(p.grandTotal ?? o.total_price);
             discount += num(p.discount);
-            received += num(p.amountReceived);
+            received += num(p.amountReceived ?? (o.order_type === 'sale' ? o.total_price : 0));
         });
         return { grand, discount, received, net: grand - discount, remaining: grand - discount - received };
-    }, [closed]);
+    }, [closedOrders]);
 
     // Build the invoice line-items for an order (original services + services added during work).
     const invoiceLines = (o: Order): { label: string; price: number; added: boolean; note?: string }[] => {
@@ -81,17 +154,17 @@ export default function AuditPage() {
         const lines: { label: string; price: number; added: boolean; note?: string }[] = [];
         const services = payload?.services || {};
         Object.entries(services as Record<string, any>).forEach(([k, v]) => {
-            if (!v || v.status === 'جيد') return;
+            if (!v || v.status === 'جيد' || v.status === 'سليم' || num(v.price) === 0) return;
             lines.push({ label: SERVICE_LABELS[k] || k, price: num(v.price), added: v.addedDuringWork === true });
         });
         (payload?.customServices || []).forEach((c: any) => {
-            if (!c?.label && !c?.name) return;
+            if (!c?.label && !c?.name || num(c.price) === 0) return;
             lines.push({ label: c.label || c.name, price: num(c.price), added: c.addedDuringWork === true });
         });
         // Extra service entries appended to selected_services (custom services added live).
         (Array.isArray(o.selected_services) ? o.selected_services.slice(1) : []).forEach((s: any) => {
             if (s?.is_paper_v2_format) return;
-            if (!s?.name) return;
+            if (!s?.name || num(s.price) === 0) return;
             lines.push({ label: s.name, price: num(s.price), added: s.addedDuringWork === true, note: s.details });
         });
         return lines;
@@ -112,8 +185,9 @@ export default function AuditPage() {
         const grand = num(o.total_price) || invoiceLines(o).reduce((s, l) => s + l.price, 0);
         const inp = getInput(o);
         const discount = num(inp.discount);
-        const received = num(inp.received);
+        const received = inp.received === "" ? (grand - discount) : num(inp.received);
         if (discount > grand) { showError("خطأ", "الخصم أكبر من المجموع الكلي."); return; }
+        if (received > (grand - discount)) { showError("خطأ", "المبلغ الواصل أكبر من الصافي المطلوب."); return; }
         const net = grand - discount;
         setSavingId(o.id);
         try {
@@ -144,6 +218,41 @@ export default function AuditPage() {
         }
     };
 
+    const printReport = (id: string, mode: 'short' | 'full' = 'short') => {
+        const existing = document.getElementById('print-iframe');
+        if (existing) {
+            try {
+                document.body.removeChild(existing);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'print-iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '-9999px';
+        iframe.style.width = '1024px';
+        iframe.style.height = '768px';
+        iframe.style.border = '0';
+        iframe.src = `/print/${id}?mode=${mode}`;
+        
+        document.body.appendChild(iframe);
+
+        // Fallback cleanup
+        setTimeout(() => {
+            const el = document.getElementById('print-iframe');
+            if (el) {
+                try {
+                    document.body.removeChild(el);
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        }, 45000);
+    };
+
     if (authLoading || loading) {
         return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" size={40} /></div>;
     }
@@ -151,11 +260,22 @@ export default function AuditPage() {
     return (
         <div className="p-4 md:p-8 space-y-6 font-ibm" dir="rtl">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-display font-bold text-foreground mb-1 flex items-center gap-3">
-                    <ClipboardCheck className="text-emerald-500" size={30} /> التدقيق والمحاسبة
-                </h1>
-                <p className="text-muted-foreground text-sm">المركبات المنتهية بانتظار التدقيق والمحاسبة، مع تفاصيل الفواتير والمبالغ.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-display font-bold text-foreground mb-1 flex items-center gap-3">
+                        <ClipboardCheck className="text-emerald-500" size={30} /> التدقيق والمحاسبة
+                    </h1>
+                    <p className="text-muted-foreground text-sm">المركبات المنتهية بانتظار التدقيق والمحاسبة، مع تفاصيل الفواتير والمبالغ.</p>
+                </div>
+                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2">
+                    <span className="text-xs font-bold text-muted-foreground">تاريخ المحاسبة:</span>
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="bg-transparent text-sm text-foreground focus:outline-none font-bold"
+                    />
+                </div>
             </div>
 
             {/* Financial summary (closed orders) */}
@@ -169,10 +289,10 @@ export default function AuditPage() {
             {/* Tabs */}
             <div className="flex gap-2">
                 <button onClick={() => setTab('pending')} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'pending' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
-                    بانتظار المحاسبة ({pending.length})
+                    بانتظار المحاسبة ({pendingOrders.length})
                 </button>
                 <button onClick={() => setTab('closed')} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'closed' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
-                    مُحاسَبة ومغلقة ({closed.length})
+                    مُحاسَبة ومغلقة ({closedOrders.length})
                 </button>
             </div>
 
@@ -188,7 +308,7 @@ export default function AuditPage() {
                         const p = pricingOf(o);
                         const inp = getInput(o);
                         const net = grand - num(inp.discount);
-                        const remaining = net - num(inp.received);
+                        const remaining = net - (inp.received === "" ? net : num(inp.received));
                         const open = expanded === o.id;
                         const accounted = isAccounted(o);
                         return (
@@ -245,18 +365,27 @@ export default function AuditPage() {
                                                     <Row label="الخصم" value={`${num(p.discount).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الواصل" value={`${num(p.amountReceived).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الصافي" value={`${(num(p.grandTotal ?? grand) - num(p.discount)).toLocaleString('en-US')} د.ع`} strong />
-                                                    <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold pt-1"><CheckCircle2 size={16} /> تمت المحاسبة والإغلاق</div>
+                                                    <Row label="المتبقي (الذمم)" value={`${(num(p.grandTotal ?? grand) - num(p.discount) - num(p.amountReceived)).toLocaleString('en-US')} د.ع`} />
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
+                                                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold"><CheckCircle2 size={16} /> تمت المحاسبة والإغلاق</div>
+                                                        <button
+                                                            onClick={() => printReport(o.id, 'short')}
+                                                            className="px-3.5 py-1.5 bg-blue-600/10 hover:bg-blue-600 hover:text-white text-blue-400 rounded-xl text-xs font-bold transition-all border border-blue-500/20 flex items-center justify-center gap-1.5"
+                                                        >
+                                                            <Printer size={13} /> طباعة ورقة العمل
+                                                        </button>
+                                                    </div>
                                                 </>
                                             ) : (
                                                 <>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div>
                                                             <label className="text-xs text-muted-foreground block mb-1">الخصم (د.ع)</label>
-                                                            <input inputMode="numeric" dir="ltr" value={withCommas(inp.discount)} onChange={e => setInput(o.id, 'discount', digitsOnly(e.target.value))} placeholder="0" className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-sm text-right focus:outline-none focus:border-amber-500" />
+                                                            <input inputMode="numeric" dir="ltr" value={withCommas(inp.discount)} onChange={e => setInput(o.id, 'discount', digitsOnly(e.target.value))} placeholder="0" className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-sm text-right focus:outline-none focus:border-amber-500 font-bold" />
                                                         </div>
                                                         <div>
                                                             <label className="text-xs text-muted-foreground block mb-1">المبلغ الواصل (د.ع)</label>
-                                                            <input inputMode="numeric" dir="ltr" value={withCommas(inp.received)} onChange={e => setInput(o.id, 'received', digitsOnly(e.target.value))} placeholder="0" className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-sm text-right focus:outline-none focus:border-emerald-500" />
+                                                            <input inputMode="numeric" dir="ltr" value={withCommas(inp.received)} onChange={e => setInput(o.id, 'received', digitsOnly(e.target.value))} placeholder={withCommas(net)} className="w-full bg-muted/50 border border-border rounded-xl p-2.5 text-sm text-right focus:outline-none focus:border-emerald-500 font-bold" />
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center justify-between text-sm pt-1 border-t border-border/60">
@@ -264,7 +393,7 @@ export default function AuditPage() {
                                                         <span className="font-bold text-foreground">{net.toLocaleString('en-US')} د.ع</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-sm">
-                                                        <span className="text-muted-foreground">المتبقي على الزبون</span>
+                                                        <span className="text-muted-foreground">المتبقي على الزبون (الذمم)</span>
                                                         <span className={`font-bold ${remaining > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{remaining.toLocaleString('en-US')} د.ع</span>
                                                     </div>
                                                     <button disabled={savingId === o.id} onClick={() => closeAccounting(o)} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
