@@ -7,7 +7,7 @@ import { showSuccess, showError, showConfirm } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import {
     ClipboardCheck, Loader2, Car, User, Receipt, ChevronDown, ChevronUp,
-    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer, Trash2, Clock,
+    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer, Trash2, Clock, RotateCcw,
 } from "lucide-react";
 
 // Service key → Arabic label (mirrors the reception/customers service set).
@@ -68,6 +68,7 @@ export default function AuditPage() {
     const [closedOrders, setClosedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'pending' | 'closed'>('pending');
+    const [showDeleted, setShowDeleted] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
     const [savingId, setSavingId] = useState<string | null>(null);
     // Per-order accounting inputs, keyed by order id.
@@ -151,10 +152,11 @@ export default function AuditPage() {
                 const seen = new Set<string>();
                 return arr.filter(o => (seen.has(o.id) ? false : (seen.add(o.id), true)));
             };
-            // Invoices manually removed from accounting are hidden from both lists + the income.
-            setPendingOrders(dedupe((resPending.data || []).filter(o => !isAuditExcluded(o))));
+            // Keep excluded invoices in state (so they can be shown + restored); they are hidden
+            // from the normal view and the income totals, but surfaced under the "المحذوفة" toggle.
+            setPendingOrders(dedupe(resPending.data || []));
             // Daily income = accounted maintenance invoices + product sales for the day.
-            setClosedOrders(dedupe([...(resClosed.data || []), ...(resSales.data || [])].filter(o => !isAuditExcluded(o))));
+            setClosedOrders(dedupe([...(resClosed.data || []), ...(resSales.data || [])]));
         } catch (err: any) {
             console.error("Error fetching orders:", err);
             showError("خطأ", err.message || "تعذر جلب البيانات.");
@@ -201,12 +203,17 @@ export default function AuditPage() {
         return p?.accounted === true;
     };
     
-    const list = tab === 'pending' ? pendingOrders : closedOrders;
+    const rawList = tab === 'pending' ? pendingOrders : closedOrders;
+    // Normal view hides excluded ("محذوفة") invoices; the "المحذوفة" toggle shows only those (to restore).
+    const list = showDeleted ? rawList.filter(isAuditExcluded) : rawList.filter(o => !isAuditExcluded(o));
+    const pendingCount = pendingOrders.filter(o => !isAuditExcluded(o)).length;
+    const closedCount = closedOrders.filter(o => !isAuditExcluded(o)).length;
+    const deletedCount = rawList.filter(isAuditExcluded).length;
 
     // Financial summary for the closed orders (المحاسبة): totals + collected vs discounted.
     const summary = useMemo(() => {
         let grand = 0, discount = 0, received = 0;
-        closedOrders.forEach(o => {
+        closedOrders.filter(o => !isAuditExcluded(o)).forEach(o => {
             const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing || {};
             grand += num(p.grandTotal ?? o.total_price);
             discount += num(p.discount);
@@ -313,6 +320,27 @@ export default function AuditPage() {
         }
     };
 
+    // Undo a "حذف من المحاسبة": bring the invoice back into the accounting page + income.
+    const restoreToAudit = async (o: Order) => {
+        setSavingId(o.id);
+        try {
+            const services = [...(Array.isArray(o.selected_services) ? o.selected_services : [o.selected_services])].filter(Boolean);
+            if (services.length === 0) services.push({ is_paper_v2_format: true, services: {} });
+            const pricing = { ...(services[0]?.pricing || {}) };
+            delete pricing.auditExcluded;
+            services[0] = { ...services[0], pricing };
+            const { error } = await supabase.from('inspection_reports').update({ selected_services: services }).eq('id', o.id);
+            if (error) throw error;
+            showSuccess("تم الاسترجاع", `تم إرجاع الفاتورة #${o.report_number} إلى المحاسبة.`);
+            fetchOrders();
+        } catch (err: any) {
+            console.error(err);
+            showError("خطأ", err.message || "تعذر استرجاع الفاتورة.");
+        } finally {
+            setSavingId(null);
+        }
+    };
+
     const printReport = (id: string, mode: 'short' | 'full' = 'short') => {
         const existing = document.getElementById('print-iframe');
         if (existing) {
@@ -400,12 +428,15 @@ export default function AuditPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2">
-                <button onClick={() => setTab('pending')} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'pending' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
-                    بانتظار المحاسبة ({pendingOrders.length})
+            <div className="flex flex-wrap gap-2">
+                <button onClick={() => { setTab('pending'); setShowDeleted(false); }} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'pending' && !showDeleted ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                    بانتظار المحاسبة ({pendingCount})
                 </button>
-                <button onClick={() => setTab('closed')} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'closed' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
-                    مُحاسَبة ومغلقة ({closedOrders.length})
+                <button onClick={() => { setTab('closed'); setShowDeleted(false); }} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${tab === 'closed' && !showDeleted ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                    مُحاسَبة ومغلقة ({closedCount})
+                </button>
+                <button onClick={() => setShowDeleted(v => !v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors flex items-center gap-1.5 ${showDeleted ? 'bg-rose-600 border-rose-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`} title="عرض الفواتير المحذوفة من المحاسبة لاسترجاعها">
+                    <Trash2 size={14} /> المحذوفة ({deletedCount})
                 </button>
             </div>
 
@@ -458,9 +489,15 @@ export default function AuditPage() {
                                     <button onClick={() => setExpanded(open ? null : o.id)} className="px-3 py-2 rounded-xl bg-muted hover:bg-muted/70 text-sm font-bold flex items-center gap-1 border border-border">
                                         <Receipt size={15} /> تفاصيل الفاتورة {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                                     </button>
-                                    <button onClick={() => removeFromAudit(o)} disabled={savingId === o.id} title="حذف من المحاسبة" className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-60">
-                                        <Trash2 size={15} />
-                                    </button>
+                                    {isAuditExcluded(o) ? (
+                                        <button onClick={() => restoreToAudit(o)} disabled={savingId === o.id} title="استرجاع إلى المحاسبة" className="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-60 text-sm font-bold flex items-center gap-1">
+                                            <RotateCcw size={14} /> استرجاع
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => removeFromAudit(o)} disabled={savingId === o.id} title="حذف من المحاسبة" className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-60">
+                                            <Trash2 size={15} />
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Expanded invoice details + accounting */}
