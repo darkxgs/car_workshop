@@ -22,7 +22,7 @@ export default function PrintPage() {
             const { data: reportData } = await supabase
                 .from("inspection_reports")
                 .select(`
-                    id, report_number, status, created_at, completed_at, odometer_reading,
+                    id, report_number, status, order_type, total_price, created_at, completed_at, odometer_reading,
                     estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
                     branches(id, name),
                     vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)),
@@ -223,9 +223,67 @@ export default function PrintPage() {
                     marginBottom: `calc(800px * (${scale} - 1))`,
                     height: 'auto'
                 }}>
-                    <PrintableInspectionReport report={report} mode={mode} />
+                    {report.order_type === 'sale'
+                        ? <SaleInvoice report={report} />
+                        : <PrintableInspectionReport report={report} mode={mode} />}
                 </div>
             </div>
         </>
+    );
+}
+
+// Product-sale ("بيع منتج") invoice — sales have no inspection/work sheet, so the generic
+// PrintableInspectionReport would print blank. This mirrors the invoice in SaleForm.
+function SaleInvoice({ report }: { report: any }) {
+    const payload = Array.isArray(report.selected_services) ? report.selected_services[0] : report.selected_services;
+    const branch = Array.isArray(report.branches) ? report.branches[0] : report.branches;
+    const products = Array.isArray(payload?.products) ? payload.products : [];
+    const total = products.reduce((s: number, p: any) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.price) || 0), 0) || report.total_price || 0;
+    return (
+        <div className="text-black bg-white p-8" dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", width: '800px' }}>
+            <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+                <div>
+                    <h1 className="text-2xl font-black">هندسة السيارات</h1>
+                    <p className="text-sm">فاتورة بيع منتج — {branch?.name || ''}</p>
+                </div>
+                <div className="text-left text-sm">
+                    <p>رقم الفاتورة: #{report.report_number}</p>
+                    <p>التاريخ: {new Date(report.created_at).toLocaleDateString("ar-EG")}</p>
+                </div>
+            </div>
+            {(payload?.customerName || payload?.customerPhone) && (
+                <p className="mb-4 text-sm font-bold">العميل: {payload?.customerName || "—"}{payload?.customerPhone ? ` • ${payload.customerPhone}` : ""}</p>
+            )}
+            <table className="w-full text-right border-collapse text-sm">
+                <thead>
+                    <tr className="border-b-2 border-black">
+                        <th className="p-2 border border-gray-400">المنتج</th>
+                        <th className="p-2 border border-gray-400">الكمية</th>
+                        <th className="p-2 border border-gray-400">السعر</th>
+                        <th className="p-2 border border-gray-400">الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {products.map((p: any, i: number) => {
+                        const q = parseFloat(p.qty) || 0;
+                        const pr = parseFloat(p.price) || 0;
+                        return (
+                            <tr key={i}>
+                                <td className="p-2 border border-gray-400">{p.name}</td>
+                                <td className="p-2 border border-gray-400 text-center">{q.toLocaleString()}</td>
+                                <td className="p-2 border border-gray-400 text-center">{pr.toLocaleString()}</td>
+                                <td className="p-2 border border-gray-400 text-center">{(q * pr).toLocaleString()}</td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+                <tfoot>
+                    <tr className="border-t-2 border-black font-black">
+                        <td className="p-2 border border-gray-400" colSpan={3}>الإجمالي الكلي</td>
+                        <td className="p-2 border border-gray-400 text-center">{total.toLocaleString()}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     );
 }
