@@ -14,6 +14,12 @@ import StandardReception from "./components/StandardReception";
 import SectorReception from "./components/SectorReception";
 import SaleForm from "./components/SaleForm";
 
+const isAccounted = (o: any) => {
+    if (o.order_type === 'sale') return true;
+    const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
+    return p?.accounted === true;
+};
+
 function ReceptionContainer() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -90,35 +96,54 @@ function ReceptionContainer() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
-    // Fetch orders
+    const fetchOrders = async (resetPage = false) => {
+        const targetPage = resetPage ? 1 : page;
+        if (resetPage) {
+            setPage(1);
+        }
+        if (targetPage === 1) setLoading(true);
+        let query = supabase
+            .from('inspection_reports')
+            .select(`id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`)
+            .order('created_at', { ascending: false })
+            .range((targetPage - 1) * 50, targetPage * 50 - 1);
+        
+        if (selectedBranchId) {
+            query = query.eq('branch_id', selectedBranchId);
+        } else if (employeeBranchId) {
+            query = query.eq('branch_id', employeeBranchId);
+        }
+        
+        const { data } = await query;
+        if (data) {
+            if (data.length < 50) setHasMore(false);
+            else setHasMore(true);
+
+            if (targetPage === 1) setOrders(data);
+            else setOrders(prev => [...prev, ...data]);
+        }
+        setLoading(false);
+    };
+
     useEffect(() => {
         if (isWizardOpen) return;
-        const fetchOrders = async () => {
-            if (page === 1) setLoading(true);
-            let query = supabase
-                .from('inspection_reports')
-                .select(`id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`)
-                .order('created_at', { ascending: false })
-                .range((page - 1) * 50, page * 50 - 1);
-            
-            if (selectedBranchId) {
-                query = query.eq('branch_id', selectedBranchId);
-            } else if (employeeBranchId) {
-                query = query.eq('branch_id', employeeBranchId);
-            }
-            
-            const { data } = await query;
-            if (data) {
-                if (data.length < 50) setHasMore(false);
-                else setHasMore(true);
+        fetchOrders(true);
+    }, [isWizardOpen, employeeBranchId, selectedBranchId]);
 
-                if (page === 1) setOrders(data);
-                else setOrders(prev => [...prev, ...data]);
-            }
-            setLoading(false);
-        };
-        fetchOrders();
-    }, [isWizardOpen, employeeBranchId, page, selectedBranchId]);
+    useEffect(() => {
+        if (page > 1) {
+            fetchOrders(false);
+        }
+    }, [page]);
+
+    useEffect(() => {
+        const channel = supabase.channel('reception_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                fetchOrders(true);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [employeeBranchId, selectedBranchId]);
 
     // Fetch preview details
     useEffect(() => {
@@ -359,13 +384,19 @@ function ReceptionContainer() {
                                                     : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
                                                 <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
                                                 <td className="p-4">
-                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                        o.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                        o.status === 'قيد العمل' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                        'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                                    }`}>
-                                                        {o.status}
-                                                    </span>
+                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                         o.status === 'تم الانتهاء'
+                                                             ? (isAccounted(o)
+                                                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                                 : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20')
+                                                             : o.status === 'قيد العمل'
+                                                                 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                                 : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                                     }`}>
+                                                         {o.status === 'تم الانتهاء'
+                                                             ? (isAccounted(o) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)')
+                                                             : o.status === 'قيد العمل' ? 'بدء الخدمة (قيد العمل)' : 'تم الاستلام (انتظار)'}
+                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-muted-foreground text-xs font-mono">{date}</td>
                                                 <td className="p-4 text-center">

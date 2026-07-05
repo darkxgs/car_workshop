@@ -94,6 +94,13 @@ export default function SaleForm({
                 customerName: customerName.trim(),
                 customerPhone: customerPhone.trim(),
                 products: valid.map((p) => ({ name: p.name.trim(), qty: parseFloat(p.qty) || 1, price: parseFloat(p.price) || 0 })),
+                pricing: {
+                    grandTotal: String(total),
+                    discount: "0",
+                    amountReceived: String(total),
+                    accounted: true,
+                    accountedAt: new Date().toISOString(),
+                }
             }];
 
             if (editReportId) {

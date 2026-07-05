@@ -44,6 +44,12 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
     "تم الانتهاء":  { label: "تم الانتهاء",  cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
 };
 
+const isAccounted = (o: any) => {
+    if (o.order_type === 'sale') return true;
+    const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
+    return p?.accounted === true;
+};
+
 export default function CustomerProfilePage() {
     const params = useParams();
     const router = useRouter();
@@ -52,10 +58,20 @@ export default function CustomerProfilePage() {
     const [client, setClient] = useState<ClientProfile | null>(null);
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    useEffect(() => {
+        const channel = supabase.channel(`customer_profile_realtime_${id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                setRefreshTrigger(t => t + 1);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [id]);
 
     useEffect(() => {
         if (id) fetchProfile();
-    }, [id]);
+    }, [id, refreshTrigger]);
 
     const fetchProfile = async () => {
         setLoading(true);
@@ -78,7 +94,7 @@ export default function CustomerProfilePage() {
         if (vehicleIds.length > 0) {
             const { data: reportsData } = await supabase
                 .from("inspection_reports")
-                .select(`id, report_number, status, total_price, odometer_reading, created_at, completed_at, vehicles (make, model, plate_number)`)
+                .select(`id, report_number, status, order_type, total_price, odometer_reading, selected_services, created_at, completed_at, vehicles (make, model, plate_number)`)
                 .in("vehicle_id", vehicleIds)
                 .order("created_at", { ascending: false })
                 .limit(50);
@@ -260,7 +276,15 @@ export default function CustomerProfilePage() {
                         <div className="divide-y divide-border overflow-y-auto max-h-[480px] custom-scrollbar">
                             {reports.length > 0 ? (
                                 reports.map((report) => {
-                                    const st = statusConfig[report.status] ?? { label: report.status, cls: "bg-muted text-muted-foreground border-border" };
+                                    const accounted = isAccounted(report);
+                                    const st = report.status === "تم الانتهاء"
+                                        ? (accounted 
+                                            ? { label: "المحاسبة (تم الانتهاء)", cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" }
+                                            : { label: "انهاء الخدمة (في انتظار المحاسبة)", cls: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" }
+                                          )
+                                        : report.status === "قيد العمل"
+                                            ? { label: "بدء الخدمة (قيد العمل)", cls: "bg-amber-500/10 text-amber-500 border-amber-500/20" }
+                                            : { label: "تم الاستلام (انتظار)", cls: "bg-blue-500/10 text-blue-500 border-blue-500/20" };
                                     return (
                                         <div key={report.id} className="p-5 hover:bg-muted/20 transition-colors flex flex-col sm:flex-row sm:items-center gap-4">
                                             {/* Report Number */}

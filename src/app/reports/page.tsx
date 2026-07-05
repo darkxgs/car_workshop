@@ -51,6 +51,12 @@ type JoinedReport = {
     receptionist?: { name: string };
 };
 
+const isAccounted = (o: any) => {
+    if (o.order_type === 'sale') return true;
+    const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
+    return p?.accounted === true;
+};
+
 export default function ReportsPage() {
     const { t } = useLanguage();
     const { employeeRole, employeeBranchId, permissionReports, loading: authLoading } = useAuth();
@@ -66,6 +72,7 @@ export default function ReportsPage() {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const PAGE_SIZE = 12;
 
     const selectedReport = reports.find(r => r.id === selectedReportId);
@@ -81,6 +88,15 @@ export default function ReportsPage() {
     }, [debouncedSearch]);
 
     useEffect(() => {
+        const channel = supabase.channel('reports_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                setRefreshTrigger(t => t + 1);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, []);
+
+    useEffect(() => {
         const fetchReports = async () => {
             setLoading(true);
             try {
@@ -94,6 +110,7 @@ export default function ReportsPage() {
                         report_number,
                         odometer_reading,
                         status,
+                        order_type,
                         total_price,
                         created_at,
                         completed_at,
@@ -162,7 +179,7 @@ export default function ReportsPage() {
             }
         };
         fetchReports();
-    }, [page, debouncedSearch]);
+    }, [page, debouncedSearch, refreshTrigger]);
 
     useEffect(() => {
         if (!selectedReportId) return;
@@ -192,7 +209,7 @@ export default function ReportsPage() {
             }
         };
         fetchDetails();
-    }, [selectedReportId]);
+    }, [selectedReportId, refreshTrigger]);
 
     if (authLoading) {
         return (
@@ -279,12 +296,17 @@ export default function ReportsPage() {
                                         {selectedReportId === report.id && <div className="absolute top-0 bottom-0 right-0 w-1 bg-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.8)]" />}
                                         <div className="flex justify-between items-start w-full pr-2">
                                             <span className="text-xs font-bold text-foreground bg-background px-2 py-1 rounded-md border border-border">#{report.report_number}</span>
-                                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border truncate max-w-[100px] ${
-                                                report.status === 'تم الانتهاء' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]' :
-                                                report.status === 'قيد العمل' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' :
-                                                'bg-muted text-muted-foreground border-border'
+                                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border truncate max-w-[180px] ${
+                                                report.status === 'تم الانتهاء'
+                                                    ? (isAccounted(report)
+                                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30')
+                                                    : report.status === 'قيد العمل' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' :
+                                                    'bg-blue-500/10 text-blue-400 border-border'
                                             }`}>
-                                                {report.status}
+                                                {report.status === 'تم الانتهاء'
+                                                    ? (isAccounted(report) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)')
+                                                    : report.status === 'قيد العمل' ? 'بدء الخدمة (قيد العمل)' : 'تم الاستلام (انتظار)'}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1 pr-2">

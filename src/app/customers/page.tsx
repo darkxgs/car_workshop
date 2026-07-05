@@ -28,6 +28,12 @@ type ClientWithVehicles = {
     allReports: any[];
 };
 
+const isAccounted = (o: any) => {
+    if (o.order_type === 'sale') return true;
+    const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
+    return p?.accounted === true;
+};
+
 export default function CustomersPage() {
     const { t } = useLanguage();
     const router = useRouter();
@@ -49,6 +55,7 @@ export default function CustomersPage() {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const PAGE_SIZE = 25;
 
     // Modals & Tabbed Profile
@@ -88,9 +95,18 @@ export default function CustomersPage() {
     }, [branchFilter, dateFrom, dateTo]);
 
     useEffect(() => {
+        const channel = supabase.channel('customers_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
+                setRefreshTrigger(t => t + 1);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, []);
+
+    useEffect(() => {
         if (authLoading || !isAuthorized) return;
         fetchClients();
-    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized]);
+    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized, refreshTrigger]);
 
     const fetchBranches = async () => {
         const { data } = await supabase.from('branches').select('id, name');
@@ -137,11 +153,11 @@ export default function CustomersPage() {
             const vehiclesSelect = hasReportFilter
                 ? `vehicles!inner (
                         id, make, model, plate_number, engine_size, booklet_serial,
-                        inspection_reports!inner (id, report_number, status, branch_id, created_at, total_price, branches(name))
+                        inspection_reports!inner (id, report_number, status, order_type, branch_id, created_at, total_price, selected_services, branches(name))
                     )`
                 : `vehicles (
                         id, make, model, plate_number, engine_size, booklet_serial,
-                        inspection_reports (id, report_number, status, branch_id, created_at, total_price, branches(name))
+                        inspection_reports (id, report_number, status, order_type, branch_id, created_at, total_price, selected_services, branches(name))
                     )`;
 
             let query = supabase
@@ -178,11 +194,16 @@ export default function CustomersPage() {
                     
                     let latestStatus = 'لا توجد طلبات';
                     if (allReports.length > 0) {
-                        const st = allReports[0].status;
-                        if (st === 'completed' || st === 'تم الانتهاء' || st === 'ملغي' || st === 'cancelled') {
-                            latestStatus = 'مكتمل';
+                        const r = allReports[0];
+                        const st = r.status;
+                        if (st === 'completed' || st === 'تم الانتهاء') {
+                            latestStatus = isAccounted(r) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)';
+                        } else if (st === 'ملغي' || st === 'cancelled') {
+                            latestStatus = 'ملغى';
                         } else if (st === 'pending' || st === 'قيد الانتظار' || st === 'قيد العمل' || st === 'in_progress') {
-                            latestStatus = 'قيد العمل';
+                            latestStatus = 'بدء الخدمة (قيد العمل)';
+                        } else {
+                            latestStatus = 'تم الاستلام (انتظار)';
                         }
                     }
 
@@ -1047,10 +1068,12 @@ export default function CustomersPage() {
                                                             isSelected 
                                                                 ? "bg-white/20 text-white" 
                                                                 : r.status === "completed" || r.status === "تم الانتهاء" 
-                                                                    ? "bg-emerald-500/10 text-emerald-400" 
-                                                                    : "bg-amber-500/10 text-amber-400"
+                                                                    ? (isAccounted(r) ? "bg-emerald-500/10 text-emerald-400" : "bg-indigo-500/10 text-indigo-400") 
+                                                                    : r.status === "قيد العمل" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"
                                                         }`}>
-                                                            {r.status === "completed" || r.status === "تم الانتهاء" ? "مكتمل" : "قيد العمل"}
+                                                            {r.status === "completed" || r.status === "تم الانتهاء" 
+                                                                ? (isAccounted(r) ? "المحاسبة (تم الانتهاء)" : "انهاء الخدمة (في انتظار المحاسبة)") 
+                                                                : r.status === "قيد العمل" ? "بدء الخدمة (قيد العمل)" : "تم الاستلام (انتظار)"}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-center text-[10px] opacity-80 mt-1 font-normal">
@@ -1371,10 +1394,16 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                         <span className="text-[11px] text-muted-foreground">{formattedDate} ({formattedTime})</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full border ${
                             report.status === "completed" || report.status === "تم الانتهاء"
-                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                ? (isAccounted(report)
+                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                    : "bg-indigo-500/10 text-indigo-500 border-indigo-500/20")
+                                : report.status === "قيد العمل"
+                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                    : "bg-blue-500/10 text-blue-500 border-blue-500/20"
                         }`}>
-                            {report.status}
+                            {report.status === "completed" || report.status === "تم الانتهاء"
+                                ? (isAccounted(report) ? "المحاسبة (تم الانتهاء)" : "انهاء الخدمة (في انتظار المحاسبة)")
+                                : report.status === "قيد العمل" ? "بدء الخدمة (قيد العمل)" : "تم الاستلام (انتظار)"}
                         </span>
                     </div>
                     {report.vehicle && (
