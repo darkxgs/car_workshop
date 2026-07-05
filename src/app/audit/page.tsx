@@ -80,8 +80,8 @@ export default function AuditPage() {
             }
 
             // 2. Fetch closed orders for the selected date (status = 'تم الانتهاء', and accountedAt is on the selected date)
-            const startUTC = new Date(`${selectedDate}T00:00:00`).toISOString();
-            const endUTC = new Date(`${selectedDate}T23:59:59.999`).toISOString();
+            const startUTC = `${selectedDate}T00:00:00.000Z`;
+            const endUTC = `${selectedDate}T23:59:59.999Z`;
 
             let qClosed = supabase.from('inspection_reports')
                 .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
