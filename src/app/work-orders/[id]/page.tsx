@@ -455,7 +455,7 @@ export default function WorkOrderDetailPage() {
             .eq('id', id);
         // After finishing, hand the order over to the accountant (تدقيق والمحاسب).
         showSuccess("تم إنهاء الخدمة", "المركبة جاهزة للتدقيق والمحاسبة.");
-        router.push('/audit');
+        router.push('/work-orders');
     };
 
     const handleAddDynamicService = async (svcKey: string, customSvc?: any) => {

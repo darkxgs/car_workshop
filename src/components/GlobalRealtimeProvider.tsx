@@ -164,13 +164,13 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
                                     toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#3b82f6'
                                 });
                             } else if (newRecord.status === 'تم الانتهاء') {
-                                const title = `جاهز للتسليم 💚`;
-                                const text = `اكتمل العمل في أمر العمل #${newRecord.report_number}`;
+                                const title = `أمر صيانة جاهز للمحاسبة 💸`;
+                                const text = `اكتمل العمل في أمر الصيانة #${newRecord.report_number} - يرجى المراجعة والتدقيق المالي.`;
                                 addNotification({ title, text, icon: 'CheckCircle2', color: 'text-emerald-500', bg: 'bg-emerald-500/10' });
                                 Swal.fire({
                                     title, text,
                                     icon: 'success',
-                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 6000, timerProgressBar: true, background: '#0f172a', color: '#10b981'
+                                    toast: true, position: 'top-end', showConfirmButton: false, timer: 7000, timerProgressBar: true, background: '#0f172a', color: '#10b981'
                                 });
                             }
                         }
