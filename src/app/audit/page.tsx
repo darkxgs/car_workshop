@@ -89,11 +89,14 @@ export default function AuditPage() {
             endDateLocal.setUTCHours(endDateLocal.getUTCHours() - 3);
             const endUTC = endDateLocal.toISOString();
 
+            // Closed = only invoices actually accounted, filtered by the ACCOUNTING date
+            // (pricing.accountedAt) — one day at a time — not the reception/creation date.
             let qClosed = supabase.from('inspection_reports')
                 .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
                 .eq('status', 'تم الانتهاء')
-                .gte('created_at', startUTC)
-                .lte('created_at', endUTC)
+                .eq('selected_services->0->pricing->>accounted', 'true')
+                .gte('selected_services->0->pricing->>accountedAt', startUTC)
+                .lte('selected_services->0->pricing->>accountedAt', endUTC)
                 .order('completed_at', { ascending: false });
 
             if (activeBranchId) {
@@ -220,7 +223,8 @@ export default function AuditPage() {
                     discount: String(discount),
                     amountReceived: String(received),
                     accounted: true,
-                    accountedAt: o.completed_at || o.created_at || new Date().toISOString(),
+                    // Actual moment of accounting — the daily "closed" view filters on this.
+                    accountedAt: new Date().toISOString(),
                 },
             };
             const { error } = await supabase.from('inspection_reports')
