@@ -52,6 +52,16 @@ export default function AuditPage() {
     const [savingId, setSavingId] = useState<string | null>(null);
     // Per-order accounting inputs, keyed by order id.
     const [inputs, setInputs] = useState<Record<string, { discount: string; received: string }>>({});
+    const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+    const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            const { data } = await supabase.from('branches').select('id, name');
+            if (data) setBranches(data);
+        };
+        fetchBranches();
+    }, []);
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -64,8 +74,9 @@ export default function AuditPage() {
                 .not('selected_services->0->pricing->>accounted', 'eq', 'true')
                 .order('completed_at', { ascending: false });
 
-            if (employeeBranchId && employeeRole !== 'Owner') {
-                qPending = qPending.eq('branch_id', employeeBranchId);
+            const activeBranchId = (employeeBranchId && employeeRole !== 'Owner') ? employeeBranchId : selectedBranchId;
+            if (activeBranchId) {
+                qPending = qPending.eq('branch_id', activeBranchId);
             }
 
             // 2. Fetch closed orders for the selected date (status = 'تم الانتهاء', and accountedAt is on the selected date)
@@ -77,8 +88,8 @@ export default function AuditPage() {
                 .lte('selected_services->0->pricing->>accountedAt', `${selectedDate}T23:59:59.999Z`)
                 .order('completed_at', { ascending: false });
 
-            if (employeeBranchId && employeeRole !== 'Owner') {
-                qClosed = qClosed.eq('branch_id', employeeBranchId);
+            if (activeBranchId) {
+                qClosed = qClosed.eq('branch_id', activeBranchId);
             }
 
             const [resPending, resClosed] = await Promise.all([qPending, qClosed]);
@@ -108,7 +119,7 @@ export default function AuditPage() {
 
         return () => { supabase.removeChannel(channel); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authLoading, employeeBranchId, selectedDate]);
+    }, [authLoading, employeeBranchId, selectedDate, selectedBranchId]);
 
     useEffect(() => {
         const handleMessage = (e: MessageEvent) => {
@@ -267,14 +278,32 @@ export default function AuditPage() {
                     </h1>
                     <p className="text-muted-foreground text-sm">المركبات المنتهية بانتظار التدقيق والمحاسبة، مع تفاصيل الفواتير والمبالغ.</p>
                 </div>
-                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2">
-                    <span className="text-xs font-bold text-muted-foreground">تاريخ المحاسبة:</span>
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-transparent text-sm text-foreground focus:outline-none font-bold"
-                    />
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Branch Dropdown */}
+                    {branches.length > 0 && (employeeRole === 'Owner' || !employeeBranchId) && (
+                        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2">
+                            <span className="text-xs font-bold text-muted-foreground">الفرع:</span>
+                            <select
+                                value={selectedBranchId}
+                                onChange={(e) => setSelectedBranchId(e.target.value)}
+                                className="bg-transparent text-sm text-foreground focus:outline-none font-bold cursor-pointer"
+                            >
+                                <option value="" className="bg-card text-foreground">كل الفروع</option>
+                                {branches.map(b => (
+                                    <option key={b.id} value={b.id} className="bg-card text-foreground">{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2">
+                        <span className="text-xs font-bold text-muted-foreground">تاريخ المحاسبة:</span>
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="bg-transparent text-sm text-foreground focus:outline-none font-bold"
+                        />
+                    </div>
                 </div>
             </div>
 
