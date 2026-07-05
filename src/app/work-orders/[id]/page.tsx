@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X, RefreshCcw } from "lucide-react";
@@ -178,6 +178,13 @@ export default function WorkOrderDetailPage() {
         return arr;
     };
 
+    // Read the freshest selected_services right before a save, so a stale `order` (realtime refetch
+    // or a concurrent edit) can never overwrite/wipe the services stored in the DB.
+    const freshSelectedServices = async (): Promise<any[]> => {
+        const { data } = await supabase.from('inspection_reports').select('selected_services').eq('id', id).single();
+        return (data?.selected_services as any[]) || order?.selected_services || [];
+    };
+
     // "بدء الخدمة" flow: pick an estimated duration (hours + minutes) before the timer starts.
     const [showStartModal, setShowStartModal] = useState(false);
     const [estHours, setEstHours] = useState("0");
@@ -214,6 +221,9 @@ export default function WorkOrderDetailPage() {
     const [suggLists, setSuggLists] = useState<Record<string, string[]>>({
         technicianNames: [], supervisorNames: [], bayNumbers: []
     });
+    // The editable form fields are initialized from the DB only ONCE (first load). Realtime/refetch
+    // must not overwrite what the supervisor is currently typing, or unsaved details vanish.
+    const formInitializedRef = useRef(false);
     
     // Fetch
     useEffect(() => {
@@ -243,28 +253,33 @@ export default function WorkOrderDetailPage() {
                 return;
             }
             setOrder(data as any as WorkOrder);
-            
-            // Initialize details states
-            const firstSvc = data.selected_services?.[0];
-            // Multi-technician: prefer the structured array; fall back to the old single name + rating.
-            if (Array.isArray(firstSvc?.technicians) && firstSvc.technicians.length > 0) {
-                setTechnicians(firstSvc.technicians.map((t: any) => ({
-                    name: t?.name || "", rating: t?.rating || "", notes: t?.notes || ""
-                })));
-            } else {
-                const names = splitTechNames(firstSvc?.technicianName || "");
-                const r0 = (data as { technician_rating?: string }).technician_rating || "";
-                const n0 = (data as { technician_rating_notes?: string }).technician_rating_notes || "";
-                setTechnicians(names.length > 0
-                    ? names.map((nm, i) => ({ name: nm, rating: i === 0 ? r0 : "", notes: i === 0 ? n0 : "" }))
-                    : [{ name: "", rating: "", notes: "" }]);
+
+            // Initialize the editable form fields ONLY on the first load. Subsequent refetches
+            // (realtime, or after a save) update `order` for the timer/services grid but must NOT
+            // reset these inputs — otherwise details the supervisor is typing suddenly disappear.
+            if (!formInitializedRef.current) {
+                formInitializedRef.current = true;
+                const firstSvc = data.selected_services?.[0];
+                // Multi-technician: prefer the structured array; fall back to the old single name + rating.
+                if (Array.isArray(firstSvc?.technicians) && firstSvc.technicians.length > 0) {
+                    setTechnicians(firstSvc.technicians.map((t: any) => ({
+                        name: t?.name || "", rating: t?.rating || "", notes: t?.notes || ""
+                    })));
+                } else {
+                    const names = splitTechNames(firstSvc?.technicianName || "");
+                    const r0 = (data as { technician_rating?: string }).technician_rating || "";
+                    const n0 = (data as { technician_rating_notes?: string }).technician_rating_notes || "";
+                    setTechnicians(names.length > 0
+                        ? names.map((nm, i) => ({ name: nm, rating: i === 0 ? r0 : "", notes: i === 0 ? n0 : "" }))
+                        : [{ name: "", rating: "", notes: "" }]);
+                }
+                setSupervisorName(firstSvc?.shiftSupervisor || "");
+                setFutureOdometer(firstSvc?.futureOdometer || "");
+                setBayNum(data.bay_number || "");
+                setOdometer(data.odometer_reading?.toString() || "");
+                setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
+                setMaintNotes(data.notes || "");
             }
-            setSupervisorName(firstSvc?.shiftSupervisor || "");
-            setFutureOdometer(firstSvc?.futureOdometer || "");
-            setBayNum(data.bay_number || "");
-            setOdometer(data.odometer_reading?.toString() || "");
-            setOdometerUnit((data as { odometer_unit?: string }).odometer_unit === 'mi' ? 'mi' : 'km');
-            setMaintNotes(data.notes || "");
 
             // Fetch suggestions for this order's branch
             (supabase as any).from('suggestion_lists').select('key, items')
@@ -309,7 +324,7 @@ export default function WorkOrderDetailPage() {
         if (!order) return;
         setIsSavingDetails(true);
         try {
-            const updatedServices = withTechnicians(order.selected_services || []);
+            const updatedServices = withTechnicians(await freshSelectedServices());
 
             const { error } = await supabase
                 .from('inspection_reports')
@@ -362,7 +377,7 @@ export default function WorkOrderDetailPage() {
         }
 
         try {
-            const updatedServices = withTechnicians(order.selected_services || []);
+            const updatedServices = withTechnicians(await freshSelectedServices());
 
             const { error } = await supabase
                 .from('inspection_reports')
@@ -432,9 +447,10 @@ export default function WorkOrderDetailPage() {
 
         // Persist the technician/supervisor names on finish so the daily technician
         // report always has the data, even if "حفظ التفاصيل فقط" was never pressed.
+        const freshBase = await freshSelectedServices();
         const updatedServices = order?.order_type !== 'sale'
-            ? withTechnicians(order?.selected_services || [])
-            : [...(order?.selected_services || [])];
+            ? withTechnicians(freshBase)
+            : [...freshBase];
 
         await supabase.from('inspection_reports')
             .update({
@@ -460,7 +476,15 @@ export default function WorkOrderDetailPage() {
 
     const handleAddDynamicService = async (svcKey: string, customSvc?: any) => {
         if (!order) return;
-        let updatedServices = [...(order.selected_services || [])];
+        // Read the freshest row right before merging so a stale `order` (after a realtime refetch,
+        // or a concurrent edit elsewhere) can't overwrite/lose existing services.
+        const { data: fresh } = await supabase.from('inspection_reports')
+            .select('selected_services, estimated_duration, total_price')
+            .eq('id', id).single();
+        const baseServices = (fresh?.selected_services as any[]) || order.selected_services || [];
+        const baseEstimated = (fresh?.estimated_duration ?? order.estimated_duration) || 0;
+        const baseTotal = (fresh?.total_price ?? order.total_price) || 0;
+        let updatedServices = [...(baseServices || [])];
         let priceToAdd = 0;
         let durationToAdd = 30;
         // Services added while the car is already on the floor are flagged so the
@@ -537,8 +561,8 @@ export default function WorkOrderDetailPage() {
             updatedServices[0] = payload;
         }
 
-        const newEstimated = order.estimated_duration + durationToAdd;
-        const newTotalPrice = (order.total_price || 0) + priceToAdd;
+        const newEstimated = baseEstimated + durationToAdd;
+        const newTotalPrice = baseTotal + priceToAdd;
 
         await supabase.from('inspection_reports').update({
             selected_services: updatedServices,
