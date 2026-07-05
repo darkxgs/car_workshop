@@ -394,8 +394,8 @@ function ReceptionContainer() {
                                                                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                                                      }`}>
                                                          {o.status === 'تم الانتهاء'
-                                                             ? (isAccounted(o) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)')
-                                                             : o.status === 'قيد العمل' ? 'بدء الخدمة (قيد العمل)' : 'تم الاستلام (انتظار)'}
+                                                             ? (isAccounted(o) ? 'تم الانتهاء' : 'في انتظار المحاسبة')
+                                                             : o.status === 'قيد العمل' ? 'قيد العمل' : 'انتظار'}
                                                      </span>
                                                 </td>
                                                 <td className="p-4 text-muted-foreground text-xs font-mono">{date}</td>

@@ -197,13 +197,13 @@ export default function CustomersPage() {
                         const r = allReports[0];
                         const st = r.status;
                         if (st === 'completed' || st === 'تم الانتهاء') {
-                            latestStatus = isAccounted(r) ? 'المحاسبة (تم الانتهاء)' : 'انهاء الخدمة (في انتظار المحاسبة)';
+                            latestStatus = isAccounted(r) ? 'تم الانتهاء' : 'في انتظار المحاسبة';
                         } else if (st === 'ملغي' || st === 'cancelled') {
                             latestStatus = 'ملغى';
                         } else if (st === 'pending' || st === 'قيد الانتظار' || st === 'قيد العمل' || st === 'in_progress') {
-                            latestStatus = 'بدء الخدمة (قيد العمل)';
+                            latestStatus = 'قيد العمل';
                         } else {
-                            latestStatus = 'تم الاستلام (انتظار)';
+                            latestStatus = 'انتظار';
                         }
                     }
 
@@ -1072,8 +1072,8 @@ export default function CustomersPage() {
                                                                     : r.status === "قيد العمل" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"
                                                         }`}>
                                                             {r.status === "completed" || r.status === "تم الانتهاء" 
-                                                                ? (isAccounted(r) ? "المحاسبة (تم الانتهاء)" : "انهاء الخدمة (في انتظار المحاسبة)") 
-                                                                : r.status === "قيد العمل" ? "بدء الخدمة (قيد العمل)" : "تم الاستلام (انتظار)"}
+                                                                ? (isAccounted(r) ? "تم الانتهاء" : "في انتظار المحاسبة") 
+                                                                : r.status === "قيد العمل" ? "قيد العمل" : "انتظار"}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-center text-[10px] opacity-80 mt-1 font-normal">
@@ -1402,8 +1402,8 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                                     : "bg-blue-500/10 text-blue-500 border-blue-500/20"
                         }`}>
                             {report.status === "completed" || report.status === "تم الانتهاء"
-                                ? (isAccounted(report) ? "المحاسبة (تم الانتهاء)" : "انهاء الخدمة (في انتظار المحاسبة)")
-                                : report.status === "قيد العمل" ? "بدء الخدمة (قيد العمل)" : "تم الاستلام (انتظار)"}
+                                ? (isAccounted(report) ? "تم الانتهاء" : "في انتظار المحاسبة")
+                                : report.status === "قيد العمل" ? "قيد العمل" : "انتظار"}
                         </span>
                     </div>
                     {report.vehicle && (
