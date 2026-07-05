@@ -71,7 +71,9 @@ export default function AuditPage() {
                 .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
                 .eq('status', 'تم الانتهاء')
                 .neq('order_type', 'sale')
-                .not('selected_services->0->pricing->>accounted', 'eq', 'true')
+                // Not yet accounted = accounted is missing (NULL, a freshly finished order) OR not 'true'.
+                // A plain .not(...eq.true) would drop NULL rows, so newly finished orders never showed here.
+                .or('selected_services->0->pricing->>accounted.is.null,selected_services->0->pricing->>accounted.neq.true')
                 .order('completed_at', { ascending: false });
 
             const activeBranchId = (employeeBranchId && employeeRole !== 'Owner') ? employeeBranchId : selectedBranchId;
@@ -103,13 +105,28 @@ export default function AuditPage() {
                 qClosed = qClosed.eq('branch_id', activeBranchId);
             }
 
-            const [resPending, resClosed] = await Promise.all([qPending, qClosed]);
+            // Product sales (بيع منتج) are cash-settled at the point of sale, so they count as
+            // income on their SALE date (created_at) — included in the daily "closed" income.
+            let qSales = supabase.from('inspection_reports')
+                .select(`id, report_number, status, order_type, created_at, completed_at, total_price, odometer_reading, selected_services, branch_id, vehicles(make, model, plate_number, clients(name, phone)), branches(name), receptionist:receptionist_id(name)`)
+                .eq('order_type', 'sale')
+                .gte('created_at', startUTC)
+                .lte('created_at', endUTC)
+                .order('created_at', { ascending: false });
+
+            if (activeBranchId) {
+                qSales = qSales.eq('branch_id', activeBranchId);
+            }
+
+            const [resPending, resClosed, resSales] = await Promise.all([qPending, qClosed, qSales]);
 
             if (resPending.error) throw resPending.error;
             if (resClosed.error) throw resClosed.error;
+            if (resSales.error) throw resSales.error;
 
             setPendingOrders(resPending.data || []);
-            setClosedOrders(resClosed.data || []);
+            // Daily income = accounted maintenance invoices + product sales for the day.
+            setClosedOrders([...(resClosed.data || []), ...(resSales.data || [])]);
         } catch (err: any) {
             console.error("Error fetching orders:", err);
             showError("خطأ", err.message || "تعذر جلب البيانات.");
