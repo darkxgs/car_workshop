@@ -201,7 +201,7 @@ export default function AuditPage() {
                     discount: String(discount),
                     amountReceived: String(received),
                     accounted: true,
-                    accountedAt: new Date().toISOString(),
+                    accountedAt: o.completed_at || o.created_at || new Date().toISOString(),
                 },
             };
             const { error } = await supabase.from('inspection_reports')
