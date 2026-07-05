@@ -7,7 +7,7 @@ import { showSuccess, showError, showConfirm } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import {
     ClipboardCheck, Loader2, Car, User, Receipt, ChevronDown, ChevronUp,
-    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer, Trash2,
+    CheckCircle2, Wallet, Percent, HandCoins, Plus, Printer, Trash2, Clock,
 } from "lucide-react";
 
 // Service key → Arabic label (mirrors the reception/customers service set).
@@ -37,6 +37,22 @@ const num = (v: any) => parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
 // An invoice manually removed from the accounting page (excluded from pending, closed, income).
 const isAuditExcluded = (o: any) =>
     (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing?.auditExcluded === true;
+
+// Format an ISO timestamp as "DD/MM/YYYY H:MM ص/م" in Iraq time (UTC+3), en digits.
+const fmtDateTime = (iso?: string) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    const iraq = new Date(d.getTime() + 3 * 3600 * 1000);
+    const dd = String(iraq.getUTCDate()).padStart(2, '0');
+    const mm = String(iraq.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = iraq.getUTCFullYear();
+    let h = iraq.getUTCHours();
+    const min = String(iraq.getUTCMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'م' : 'ص';
+    h = h % 12 || 12;
+    return `${dd}/${mm}/${yyyy} ${h}:${min} ${ampm}`;
+};
 
 const getLocalDateString = (date = new Date()) => {
     const year = date.getFullYear();
@@ -406,8 +422,20 @@ export default function AuditPage() {
                             <div key={o.id} className="glass-card rounded-2xl border border-border overflow-hidden">
                                 {/* Row header */}
                                 <div className="p-4 flex flex-wrap items-center gap-4">
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-xs font-mono bg-muted px-2 py-1 rounded-lg text-muted-foreground">#{o.report_number}</span>
+                                    <div className="flex flex-col gap-1 shrink-0">
+                                        <span className="text-xs font-mono bg-muted px-2 py-1 rounded-lg text-muted-foreground text-center">#{o.report_number}</span>
+                                        {(() => {
+                                            const stampIso = o.order_type === 'sale' ? o.created_at
+                                                : accounted ? (p.accountedAt || o.completed_at)
+                                                : (o.completed_at || o.created_at);
+                                            const stampLabel = o.order_type === 'sale' ? 'وقت البيع'
+                                                : accounted ? 'وقت المحاسبة' : 'وقت الإنهاء';
+                                            return (
+                                                <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1" title={stampLabel}>
+                                                    <Clock size={10} /> {fmtDateTime(stampIso)}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="flex items-center gap-2 min-w-[140px] flex-1">
                                         <User size={16} className="text-blue-400 shrink-0" />
@@ -456,6 +484,7 @@ export default function AuditPage() {
                                             </div>
                                             {accounted ? (
                                                 <>
+                                                    <Row label={o.order_type === 'sale' ? 'وقت البيع' : 'وقت المحاسبة'} value={fmtDateTime(o.order_type === 'sale' ? o.created_at : (p.accountedAt || o.completed_at))} />
                                                     <Row label="الخصم" value={`${num(p.discount).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الواصل" value={`${num(p.amountReceived).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الصافي" value={`${(num(p.grandTotal ?? grand) - num(p.discount)).toLocaleString('en-US')} د.ع`} strong />
