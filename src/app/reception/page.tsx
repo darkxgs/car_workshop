@@ -384,7 +384,7 @@ function ReceptionContainer() {
                                                     : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
                                                 <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
                                                 <td className="p-4">
-                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
                                                          o.status === 'تم الانتهاء'
                                                              ? (isAccounted(o)
                                                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'

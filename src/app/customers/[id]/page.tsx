@@ -277,14 +277,14 @@ export default function CustomerProfilePage() {
                             {reports.length > 0 ? (
                                 reports.map((report) => {
                                     const accounted = isAccounted(report);
-                                     const st = report.status === "تم الانتهاء"
+                                    const st = report.status === "تم الانتهاء"
                                          ? (accounted 
-                                             ? { label: "تم الانتهاء", cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" }
-                                             : { label: "في انتظار المحاسبة", cls: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" }
+                                             ? { label: "تم الانتهاء", cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 whitespace-nowrap" }
+                                             : { label: "في انتظار المحاسبة", cls: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20 whitespace-nowrap" }
                                            )
                                          : report.status === "قيد العمل"
-                                             ? { label: "قيد العمل", cls: "bg-amber-500/10 text-amber-500 border-amber-500/20" }
-                                             : { label: "انتظار", cls: "bg-blue-500/10 text-blue-500 border-blue-500/20" };
+                                             ? { label: "قيد العمل", cls: "bg-amber-500/10 text-amber-500 border-amber-500/20 whitespace-nowrap" }
+                                             : { label: "انتظار", cls: "bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap" };
                                     return (
                                         <div key={report.id} className="p-5 hover:bg-muted/20 transition-colors flex flex-col sm:flex-row sm:items-center gap-4">
                                             {/* Report Number */}

@@ -296,7 +296,7 @@ export default function ReportsPage() {
                                         {selectedReportId === report.id && <div className="absolute top-0 bottom-0 right-0 w-1 bg-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.8)]" />}
                                         <div className="flex justify-between items-start w-full pr-2">
                                             <span className="text-xs font-bold text-foreground bg-background px-2 py-1 rounded-md border border-border">#{report.report_number}</span>
-                                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border truncate max-w-[180px] ${
+                                            <span className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border whitespace-nowrap truncate max-w-[180px] ${
                                                 report.status === 'تم الانتهاء'
                                                     ? (isAccounted(report)
                                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]'

@@ -1064,7 +1064,7 @@ export default function CustomersPage() {
                                                 >
                                                     <div className="flex justify-between items-center w-full">
                                                         <span className="font-mono">فاتورة #{r.report_number}</span>
-                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                                                         <span className={`text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap ${
                                                             isSelected 
                                                                 ? "bg-white/20 text-white" 
                                                                 : r.status === "completed" || r.status === "تم الانتهاء" 
@@ -1392,7 +1392,7 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     <div className="flex items-center gap-2 mb-1">
                         <span className="font-mono text-xs bg-muted px-2.5 py-1 rounded-lg font-bold border border-border">زيارة #{report.report_number}</span>
                         <span className="text-[11px] text-muted-foreground">{formattedDate} ({formattedTime})</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                        <span className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap ${
                             report.status === "completed" || report.status === "تم الانتهاء"
                                 ? (isAccounted(report)
                                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
