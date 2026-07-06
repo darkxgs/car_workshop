@@ -1019,6 +1019,20 @@ export default function StandardReception({
             const finalBranchId = selectedBranchId || branchId;
 
             if (editReportId) {
+                // Merge over the CURRENT payload instead of replacing it, so fields reception
+                // doesn't manage survive an edit: the per-technician ratings array (work-order
+                // page) and the accounting state (pricing.accounted/accountedAt/grandTotal/
+                // auditExcluded from the audit page). Replacing wholesale wiped them.
+                const { data: freshRow } = await supabase.from('inspection_reports')
+                    .select('selected_services').eq('id', editReportId).single();
+                const existing = (Array.isArray(freshRow?.selected_services) ? freshRow!.selected_services[0] : freshRow?.selected_services) || {};
+                const mergedPayload = {
+                    ...existing,
+                    ...paperPayload,
+                    pricing: { ...(existing.pricing || {}), ...paperPayload.pricing },
+                };
+                const extraEntries = Array.isArray(freshRow?.selected_services) ? freshRow!.selected_services.slice(1) : [];
+
                 const { error: re } = await supabase.from('inspection_reports')
                     .update({
                         branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
@@ -1027,7 +1041,7 @@ export default function StandardReception({
                         order_type: isSale ? 'sale' : 'maintenance',
                         total_price: parseFloat(totalPrice || "0"),
                         notes, bay_number: bayNumber,
-                        selected_services: [paperPayload],
+                        selected_services: [mergedPayload, ...extraEntries],
                         estimated_duration: calculatedDuration,
                     })
                     .eq('id', editReportId);
