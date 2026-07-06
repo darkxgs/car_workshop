@@ -255,6 +255,16 @@ export default function AuditPage() {
     const setInput = (id: string, field: 'discount' | 'received', value: string) =>
         setInputs(prev => ({ ...prev, [id]: { ...(prev[id] ?? { discount: "", received: "" }), [field]: value } }));
 
+    // Read the freshest selected_services right before a write, so a stale list row (the order
+    // may have been edited elsewhere since this page fetched) can never overwrite newer data.
+    const freshServicesOf = async (o: Order): Promise<any[]> => {
+        const { data } = await supabase.from('inspection_reports').select('selected_services').eq('id', o.id).single();
+        const raw = data?.selected_services ?? o.selected_services;
+        const arr = [...(Array.isArray(raw) ? raw : [raw])].filter(Boolean);
+        if (arr.length === 0) arr.push({ is_paper_v2_format: true, services: {} });
+        return arr;
+    };
+
     const closeAccounting = async (o: Order) => {
         const grand = num(o.total_price) || invoiceLines(o).reduce((s, l) => s + l.price, 0);
         const inp = getInput(o);
@@ -265,8 +275,7 @@ export default function AuditPage() {
         const net = grand - discount;
         setSavingId(o.id);
         try {
-            const services = [...(Array.isArray(o.selected_services) ? o.selected_services : [o.selected_services])].filter(Boolean);
-            if (services.length === 0) services.push({ is_paper_v2_format: true, services: {} });
+            const services = await freshServicesOf(o);
             services[0] = {
                 ...services[0],
                 pricing: {
@@ -305,8 +314,7 @@ export default function AuditPage() {
         if (!ok) return;
         setSavingId(o.id);
         try {
-            const services = [...(Array.isArray(o.selected_services) ? o.selected_services : [o.selected_services])].filter(Boolean);
-            if (services.length === 0) services.push({ is_paper_v2_format: true, services: {} });
+            const services = await freshServicesOf(o);
             services[0] = { ...services[0], pricing: { ...(services[0]?.pricing || {}), auditExcluded: true } };
             const { error } = await supabase.from('inspection_reports').update({ selected_services: services }).eq('id', o.id);
             if (error) throw error;
@@ -324,8 +332,7 @@ export default function AuditPage() {
     const restoreToAudit = async (o: Order) => {
         setSavingId(o.id);
         try {
-            const services = [...(Array.isArray(o.selected_services) ? o.selected_services : [o.selected_services])].filter(Boolean);
-            if (services.length === 0) services.push({ is_paper_v2_format: true, services: {} });
+            const services = await freshServicesOf(o);
             const pricing = { ...(services[0]?.pricing || {}) };
             delete pricing.auditExcluded;
             services[0] = { ...services[0], pricing };
