@@ -26,6 +26,26 @@ const getSupabaseUrl = () => {
     return process.env.NEXT_PUBLIC_SUPABASE_URL!;
 };
 
+const getCustomWebSocket = () => {
+    if (typeof window === "undefined") return undefined;
+    return class extends WebSocket {
+        constructor(url: string | URL, protocols?: string | string[]) {
+            let targetUrl = url.toString();
+            const realUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            if (realUrl) {
+                const realOrigin = new URL(realUrl).origin;
+                const wsOrigin = realOrigin.replace(/^http/, 'ws');
+                const proxyPrefix = `${window.location.origin}/api/supabase`;
+                const proxyWsPrefix = proxyPrefix.replace(/^http/, 'ws');
+                if (targetUrl.startsWith(proxyWsPrefix)) {
+                    targetUrl = targetUrl.replace(proxyWsPrefix, wsOrigin);
+                }
+            }
+            super(targetUrl, protocols);
+        }
+    };
+};
+
 export const supabase = createBrowserClient<Database>(
     getSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,6 +60,9 @@ export const supabase = createBrowserClient<Database>(
             // which was crashing auth init for users. processLock serializes token
             // refreshes within the tab without relying on navigator.locks.
             lock: processLock,
+        },
+        realtime: {
+            transport: getCustomWebSocket(),
         },
     }
 );

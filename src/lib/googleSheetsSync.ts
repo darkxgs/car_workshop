@@ -1,6 +1,48 @@
 import { supabase } from './supabase';
 
+// ── Retry queue ──────────────────────────────────────────────────────────────
+// The webhook POST is fire-and-forget (no-cors), so a dropped connection would
+// silently lose the row. Failed sends are queued in localStorage and retried on
+// the next sync attempt, so the sheet doesn't miss rows when the network blips.
+const QUEUE_KEY = 'gs_sync_retry_queue';
+const MAX_ATTEMPTS = 20;
+
+type QueueEntry = { id: string; attempts: number };
+
+function readQueue(): QueueEntry[] {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+}
+
+function writeQueue(q: QueueEntry[]) {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch { /* storage full/blocked */ }
+}
+
+function enqueue(reportId: string) {
+    const q = readQueue();
+    const existing = q.find(e => e.id === reportId);
+    if (existing) existing.attempts += 1;
+    else q.push({ id: reportId, attempts: 1 });
+    writeQueue(q.filter(e => e.attempts <= MAX_ATTEMPTS));
+}
+
+/** Public entry point: retry anything previously failed, then sync this order. */
 export async function syncOrderToGoogleSheets(reportId: string) {
+    // Flush queued failures first (oldest first), removing the ones that go through.
+    const q = readQueue();
+    for (const entry of q) {
+        if (entry.id === reportId) continue; // about to send it anyway
+        const ok = await doSync(entry.id);
+        if (ok !== 'fail') writeQueue(readQueue().filter(e => e.id !== entry.id));
+    }
+    const result = await doSync(reportId);
+    if (result === 'fail') enqueue(reportId);
+    else writeQueue(readQueue().filter(e => e.id !== reportId));
+}
+
+/** One sync attempt. 'sent' = delivered, 'skip' = sync disabled/not configured, 'fail' = retry later. */
+async function doSync(reportId: string): Promise<'sent' | 'skip' | 'fail'> {
     try {
         // 1. Fetch settings from workshop_settings
         const { data: settings, error: settingsError } = await supabase
@@ -9,15 +51,15 @@ export async function syncOrderToGoogleSheets(reportId: string) {
             
         if (settingsError || !settings) {
             console.log("No workshop settings found for Google Sheets sync.");
-            return;
+            return 'fail'; // likely a network blip — retry later
         }
-        
+
         const enabled = settings.find(s => s.setting_key === 'google_sheets_sync_enabled')?.setting_value === 'true';
         const webhookUrl = settings.find(s => s.setting_key === 'google_sheets_webhook_url')?.setting_value || '';
-        
+
         if (!enabled || !webhookUrl) {
             console.log("Google Sheets sync is disabled or webhook URL is empty.");
-            return;
+            return 'skip';
         }
         
         // 2. Fetch full report details
@@ -33,7 +75,7 @@ export async function syncOrderToGoogleSheets(reportId: string) {
             
         if (reportError || !data) {
             console.error("Error loading report for sync:", reportError);
-            return;
+            return 'fail';
         }
         
         const r = data as any;
@@ -168,7 +210,9 @@ export async function syncOrderToGoogleSheets(reportId: string) {
             body: JSON.stringify(postData)
         });
         console.log("Google Sheets sync completed successfully.");
+        return 'sent';
     } catch (err) {
         console.error("Failed to sync to Google Sheets:", err);
+        return 'fail';
     }
 }
