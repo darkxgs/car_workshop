@@ -388,7 +388,8 @@ export default function AuditPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-6 font-ibm" dir="rtl">
+        <div className="p-4 md:p-8 font-ibm" dir="rtl">
+        <div className="space-y-6 print:hidden">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -423,6 +424,9 @@ export default function AuditPage() {
                             className="bg-transparent text-sm text-foreground focus:outline-none font-bold"
                         />
                     </div>
+                    <button onClick={() => window.print()} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold flex items-center gap-2 transition-colors" title="طباعة تقرير إغلاق اليوم">
+                        <Printer size={15} /> تقرير اليوم
+                    </button>
                 </div>
             </div>
 
@@ -582,6 +586,79 @@ export default function AuditPage() {
                     })}
                 </div>
             )}
+        </div>
+
+        {/* ── Daily closing report (print only) ── */}
+        <div className="hidden print:block text-black bg-white p-6" dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
+            {(() => {
+                const rows = closedOrders.filter(o => !isAuditExcluded(o));
+                const branchName = selectedBranchId ? (branches.find(b => b.id === selectedBranchId)?.name || '') : 'كل الفروع';
+                const [yy, mm, dd] = selectedDate.split('-');
+                return (
+                    <>
+                        <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-4">
+                            <div>
+                                <h1 className="text-xl font-black">هندسة السيارات — تقرير الإغلاق اليومي</h1>
+                                <p className="text-xs mt-1">الفرع: {branchName}</p>
+                            </div>
+                            <div className="text-left text-xs">
+                                <p>تاريخ المحاسبة: <b>{dd}/{mm}/{yy}</b></p>
+                                <p>عدد الفواتير: <b>{rows.length}</b></p>
+                            </div>
+                        </div>
+                        <table className="w-full text-right border-collapse text-[11px]">
+                            <thead>
+                                <tr className="bg-gray-200">
+                                    <th className="p-1.5 border border-gray-500">#</th>
+                                    <th className="p-1.5 border border-gray-500">الوقت</th>
+                                    <th className="p-1.5 border border-gray-500">الزبون</th>
+                                    <th className="p-1.5 border border-gray-500">السيارة</th>
+                                    <th className="p-1.5 border border-gray-500">المجموع</th>
+                                    <th className="p-1.5 border border-gray-500">الخصم</th>
+                                    <th className="p-1.5 border border-gray-500">الواصل</th>
+                                    <th className="p-1.5 border border-gray-500">المتبقي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map(o => {
+                                    const v = vehicleOf(o); const c = clientOf(o); const p = pricingOf(o);
+                                    const g = num(p.grandTotal ?? o.total_price);
+                                    const disc = num(p.discount);
+                                    const rec = num(p.amountReceived ?? (o.order_type === 'sale' ? o.total_price : 0));
+                                    const rem = g - disc - rec;
+                                    const stamp = o.order_type === 'sale' ? o.created_at : (p.accountedAt || o.completed_at);
+                                    return (
+                                        <tr key={o.id}>
+                                            <td className="p-1.5 border border-gray-500 font-bold">#{o.report_number}</td>
+                                            <td className="p-1.5 border border-gray-500" dir="ltr">{fmtDateTime(stamp).split(' ').slice(1).join(' ')}</td>
+                                            <td className="p-1.5 border border-gray-500">{c?.name || (o.order_type === 'sale' ? 'عميل نقدي' : '—')}</td>
+                                            <td className="p-1.5 border border-gray-500">{o.order_type === 'sale' ? 'بيع منتج' : `${v?.make || ''} ${v?.model || ''}`.trim()}</td>
+                                            <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{g.toLocaleString('en-US')}</td>
+                                            <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{disc.toLocaleString('en-US')}</td>
+                                            <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{rec.toLocaleString('en-US')}</td>
+                                            <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{rem.toLocaleString('en-US')}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr className="bg-gray-200 font-black">
+                                    <td className="p-1.5 border border-gray-500" colSpan={4}>المجموع الكلي لليوم</td>
+                                    <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.grand.toLocaleString('en-US')}</td>
+                                    <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.discount.toLocaleString('en-US')}</td>
+                                    <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.received.toLocaleString('en-US')}</td>
+                                    <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.remaining.toLocaleString('en-US')}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div className="flex justify-between mt-10 text-xs font-bold">
+                            <div>توقيع المحاسب: ______________________</div>
+                            <div>توقيع الإدارة: ______________________</div>
+                        </div>
+                    </>
+                );
+            })()}
+        </div>
         </div>
     );
 }
