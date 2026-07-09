@@ -15,6 +15,7 @@ type ReportRow = {
     status: string;
     created_at: string;
     technician_rating: string | null;
+    technician_rating_notes: string | null;
     selected_services: any[] | null;
     vehicles: { make: string; model: string; plate_number: string | null } | { make: string; model: string; plate_number: string | null }[] | null;
 };
@@ -35,6 +36,8 @@ type TechGroup = {
     completed: number;
     orders: OrderItem[];
     ratings: Record<string, number>;
+    // Supervisor rating notes, shown in-app only (excluded from the printed report).
+    notes: { report_number: number; note: string }[];
 };
 
 function monthStr() {
@@ -154,7 +157,7 @@ export default function TechnicianReportPage() {
 
             let query = supabase
                 .from("inspection_reports")
-                .select("id, report_number, status, created_at, technician_rating, selected_services, vehicles (make, model, plate_number)")
+                .select("id, report_number, status, created_at, technician_rating, technician_rating_notes, selected_services, vehicles (make, model, plate_number)")
                 .neq("order_type", "sale")
                 .gte("created_at", monthStart.toISOString())
                 .lt("created_at", monthEnd.toISOString())
@@ -172,7 +175,7 @@ export default function TechnicianReportPage() {
 
     const { groups, totalCars, totalServices } = useMemo(() => {
         const UNSET = "غير محدد";
-        type Acc = { cars: number; services: number; completed: number; orders: OrderItem[]; spellings: Map<string, number>; ratings: Map<string, number> };
+        type Acc = { cars: number; services: number; completed: number; orders: OrderItem[]; spellings: Map<string, number>; ratings: Map<string, number>; notes: { report_number: number; note: string }[] };
         const byKey = new Map<string, Acc>(); // keyed by normalized name
         let totalCars = 0;
         let totalServices = 0;
@@ -187,12 +190,16 @@ export default function TechnicianReportPage() {
 
             // Multi-technician: prefer the structured array (each tech carries its OWN rating);
             // fall back to the old joined name + single column rating for legacy orders.
-            const techEntries: { name: string; rating: string }[] = Array.isArray(payload?.technicians) && payload.technicians.length
+            const techEntries: { name: string; rating: string; note: string }[] = Array.isArray(payload?.technicians) && payload.technicians.length
                 ? payload.technicians
-                    .map((t: any) => ({ name: (t?.name || "").trim(), rating: t?.rating || "" }))
+                    .map((t: any) => ({ name: (t?.name || "").trim(), rating: t?.rating || "", note: (t?.notes || "").trim() }))
                     .filter((t: { name: string }) => t.name)
-                : splitTechnicians(payload?.technicianName).map((n: string) => ({ name: n, rating: r.technician_rating || "" }));
-            const entries = techEntries.length ? techEntries : [{ name: UNSET, rating: "" }];
+                : splitTechnicians(payload?.technicianName).map((n: string, i: number) => ({
+                    name: n, rating: r.technician_rating || "",
+                    // legacy single-column note belongs to the first technician
+                    note: i === 0 ? (r.technician_rating_notes || "").trim() : "",
+                }));
+            const entries = techEntries.length ? techEntries : [{ name: UNSET, rating: "", note: "" }];
             const order: OrderItem = {
                 id: r.id,
                 report_number: r.report_number,
@@ -212,7 +219,7 @@ export default function TechnicianReportPage() {
                 seen.add(key);
                 let a = byKey.get(key);
                 if (!a) {
-                    a = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map() };
+                    a = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map(), notes: [] };
                     byKey.set(key, a);
                 }
                 a.cars += 1;
@@ -220,6 +227,7 @@ export default function TechnicianReportPage() {
                 if (r.status === "تم الانتهاء") a.completed += 1;
                 a.orders.push(order);
                 if (entry.rating) a.ratings.set(entry.rating, (a.ratings.get(entry.rating) || 0) + 1);
+                if (entry.note) a.notes.push({ report_number: r.report_number, note: entry.note });
                 if (name !== UNSET) a.spellings.set(name, (a.spellings.get(name) || 0) + 1);
             }
         }
@@ -248,7 +256,7 @@ export default function TechnicianReportPage() {
             const root = k === UNSET ? UNSET : find(k);
             let c = clusters.get(root);
             if (!c) {
-                c = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map() };
+                c = { cars: 0, services: 0, completed: 0, orders: [], spellings: new Map(), ratings: new Map(), notes: [] };
                 clusters.set(root, c);
             }
             const a = byKey.get(k)!;
@@ -256,6 +264,7 @@ export default function TechnicianReportPage() {
             c.services += a.services;
             c.completed += a.completed;
             c.orders.push(...a.orders);
+            c.notes.push(...a.notes);
             a.spellings.forEach((cnt, sp) => c!.spellings.set(sp, (c!.spellings.get(sp) || 0) + cnt));
             a.ratings.forEach((cnt, rt) => c!.ratings.set(rt, (c!.ratings.get(rt) || 0) + cnt));
         }
@@ -267,7 +276,7 @@ export default function TechnicianReportPage() {
                 c.spellings.forEach((cnt, sp) => { if (cnt > bestN) { bestN = cnt; best = sp; } });
                 name = best || root;
             }
-            return { name, cars: c.cars, services: c.services, completed: c.completed, orders: c.orders, ratings: Object.fromEntries(c.ratings) };
+            return { name, cars: c.cars, services: c.services, completed: c.completed, orders: c.orders, ratings: Object.fromEntries(c.ratings), notes: c.notes };
         }).sort((a, b) => b.cars - a.cars);
 
         return { groups, totalCars, totalServices };
@@ -370,7 +379,7 @@ export default function TechnicianReportPage() {
                             </div>
                         </div>
 
-                        {/* Ratings breakdown for this technician (notes are intentionally excluded) */}
+                        {/* Ratings breakdown for this technician */}
                         <div className="glass-card p-6 rounded-3xl border border-border">
                             <h3 className="text-sm font-bold text-muted-foreground mb-3">⭐ تقييمات الأداء</h3>
                             {RATING_LEVELS.reduce((s, lvl) => s + (profile.ratings[lvl] || 0), 0) === 0 ? (
@@ -386,6 +395,21 @@ export default function TechnicianReportPage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Supervisor rating notes — shown in-app only (excluded from the printed report) */}
+                        {profile.notes.length > 0 && (
+                            <div className="glass-card p-6 rounded-3xl border border-border">
+                                <h3 className="text-sm font-bold text-muted-foreground mb-3">📝 ملاحظات المشرف ({profile.notes.length})</h3>
+                                <div className="space-y-2 max-h-72 overflow-y-auto scrollbar-thin">
+                                    {profile.notes.map((n, i) => (
+                                        <div key={i} className="flex items-start gap-3 bg-muted/40 rounded-xl p-3 border border-border">
+                                            <span className="text-[11px] font-mono bg-card border border-border rounded-lg px-2 py-0.5 text-muted-foreground shrink-0">#{n.report_number}</span>
+                                            <p className="text-sm text-foreground leading-relaxed">{n.note}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="glass-card rounded-3xl border border-border/50 overflow-hidden">
                             <div className="overflow-x-auto">
