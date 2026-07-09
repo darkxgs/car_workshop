@@ -219,7 +219,9 @@ export default function AuditPage() {
             discount += num(p.discount);
             received += num(p.amountReceived ?? (o.order_type === 'sale' ? o.total_price : 0));
         });
-        return { grand, discount, received, net: grand - discount, remaining: grand - discount - received };
+        // ذمم intentionally excluded from the daily summary — it produced misleading readings
+        // (a discount is a discount, not a debt), per the client's request.
+        return { grand, discount, received, net: grand - discount };
     }, [closedOrders]);
 
     // Build the invoice line-items for an order (original services + services added during work).
@@ -250,7 +252,10 @@ export default function AuditPage() {
 
     const getInput = (o: Order) => {
         const p = pricingOf(o);
-        return inputs[o.id] ?? { discount: String(p.discount ?? ""), received: String(p.amountReceived ?? "") };
+        // NOTE: do NOT prefill the discount from reception's pricing.discount — total_price is
+        // already net of that discount, so prefilling deducted it a second time and the phantom
+        // difference showed up as fake ذمم. The accountant enters an extra discount only if any.
+        return inputs[o.id] ?? { discount: "", received: String(p.amountReceived ?? "") };
     };
     const setInput = (id: string, field: 'discount' | 'received', value: string) =>
         setInputs(prev => ({ ...prev, [id]: { ...(prev[id] ?? { discount: "", received: "" }), [field]: value } }));
@@ -430,12 +435,11 @@ export default function AuditPage() {
                 </div>
             </div>
 
-            {/* Financial summary (closed orders) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Financial summary (closed orders) — ذمم removed per client request (misleading readings) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <SummaryCard icon={<Wallet size={18} />} label="المجموع الكلي (المُحاسَب)" value={summary.grand} color="text-blue-400" />
                 <SummaryCard icon={<Percent size={18} />} label="إجمالي الخصم" value={summary.discount} color="text-amber-400" />
                 <SummaryCard icon={<HandCoins size={18} />} label="إجمالي الواصل" value={summary.received} color="text-emerald-400" />
-                <SummaryCard icon={<Receipt size={18} />} label="المتبقي (الذمم)" value={summary.remaining} color="text-rose-400" />
             </div>
 
             {/* Tabs */}
@@ -463,7 +467,6 @@ export default function AuditPage() {
                         const p = pricingOf(o);
                         const inp = getInput(o);
                         const net = grand - num(inp.discount);
-                        const remaining = net - (inp.received === "" ? net : num(inp.received));
                         const open = expanded === o.id;
                         const accounted = isAccounted(o);
                         return (
@@ -542,7 +545,6 @@ export default function AuditPage() {
                                                     <Row label="الخصم" value={`${num(p.discount).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الواصل" value={`${num(p.amountReceived).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الصافي" value={`${(num(p.grandTotal ?? grand) - num(p.discount)).toLocaleString('en-US')} د.ع`} strong />
-                                                    <Row label="المتبقي (الذمم)" value={`${(num(p.grandTotal ?? grand) - num(p.discount) - num(p.amountReceived)).toLocaleString('en-US')} د.ع`} />
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
                                                         <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold"><CheckCircle2 size={16} /> تمت المحاسبة والإغلاق</div>
                                                         <button
@@ -568,10 +570,6 @@ export default function AuditPage() {
                                                     <div className="flex items-center justify-between text-sm pt-1 border-t border-border/60">
                                                         <span className="text-muted-foreground">الصافي بعد الخصم</span>
                                                         <span className="font-bold text-foreground">{net.toLocaleString('en-US')} د.ع</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-sm">
-                                                        <span className="text-muted-foreground">المتبقي على الزبون (الذمم)</span>
-                                                        <span className={`font-bold ${remaining > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{remaining.toLocaleString('en-US')} د.ع</span>
                                                     </div>
                                                     <button disabled={savingId === o.id} onClick={() => closeAccounting(o)} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
                                                         {savingId === o.id ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} إغلاق ومحاسبة الفاتورة
@@ -616,7 +614,6 @@ export default function AuditPage() {
                                     <th className="p-1.5 border border-gray-500">المجموع</th>
                                     <th className="p-1.5 border border-gray-500">الخصم</th>
                                     <th className="p-1.5 border border-gray-500">الواصل</th>
-                                    <th className="p-1.5 border border-gray-500">المتبقي</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -625,7 +622,6 @@ export default function AuditPage() {
                                     const g = num(p.grandTotal ?? o.total_price);
                                     const disc = num(p.discount);
                                     const rec = num(p.amountReceived ?? (o.order_type === 'sale' ? o.total_price : 0));
-                                    const rem = g - disc - rec;
                                     const stamp = o.order_type === 'sale' ? o.created_at : (p.accountedAt || o.completed_at);
                                     return (
                                         <tr key={o.id}>
@@ -636,7 +632,6 @@ export default function AuditPage() {
                                             <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{g.toLocaleString('en-US')}</td>
                                             <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{disc.toLocaleString('en-US')}</td>
                                             <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{rec.toLocaleString('en-US')}</td>
-                                            <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{rem.toLocaleString('en-US')}</td>
                                         </tr>
                                     );
                                 })}
@@ -647,7 +642,6 @@ export default function AuditPage() {
                                     <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.grand.toLocaleString('en-US')}</td>
                                     <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.discount.toLocaleString('en-US')}</td>
                                     <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.received.toLocaleString('en-US')}</td>
-                                    <td className="p-1.5 border border-gray-500 text-center" dir="ltr">{summary.remaining.toLocaleString('en-US')}</td>
                                 </tr>
                             </tfoot>
                         </table>
