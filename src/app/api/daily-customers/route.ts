@@ -12,7 +12,7 @@ const SERVICE_LABELS: Record<string, string> = {
     engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك', airFilter: 'فلتر الهواء',
     acFilter: 'فلتر التبريد', brakeFluid: 'زيت المكابح', coolant: 'ماء الراديتر',
     battery: 'البطارية', engineBelts: 'قايش المحرك', brakePads: 'دسكات السيارة',
-    sparkPlugs: 'شمعات الاحتراق', gearboxOil: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
+    sparkPlugs: 'شمعات الاحتراق', gearboxOil: 'زيت كير', gearboxHydraulic: 'هايدروليك الكير', gearboxFilter: 'فلتر الكير',
     wipers: 'المساحات', windshieldFluid: 'سائل غسيل جام',
     battery2: 'البطارية فحص دوري', batteryFilter: 'فلتر البطارية',
     engineFlash: 'فلاش المحرك', engineCeramic: 'سيراميك محرك',
