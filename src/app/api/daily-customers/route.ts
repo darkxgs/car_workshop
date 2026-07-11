@@ -65,6 +65,67 @@ function servicesOf(order: any): string {
     return performed.join("، ") || "فحص";
 }
 
+// Arabic labels for the detail-field keys as entered in reception.
+const DETAIL_LABELS: Record<string, string> = {
+    brand: "النوع/الماركة", type: "النوع", viscosity: "اللزوجة", liters: "اللترات",
+    qty: "العدد", size: "الحجم", filterNum: "رقم الفلتر", num: "الرقم", notes: "ملاحظات",
+};
+
+/** FULL service details exactly as entered in the system (viscosity, liters, brand,
+ *  filter numbers, sizes, quantities, notes, per-service price …). */
+function serviceDetailsOf(order: any): { name: string; details: string; price: number }[] {
+    const payload = Array.isArray(order.selected_services) ? order.selected_services[0] : order.selected_services;
+    const num = (v: any) => parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
+    const out: { name: string; details: string; price: number }[] = [];
+
+    if (order.order_type === "sale") {
+        (Array.isArray(payload?.products) ? payload.products : []).forEach((p: any) => {
+            if (!p?.name) return;
+            out.push({
+                name: String(p.name).trim(),
+                details: `العدد: ${p.qty || 1}`,
+                price: num(p.price) * (num(p.qty) || 1),
+            });
+        });
+        return out;
+    }
+
+    const services = payload?.services || {};
+    for (const [k, v] of Object.entries(services as Record<string, any>)) {
+        if (!v || v.status !== "يحتاج تغيير") continue;
+        const det = v.details || {};
+        if (k === "additives" || k === "cleaners" || k === "wipers") {
+            // Multi-product services: each product with its qty, unit price and notes.
+            Object.keys(det).filter(dk => dk.startsWith("prod_") && det[dk]).forEach(dk => {
+                const suf = dk.replace("prod_", "");
+                const parts: string[] = [];
+                const qty = det[`qty_${suf}`];
+                if (qty) parts.push(`العدد: ${qty}`);
+                const noteVal = det[`notes_${dk}`] || det[`notes_${suf}`];
+                if (noteVal) parts.push(`ملاحظات: ${noteVal}`);
+                out.push({
+                    name: String(det[dk]).trim(),
+                    details: parts.join(" - "),
+                    price: num(det[`price_${suf}`]) * (num(qty) || 1),
+                });
+            });
+        } else {
+            const parts: string[] = [];
+            for (const [dk, dval] of Object.entries(det)) {
+                if (dk === "unitPrice" || dval === "" || dval == null) continue;
+                parts.push(`${DETAIL_LABELS[dk] || dk}: ${dval}`);
+            }
+            if (det.unitPrice) parts.push(`سعر الوحدة: ${det.unitPrice}`);
+            out.push({ name: SERVICE_LABELS[k] || k, details: parts.join(" - "), price: num(v.price) });
+        }
+    }
+    (payload?.customServices || []).forEach((c: any) => {
+        if (!c?.label) return;
+        out.push({ name: String(c.label), details: "", price: num(c.price) });
+    });
+    return out;
+}
+
 function unauthorized() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -98,7 +159,7 @@ export async function GET(request: NextRequest) {
     const wantAll = params.get("all") === "1" || params.get("date") === "all";
     const unique = params.get("unique") === "1";
 
-    const SELECT = `id, report_number, status, order_type, created_at, odometer_reading, selected_services,
+    const SELECT = `id, report_number, status, order_type, created_at, odometer_reading, total_price, selected_services,
                  branches(name), vehicles(make, model, clients(name, phone))`;
 
     let data: any[] = [];
@@ -151,6 +212,10 @@ export async function GET(request: NextRequest) {
             branch: branch?.name || "",
             car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
             service: servicesOf(r),
+            // Full per-service details exactly as entered in the system
+            // (viscosity, liters, brand, filter number, size, qty, notes, price).
+            services_details: serviceDetailsOf(r),
+            total_price: r.total_price || 0,
             current_mileage: r.odometer_reading || 0,
             next_service_mileage: nextService,
             status: r.status,
