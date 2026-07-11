@@ -159,8 +159,10 @@ export async function GET(request: NextRequest) {
     const wantAll = params.get("all") === "1" || params.get("date") === "all";
     const unique = params.get("unique") === "1";
 
-    const SELECT = `id, report_number, status, order_type, created_at, odometer_reading, total_price, selected_services,
-                 branches(name), vehicles(make, model, clients(name, phone))`;
+    const SELECT = `id, report_number, status, order_type, created_at, completed_at, odometer_reading, odometer_unit,
+                 total_price, bay_number, notes, selected_services,
+                 branches(name), vehicles(make, model, plate_number, engine_size, booklet_serial, clients(name, phone)),
+                 receptionist:receptionist_id(name)`;
 
     let data: any[] = [];
     if (wantAll) {
@@ -204,6 +206,14 @@ export async function GET(request: NextRequest) {
         const fullName = isSale ? (payload?.customerName || "عميل نقدي") : (client?.name || "");
         const phone = normalizePhone(isSale ? payload?.customerPhone : client?.phone);
         const nextService = parseInt(String(payload?.futureOdometer || "").replace(/[^\d]/g, "")) || null;
+        const receptionist = Array.isArray(r.receptionist) ? r.receptionist[0] : r.receptionist;
+        // Technician names: the structured array first, else the legacy joined string.
+        const techNames = Array.isArray(payload?.technicians) && payload.technicians.length
+            ? payload.technicians.map((t: any) => (t?.name || "").trim()).filter(Boolean).join("، ")
+            : (payload?.technicianName || "");
+        const pricing = payload?.pricing || {};
+        const numQ = (v: any) => parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
+        const booklet = payload?.booklet || {};
 
         return {
             report_number: r.report_number,
@@ -211,15 +221,29 @@ export async function GET(request: NextRequest) {
             phone,
             branch: branch?.name || "",
             car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
+            plate_number: isSale ? "" : (vehicle?.plate_number || ""),
+            engine_size: isSale ? "" : (vehicle?.engine_size || ""),
             service: servicesOf(r),
             // Full per-service details exactly as entered in the system
             // (viscosity, liters, brand, filter number, size, qty, notes, price).
             services_details: serviceDetailsOf(r),
             total_price: r.total_price || 0,
+            discount: numQ(pricing.discount),
+            amount_received: numQ(pricing.amountReceived),
             current_mileage: r.odometer_reading || 0,
+            odometer_unit: r.odometer_unit === "mi" ? "mi" : "km",
             next_service_mileage: nextService,
+            technician: isSale ? "" : techNames,
+            supervisor: isSale ? "" : (payload?.shiftSupervisor || ""),
+            receptionist: receptionist?.name || payload?.receptionistName || "",
+            shift: payload?.shiftName || "",
+            bay_number: r.bay_number || "",
+            booklet_type: booklet.type || "",
+            booklet_serial: vehicle?.booklet_serial || booklet.serial || "",
+            order_notes: r.notes || "",
             status: r.status,
             created_at: r.created_at,
+            completed_at: r.completed_at || null,
         };
     }).filter(c => c.phone); // WhatsApp needs a phone number
 
