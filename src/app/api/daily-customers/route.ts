@@ -87,27 +87,47 @@ export async function GET(request: NextRequest) {
         auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ── Date filter: ?date=YYYY-MM-DD (or "today"), default today — Iraq time (UTC+3) ──
-    const qp = request.nextUrl.searchParams.get("date");
-    let dateStr = qp && /^\d{4}-\d{2}-\d{2}$/.test(qp) ? qp : null;
-    if (!dateStr) {
-        const nowIraq = new Date(Date.now() + 3 * 3600 * 1000);
-        dateStr = nowIraq.toISOString().slice(0, 10);
-    }
-    const start = new Date(`${dateStr}T00:00:00Z`); start.setUTCHours(start.getUTCHours() - 3);
-    const end = new Date(`${dateStr}T23:59:59.999Z`); end.setUTCHours(end.getUTCHours() - 3);
+    // ── Filters ──
+    // ?all=1 (or ?date=all)  → the ENTIRE database (paged internally).
+    // ?date=YYYY-MM-DD       → that day only (Iraq time). Default: today.
+    // ?unique=1              → one row per phone number (latest visit) — for broadcasts.
+    const params = request.nextUrl.searchParams;
+    const wantAll = params.get("all") === "1" || params.get("date") === "all";
+    const unique = params.get("unique") === "1";
 
-    const { data, error } = await supabase
-        .from("inspection_reports")
-        .select(`id, report_number, status, order_type, created_at, odometer_reading, selected_services,
-                 branches(name), vehicles(make, model, clients(name, phone))`)
-        .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString())
-        .order("created_at", { ascending: true })
-        .limit(1000);
+    const SELECT = `id, report_number, status, order_type, created_at, odometer_reading, selected_services,
+                 branches(name), vehicles(make, model, clients(name, phone))`;
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    let data: any[] = [];
+    if (wantAll) {
+        // Page through everything (Supabase caps a single request at 1000 rows).
+        const PAGE = 1000, MAX = 20000;
+        for (let from = 0; from < MAX; from += PAGE) {
+            const { data: page, error } = await supabase
+                .from("inspection_reports").select(SELECT)
+                .order("created_at", { ascending: true })
+                .range(from, from + PAGE - 1);
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            data.push(...(page || []));
+            if (!page || page.length < PAGE) break;
+        }
+    } else {
+        const qp = params.get("date");
+        let dateStr = qp && /^\d{4}-\d{2}-\d{2}$/.test(qp) ? qp : null;
+        if (!dateStr) {
+            const nowIraq = new Date(Date.now() + 3 * 3600 * 1000);
+            dateStr = nowIraq.toISOString().slice(0, 10);
+        }
+        const start = new Date(`${dateStr}T00:00:00Z`); start.setUTCHours(start.getUTCHours() - 3);
+        const end = new Date(`${dateStr}T23:59:59.999Z`); end.setUTCHours(end.getUTCHours() - 3);
+        const { data: day, error } = await supabase
+            .from("inspection_reports").select(SELECT)
+            .gte("created_at", start.toISOString())
+            .lte("created_at", end.toISOString())
+            .order("created_at", { ascending: true })
+            .limit(1000);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        data = day || [];
     }
 
     const customers = (data || []).map((r: any) => {
@@ -134,6 +154,14 @@ export async function GET(request: NextRequest) {
             created_at: r.created_at,
         };
     }).filter(c => c.phone); // WhatsApp needs a phone number
+
+    // ?unique=1 → one row per phone, keeping the MOST RECENT visit (rows are oldest→newest,
+    // so later entries overwrite earlier ones). Right shape for broadcast lists.
+    if (unique) {
+        const byPhone = new Map<string, (typeof customers)[number]>();
+        for (const c of customers) byPhone.set(c.phone!, c);
+        return NextResponse.json([...byPhone.values()]);
+    }
 
     return NextResponse.json(customers);
 }
