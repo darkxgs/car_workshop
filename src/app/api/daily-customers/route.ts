@@ -71,9 +71,12 @@ function unauthorized() {
 
 export async function GET(request: NextRequest) {
     // ── API-key gate ──
+    // Accepted either as a header (Authorization: Bearer <key>) or, for connector tools
+    // that can only call a plain URL, as a query param (?key=<key>).
     const expected = process.env.DAILY_CUSTOMERS_API_KEY || "";
     const auth = request.headers.get("authorization") || "";
-    const provided = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+    const provided = (auth.startsWith("Bearer ") ? auth.slice(7).trim() : "")
+        || (request.nextUrl.searchParams.get("key") || "").trim();
     if (!expected || !provided) return unauthorized();
     const a = Buffer.from(provided), b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return unauthorized();
