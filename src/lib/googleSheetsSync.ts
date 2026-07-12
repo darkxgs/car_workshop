@@ -171,7 +171,14 @@ async function doSync(reportId: string): Promise<'sent' | 'skip' | 'fail'> {
         })();
         
         const dbCar = isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim();
-        const dbOilTypeVisc = (isSale ? [saleOilType, saleOilVisc] : [oilType, oilVisc]).filter(Boolean).join(" ");
+        // Join type + viscosity, but skip the viscosity when the type string already contains it
+        // (e.g. "شل 5W30 HX8" + "5W30" would duplicate the viscosity in the sheet).
+        const dbOilTypeVisc = (() => {
+            const t = (isSale ? saleOilType : oilType) || "";
+            const vsc = (isSale ? saleOilVisc : oilVisc) || "";
+            const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
+            return (vsc && !norm(t).includes(norm(vsc))) ? `${t} ${vsc}`.trim() : t.trim();
+        })();
         const dbLiters = isSale ? saleOilLiters : (oilLiters || "");
         
         const technicianName = payload?.technicianName || "";

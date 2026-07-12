@@ -559,7 +559,14 @@ export default function CustomersPage() {
                 })(),
                 db_technician: isSale ? "" : (technicianName || ""),
                 db_car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
-                db_oil_type_visc: (isSale ? [saleOilType, saleOilVisc] : [oilType, oilVisc]).filter(Boolean).join(" "),
+                // Join type + viscosity, but skip the viscosity when the type string already
+                // contains it (e.g. "شل 5W30 HX8" + "5W30" would duplicate the viscosity).
+                db_oil_type_visc: (() => {
+                    const t = (isSale ? saleOilType : oilType) || "";
+                    const vsc = (isSale ? saleOilVisc : oilVisc) || "";
+                    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]/g, "");
+                    return (vsc && !norm(t).includes(norm(vsc))) ? `${t} ${vsc}`.trim() : t.trim();
+                })(),
                 db_liters: isSale ? saleOilLiters : (oilLiters || ""),
                 db_odometer: isSale ? "" : (odometer || ""),
                 db_future: payload?.futureOdometer || "",

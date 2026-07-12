@@ -111,8 +111,13 @@ function serviceDetailsOf(order: any): { name: string; details: string; price: n
             });
         } else {
             const parts: string[] = [];
+            const norm = (s: any) => String(s ?? "").toLowerCase().replace(/[\s\-_]/g, "");
+            const typeVal = norm(det.brand) + norm(det.type);
             for (const [dk, dval] of Object.entries(det)) {
                 if (dk === "unitPrice" || dval === "" || dval == null) continue;
+                // Skip the viscosity when the brand/type text already contains it
+                // (e.g. "شل 5W30 HX8" + viscosity "5W30" would duplicate it).
+                if (dk === "viscosity" && typeVal.includes(norm(dval))) continue;
                 parts.push(`${DETAIL_LABELS[dk] || dk}: ${dval}`);
             }
             if (det.unitPrice) parts.push(`سعر الوحدة: ${det.unitPrice}`);
