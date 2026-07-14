@@ -231,6 +231,10 @@ export async function GET(request: NextRequest) {
             car: isSale ? "" : `${vehicle?.make || ""} ${vehicle?.model || ""}`.trim(),
             plate_number: isSale ? "" : (vehicle?.plate_number || ""),
             engine_size: isSale ? "" : (vehicle?.engine_size || ""),
+            tire_size: (() => {
+                const t = payload?.tireSize;
+                return t && (t.width || t.aspect || t.diameter) ? `${t.width || "-"}/${t.aspect || "-"}/${t.diameter || "-"}` : "";
+            })(),
             service: servicesOf(r),
             // Full per-service details exactly as entered in the system
             // (viscosity, liters, brand, filter number, size, qty, notes, price).
