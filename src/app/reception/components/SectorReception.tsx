@@ -255,6 +255,18 @@ function sumMultiProduct(details: Record<string, any>): number {
     return sum;
 }
 
+// Tire size is entered in ONE field and auto-slashed like a date: "205 / 55 / 16"
+// (width 3 digits / aspect 2 / rim diameter 2). Kept split into {width,aspect,diameter}
+// on save so the stored shape and the API stay unchanged.
+const formatTireSize = (raw: string): string => {
+    const d = raw.replace(/\D/g, "").slice(0, 7);
+    return [d.slice(0, 3), d.slice(3, 5), d.slice(5, 7)].filter(Boolean).join(" / ");
+};
+const parseTireSize = (val: string): { width: string; aspect: string; diameter: string } => {
+    const [width = "", aspect = "", diameter = ""] = val.split("/").map(s => s.trim());
+    return { width, aspect, diameter };
+};
+
 export default function SectorReception({
     branches,
     selectedBranchId,
@@ -404,9 +416,7 @@ export default function SectorReception({
         setFutureOdometer(String(base + inc));
     };
     // Tire size (القطاع only): width / aspect ratio / rim diameter — e.g. 205 / 55 / 16.
-    const [tireWidth, setTireWidth] = useState("");
-    const [tireAspect, setTireAspect] = useState("");
-    const [tireDiameter, setTireDiameter] = useState("");
+    const [tireSize, setTireSize] = useState("");
     const [plateNumber, setPlateNumber] = useState("");
 
     // ---------- STEP 2: Services ----------
@@ -521,9 +531,8 @@ export default function SectorReception({
                 if (payload) {
                     setFutureOdometer(payload.futureOdometer || "");
                     if (payload.tireSize) {
-                        setTireWidth(payload.tireSize.width || "");
-                        setTireAspect(payload.tireSize.aspect || "");
-                        setTireDiameter(payload.tireSize.diameter || "");
+                        const t = payload.tireSize;
+                        setTireSize([t.width, t.aspect, t.diameter].filter(Boolean).join(" / "));
                     }
                     if (payload.freeServices) setFreeServices(payload.freeServices);
                     if (payload.services) setServices({ ...initServices(), ...payload.services });
@@ -788,7 +797,8 @@ export default function SectorReception({
             setError("يرجى تعبئة الحقول المطلوبة (اسم، هاتف، نوع السيارة)");
             return;
         }
-        if (!isSale && (!tireWidth.trim() || !tireAspect.trim() || !tireDiameter.trim())) {
+        const tire = parseTireSize(tireSize);
+        if (!isSale && (!tire.width || !tire.aspect || !tire.diameter)) {
             setError("يرجى إدخال حجم الإطار كاملاً (العرض / الارتفاع / القطر) — إجباري.");
             return;
         }
@@ -973,7 +983,7 @@ export default function SectorReception({
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
                 futureOdometer: futureOdometer || "",
-                tireSize: { width: tireWidth, aspect: tireAspect, diameter: tireDiameter },
+                tireSize: parseTireSize(tireSize),
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -1058,7 +1068,7 @@ export default function SectorReception({
 
     const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
-        setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setTireWidth(""); setTireAspect(""); setTireDiameter(""); setPlateNumber(""); setNotes(""); setBayNumber("");
+        setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setTireSize(""); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -1231,12 +1241,8 @@ export default function SectorReception({
                                 {/* Tire size — mandatory. Format: العرض / الارتفاع / القطر (e.g. 205 / 55 / R16). */}
                                 <div className="pt-1">
                                     <label className="text-sm font-medium text-muted-foreground">حجم الإطار <span className="text-rose-400">*</span></label>
-                                    <div className="flex items-center gap-2 mt-1" dir="ltr">
-                                        <input type="text" inputMode="numeric" placeholder="العرض" title="العرض (مثال 205)" className="input-field text-center flex-1" value={tireWidth} onChange={e => setTireWidth(digitsOnly(e.target.value))} />
-                                        <span className="text-muted-foreground font-bold">/</span>
-                                        <input type="text" inputMode="numeric" placeholder="الارتفاع" title="الارتفاع/النسبة (مثال 55)" className="input-field text-center flex-1" value={tireAspect} onChange={e => setTireAspect(digitsOnly(e.target.value))} />
-                                        <span className="text-muted-foreground font-bold">/</span>
-                                        <input type="text" inputMode="numeric" placeholder="القطر" title="قطر الجنط (مثال 16)" className="input-field text-center flex-1" value={tireDiameter} onChange={e => setTireDiameter(digitsOnly(e.target.value))} />
+                                    <div className="mt-1" dir="ltr">
+                                        <input type="text" inputMode="numeric" placeholder="205 / 55 / 16" title="العرض / الارتفاع / قطر الجنط (مثال 205 / 55 / 16)" className="input-field text-center w-full" value={tireSize} onChange={e => setTireSize(formatTireSize(e.target.value))} />
                                     </div>
                                     <span className="text-[10px] text-muted-foreground mt-1 block">العرض / الارتفاع / قطر الجنط — إجباري.</span>
                                 </div>
