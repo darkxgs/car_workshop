@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import BookletCodes from "@/components/BookletCodes";
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -140,16 +141,10 @@ export default function PrintPage() {
                     <h3 style={{ fontSize: '11px', fontWeight: 800, margin: '0 0 2px 0', color: '#000' }}>مجمع هندسة السيارات</h3>
                     <span style={{ fontSize: '9px', color: '#444', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
                     
-                    {false && typeof window !== 'undefined' && (
-                        <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                                window.location.origin + '/b/' + serialNum
-                            )}`}
-                            alt="Booklet QR"
-                            style={{ width: '85px', height: '85px', margin: '4px 0', padding: '1px', border: '1.5px solid #000', background: '#fff' }}
-                        />
-                    )}
-                    
+                    <div style={{ margin: '4px 0' }}>
+                        <BookletCodes serial={serialNum} variant="sticker" />
+                    </div>
+
                     <strong style={{ fontSize: '15px', fontFamily: 'monospace', color: '#000', letterSpacing: '0.5px', marginTop: '1px' }}>{serialNum}</strong>
                     <span style={{ fontSize: '8px', color: '#666', marginTop: '2px', lineHeight: '1' }}>امسح لعرض سجل الصيانة والزيارات</span>
                 </div>
