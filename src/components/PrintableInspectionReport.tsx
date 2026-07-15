@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import BookletCodes from '@/components/BookletCodes';
 
 interface PrintableInspectionReportProps {
     report: any;
@@ -324,7 +325,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                         </span>
                     )}
 
-                    {false && v.booklet_serial && (
+                    {v.booklet_serial && (
                         <div style={{
                             marginRight: 'auto',
                             display: 'flex',
@@ -338,7 +339,9 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 <span style={{ fontSize: '11px', color: '#78350f', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
                                 <strong style={{ color: '#b45309', fontFamily: 'monospace', fontSize: '14px' }}>{v.booklet_serial}</strong>
+                                <span style={{ fontSize: '9px', color: '#92400e' }}>امسح لعرض سجل الصيانة</span>
                             </div>
+                            <BookletCodes serial={v.booklet_serial} variant="report" />
                         </div>
                     )}
                 </div>

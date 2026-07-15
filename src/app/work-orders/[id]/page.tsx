@@ -681,7 +681,7 @@ export default function WorkOrderDetailPage() {
                             <Printer size={16} /> طباعة كامل (للعميل)
                         </button>
                     </div>
-                    {false && order?.vehicles?.booklet_serial && (
+                    {order?.vehicles?.booklet_serial && (
                         <button 
                             onClick={() => window.open(`/print/${id}?mode=sticker`, '_blank')}
                             className="px-4 py-2.5 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 text-amber-400 font-bold transition-all flex items-center gap-2 rounded-xl text-xs md:text-sm shadow-sm"
@@ -1595,7 +1595,7 @@ export default function WorkOrderDetailPage() {
                                 >
                                     <Printer size={16} /> إرسال للطباعة 🖨️
                                 </button>
-                                {false && order?.vehicles?.booklet_serial && (
+                                {order?.vehicles?.booklet_serial && (
                                     <button
                                         onClick={() => window.open(`/print/${id}?mode=sticker`, '_blank')}
                                         className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 text-xs"
