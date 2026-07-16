@@ -525,11 +525,6 @@ export default function CustomersPage() {
                 car_model: isSale ? "—" : (vehicle?.model || "—"),
                 plate: isSale ? "—" : (vehicle?.plate_number || "—"),
                 booklet_serial: vehicle?.booklet_serial || "—",
-                tire_size: (() => {
-                    const t = payload?.tireSize;
-                    return t && (t.width || t.aspect || t.diameter)
-                        ? [t.width, t.aspect, t.diameter].filter(Boolean).join(" / ") : "";
-                })(),
                 created_at: new Date(r.created_at).toLocaleDateString("en-US"),
                 shift_name: shiftName || "—",
                 receptionist_name: receptionistName || "—",
@@ -626,22 +621,58 @@ export default function CustomersPage() {
         if (!wsDb["!opts"]) wsDb["!opts"] = {};
         (wsDb as any)["!opts"].RTL = true;
 
-        // Third sheet: tires only — one row per visit that has a recorded tire size
-        // (القطاع). Columns: customer name, car make, model, tire size.
-        const tireData = [
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsDb, "قاعدة البيانات");
+        XLSX.utils.book_append_sheet(wb, ws, "تفاصيل كاملة");
+        XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
+    };
+
+    // Standalone TIRE report — separate file, isolated from the customer/invoice
+    // export (per Abbas: a تقرير خاص للإطارات, temporary, to prepare a tire order).
+    // Columns: اسم الزبون · نوع السيارة · الموديل · حجم الإطار.
+    const exportTireReport = async () => {
+        const { data, error } = await supabase
+            .from("inspection_reports")
+            .select(`id, created_at, order_type, branch_id, selected_services,
+                     vehicles(make, model, clients(name))`)
+            .order("created_at", { ascending: false });
+        if (!data || error) return;
+
+        let rows = data as any[];
+        if (employeeBranchId) rows = rows.filter(r => r.branch_id === employeeBranchId);
+        if (branchFilter) rows = rows.filter(r => r.branch_id === branchFilter);
+        if (dateFrom || dateTo) {
+            rows = rows.filter(r => {
+                if (!r.created_at) return false;
+                const d = new Date(r.created_at).toISOString().split('T')[0];
+                if (dateFrom && d < dateFrom) return false;
+                if (dateTo && d > dateTo) return false;
+                return true;
+            });
+        }
+
+        const tireRows = rows.map(r => {
+            const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+            const t = payload?.tireSize;
+            const tire = t && (t.width || t.aspect || t.diameter)
+                ? [t.width, t.aspect, t.diameter].filter(Boolean).join(" / ") : "";
+            if (!tire) return null;
+            const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
+            const c = v && (Array.isArray(v.clients) ? v.clients[0] : v.clients);
+            return [c?.name || "—", v?.make || "—", v?.model || "—", tire];
+        }).filter(Boolean) as string[][];
+
+        const wsTire = XLSX.utils.aoa_to_sheet([
             ["اسم الزبون", "نوع السيارة", "الموديل", "حجم الإطار"],
-            ...mapped.filter(r => r.tire_size).map(r => [r.client_name, r.car_make, r.car_model, r.tire_size])
-        ];
-        const wsTire = XLSX.utils.aoa_to_sheet(tireData);
+            ...tireRows,
+        ]);
         wsTire["!cols"] = [{wch:24}, {wch:16}, {wch:16}, {wch:16}];
         if (!wsTire["!opts"]) wsTire["!opts"] = {};
         (wsTire as any)["!opts"].RTL = true;
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, wsDb, "قاعدة البيانات");
-        XLSX.utils.book_append_sheet(wb, ws, "تفاصيل كاملة");
         XLSX.utils.book_append_sheet(wb, wsTire, "الإطارات");
-        XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `tires_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
     const openProfile = (client: ClientWithVehicles) => {
@@ -777,7 +808,13 @@ export default function CustomersPage() {
                         >
                             <Download size={18} /> <span className="hidden sm:inline">تصدير الفواتير</span>
                         </button>
-                        <button 
+                        <button
+                            onClick={exportTireReport}
+                            className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+                        >
+                            <Download size={18} /> <span className="hidden sm:inline">تقرير الإطارات</span>
+                        </button>
+                        <button
                             onClick={backupDatabase}
                             disabled={backingUp}
                             className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
