@@ -251,8 +251,9 @@ export async function GET(request: NextRequest) {
             shift: payload?.shiftName || "",
             bay_number: r.bay_number || "",
             booklet_type: booklet.type || "",
-            booklet_serial: vehicle?.booklet_serial || booklet.serial || "",
-            // عدد التبديلات داخل الدفتر (number of service changes) — saved in reception.
+            // Per Abbas: this feed's booklet_serial carries عدد التبديلات (the service-change
+            // count saved in reception as booklet.changes) — NOT the BK barcode number.
+            booklet_serial: booklet.changes || "",
             booklet_changes: booklet.changes || "",
             order_notes: r.notes || "",
             status: r.status,
