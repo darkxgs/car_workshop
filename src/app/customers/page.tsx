@@ -525,6 +525,11 @@ export default function CustomersPage() {
                 car_model: isSale ? "—" : (vehicle?.model || "—"),
                 plate: isSale ? "—" : (vehicle?.plate_number || "—"),
                 booklet_serial: vehicle?.booklet_serial || "—",
+                tire_size: (() => {
+                    const t = payload?.tireSize;
+                    return t && (t.width || t.aspect || t.diameter)
+                        ? [t.width, t.aspect, t.diameter].filter(Boolean).join(" / ") : "";
+                })(),
                 created_at: new Date(r.created_at).toLocaleDateString("en-US"),
                 shift_name: shiftName || "—",
                 receptionist_name: receptionistName || "—",
@@ -621,9 +626,21 @@ export default function CustomersPage() {
         if (!wsDb["!opts"]) wsDb["!opts"] = {};
         (wsDb as any)["!opts"].RTL = true;
 
+        // Third sheet: tires only — one row per visit that has a recorded tire size
+        // (القطاع). Columns: customer name, car make, model, tire size.
+        const tireData = [
+            ["اسم الزبون", "نوع السيارة", "الموديل", "حجم الإطار"],
+            ...mapped.filter(r => r.tire_size).map(r => [r.client_name, r.car_make, r.car_model, r.tire_size])
+        ];
+        const wsTire = XLSX.utils.aoa_to_sheet(tireData);
+        wsTire["!cols"] = [{wch:24}, {wch:16}, {wch:16}, {wch:16}];
+        if (!wsTire["!opts"]) wsTire["!opts"] = {};
+        (wsTire as any)["!opts"].RTL = true;
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, wsDb, "قاعدة البيانات");
         XLSX.utils.book_append_sheet(wb, ws, "تفاصيل كاملة");
+        XLSX.utils.book_append_sheet(wb, wsTire, "الإطارات");
         XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
