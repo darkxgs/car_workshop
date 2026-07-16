@@ -252,6 +252,8 @@ export async function GET(request: NextRequest) {
             bay_number: r.bay_number || "",
             booklet_type: booklet.type || "",
             booklet_serial: vehicle?.booklet_serial || booklet.serial || "",
+            // عدد التبديلات داخل الدفتر (number of service changes) — saved in reception.
+            booklet_changes: booklet.changes || "",
             order_notes: r.notes || "",
             status: r.status,
             created_at: r.created_at,
