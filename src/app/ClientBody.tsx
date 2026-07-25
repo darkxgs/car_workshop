@@ -15,7 +15,8 @@ export default function ClientBody({
 }) {
     const pathname = usePathname();
     const isLoginPage = pathname === "/login";
-    const isPrintPage = pathname.startsWith("/print/");
+    // Print/report views render on a clean white shell — no sidebar, no app chrome.
+    const isPrintPage = pathname.startsWith("/print/") || pathname.startsWith("/inspection/");
 
     useEffect(() => {
         document.body.className = "antialiased";
