@@ -14,12 +14,13 @@ import {
 // customer/vehicle info + the checklist, saves as a report tied to a real vehicle_id
 // (so it appears in the customer's file) with a comprehensiveInspection payload.
 export default function InspectionForm({
-    branches, selectedBranchId, setSelectedBranchId, onClose,
+    branches, selectedBranchId, setSelectedBranchId, onClose, initialVehicleId,
 }: {
     branches: { id: string; name: string }[];
     selectedBranchId: string;
     setSelectedBranchId: (id: string) => void;
     onClose: () => void;
+    initialVehicleId?: string;
 }) {
     const router = useRouter();
     const [name, setName] = useState("");
@@ -74,6 +75,22 @@ export default function InspectionForm({
     };
 
     const clearLink = () => { setSelectedClientId(null); setSelectedVehicleId(null); };
+
+    // Preselected vehicle (opened from a customer's file) — load + link it automatically.
+    useEffect(() => {
+        if (!initialVehicleId) return;
+        (async () => {
+            const { data } = await supabase.from("vehicles")
+                .select("id, make, model, engine_size, plate_number, clients(id, name, phone)")
+                .eq("id", initialVehicleId).maybeSingle();
+            if (!data) return;
+            setMake(data.make || ""); setModel(data.model || "");
+            setEngineSize(data.engine_size || ""); setPlateNumber(data.plate_number || "");
+            setSelectedVehicleId(data.id);
+            const c: any = Array.isArray(data.clients) ? data.clients[0] : data.clients;
+            if (c) { setName(c.name || ""); setPhone(c.phone || ""); setSelectedClientId(c.id); }
+        })();
+    }, [initialVehicleId]);
 
     // Full literal class strings (Tailwind JIT can't see dynamically-built names).
     const STATUS_CLASSES: Record<string, { active: string; idle: string }> = {
@@ -163,8 +180,14 @@ export default function InspectionForm({
         );
     }
 
+    // Live summary for the progress bar.
+    const allItems = Object.values(insp.items);
+    const total = allItems.length;
+    const cnt = (s: string) => allItems.filter(i => i.status === s).length;
+    const assessed = allItems.filter(i => i.status).length;
+
     return (
-        <div className="min-h-screen bg-[#08080d] p-4 md:p-8 font-ibm" dir="rtl">
+        <div className="min-h-screen bg-[#08080d] p-4 md:p-8 pb-28 font-ibm" dir="rtl">
             <div className="max-w-5xl mx-auto space-y-5">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -213,10 +236,28 @@ export default function InspectionForm({
                     <Field label="الفني المسؤول"><input className="input-field" value={technician} onChange={e => setTechnician(e.target.value)} placeholder="—" /></Field>
                 </div>
 
+                {/* Progress summary */}
+                <div className="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold">تم تقييم {assessed} من {total}</span>
+                        <div className="h-2 w-40 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-rose-500 transition-all" style={{ width: `${total ? (assessed / total) * 100 : 0}%` }} />
+                        </div>
+                    </div>
+                    <div className="flex gap-2 text-xs font-bold">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">سليم {cnt("سليم")}</span>
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">صيانة {cnt("صيانة")}</span>
+                        <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">تالف {cnt("تالف")}</span>
+                    </div>
+                </div>
+
                 {/* Checklist sections */}
                 {INSPECTION_SECTIONS.map(sec => (
                     <div key={sec.key} className="glass-card p-4 rounded-2xl">
-                        <h3 className="font-bold text-rose-400 mb-3 border-b border-border pb-2">{sec.icon} {sec.title}</h3>
+                        <h3 className="font-bold mb-3 border-b border-border pb-2 flex items-center gap-2">
+                            <span className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-base">{sec.icon}</span>
+                            <span className="text-rose-400">{sec.title}</span>
+                        </h3>
                         <div className="space-y-2">
                             {sec.items.map(it => {
                                 const cur = insp.items[it.key];
@@ -265,19 +306,26 @@ export default function InspectionForm({
                         </Field>
                         <Field label="النسبة %" className="mt-3">
                             <input className="input-field text-right" dir="ltr" inputMode="numeric" value={insp.percentage}
-                                onChange={e => setInsp(p => ({ ...p, percentage: digitsOnly(e.target.value).slice(0, 3) }))} placeholder="0" />
+                                onChange={e => {
+                                    const raw = digitsOnly(e.target.value).slice(0, 3);
+                                    const capped = raw === "" ? "" : String(Math.min(100, parseInt(raw, 10)));
+                                    setInsp(p => ({ ...p, percentage: capped }));
+                                }} placeholder="0 - 100" />
+                            <span className="text-[10px] text-muted-foreground mt-1 block">النسبة من 0 إلى 100% فقط.</span>
                         </Field>
                     </div>
                 </div>
 
                 {error && <p className="text-rose-500 text-sm font-bold text-center">{error}</p>}
 
-                <div className="flex gap-3 pb-8">
-                    <button onClick={onClose} className="px-6 py-3.5 bg-muted hover:bg-muted/80 font-bold rounded-2xl border border-border">إلغاء</button>
-                    <button onClick={handleSave} disabled={loading}
-                        className="flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
-                        {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} حفظ الفحص الشامل
-                    </button>
+                <div className="sticky bottom-3 z-30">
+                    <div className="glass-card border border-border/60 rounded-2xl p-3 flex gap-3 shadow-2xl backdrop-blur">
+                        <button onClick={onClose} className="px-6 py-3 bg-muted hover:bg-muted/80 font-bold rounded-xl border border-border">إلغاء</button>
+                        <button onClick={handleSave} disabled={loading}
+                            className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
+                            {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} حفظ الفحص الشامل
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

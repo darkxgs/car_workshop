@@ -27,6 +27,7 @@ function ReceptionContainer() {
     const { employeeBranchId, employeeRole, permissionReception, loading: authLoading } = useAuth();
     const editId = searchParams.get('edit');
     const saleParam = searchParams.get('sale');
+    const inspectionParam = searchParams.get('inspection'); // vehicleId to inspect (from customer file)
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // When true the wizard opens as a direct product sale ("بيع منتج") instead of a work order.
     const [wizardSaleMode, setWizardSaleMode] = useState(false);
@@ -71,11 +72,17 @@ function ReceptionContainer() {
             setWizardSaleMode(true);
             setEditIsSale(null);
             setIsWizardOpen(true);
+        } else if (inspectionParam) {
+            // Opened from a customer's file -> /reception?inspection=<vehicleId>.
+            setInspectionMode(true);
+            setEditIsSale(null);
+            setIsWizardOpen(true);
         } else {
             setIsWizardOpen(false);
+            setInspectionMode(false);
             setEditIsSale(null);
         }
-    }, [editId, saleParam]);
+    }, [editId, saleParam, inspectionParam]);
 
     // Fetch branches on mount
     useEffect(() => {
@@ -253,6 +260,7 @@ function ReceptionContainer() {
                     selectedBranchId={selectedBranchId}
                     setSelectedBranchId={setSelectedBranchId}
                     onClose={onCloseWizard}
+                    initialVehicleId={inspectionParam && inspectionParam !== "1" ? inspectionParam : undefined}
                 />
             );
         }
