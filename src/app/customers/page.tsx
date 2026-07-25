@@ -631,14 +631,21 @@ export default function CustomersPage() {
     // export (per Abbas: a تقرير خاص للإطارات, temporary, to prepare a tire order).
     // Columns: اسم الزبون · نوع السيارة · الموديل · حجم الإطار.
     const exportTireReport = async () => {
-        const { data, error } = await supabase
-            .from("inspection_reports")
-            .select(`id, created_at, order_type, branch_id, selected_services,
-                     vehicles(make, model, clients(name))`)
-            .order("created_at", { ascending: false });
-        if (!data || error) return;
-
-        let rows = data as any[];
+        // Page through ALL reports — a single query is capped at 1000 rows (~last
+        // couple weeks), which made date-filtered/older exports come back empty.
+        let rows: any[] = [];
+        const PAGE = 1000;
+        for (let from = 0; from < 100000; from += PAGE) {
+            const { data, error } = await supabase
+                .from("inspection_reports")
+                .select(`id, created_at, order_type, branch_id, selected_services,
+                         vehicles(make, model, clients(name))`)
+                .order("created_at", { ascending: false })
+                .range(from, from + PAGE - 1);
+            if (error) return;
+            rows.push(...(data || []));
+            if (!data || data.length < PAGE) break;
+        }
         if (employeeBranchId) rows = rows.filter(r => r.branch_id === employeeBranchId);
         if (branchFilter) rows = rows.filter(r => r.branch_id === branchFilter);
         if (dateFrom || dateTo) {
