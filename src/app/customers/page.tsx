@@ -627,6 +627,61 @@ export default function CustomersPage() {
         XLSX.writeFile(wb, `reports_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
+    // Standalone TIRE report — separate file, isolated from the customer/invoice
+    // export (per Abbas: a تقرير خاص للإطارات, temporary, to prepare a tire order).
+    // Columns: اسم الزبون · نوع السيارة · الموديل · حجم الإطار.
+    const exportTireReport = async () => {
+        // Page through ALL reports — a single query is capped at 1000 rows (~last
+        // couple weeks), which made date-filtered/older exports come back empty.
+        let rows: any[] = [];
+        const PAGE = 1000;
+        for (let from = 0; from < 100000; from += PAGE) {
+            const { data, error } = await supabase
+                .from("inspection_reports")
+                .select(`id, created_at, order_type, branch_id, selected_services,
+                         vehicles(make, model, clients(name))`)
+                .order("created_at", { ascending: false })
+                .range(from, from + PAGE - 1);
+            if (error) return;
+            rows.push(...(data || []));
+            if (!data || data.length < PAGE) break;
+        }
+        if (employeeBranchId) rows = rows.filter(r => r.branch_id === employeeBranchId);
+        if (branchFilter) rows = rows.filter(r => r.branch_id === branchFilter);
+        if (dateFrom || dateTo) {
+            rows = rows.filter(r => {
+                if (!r.created_at) return false;
+                const d = new Date(r.created_at).toISOString().split('T')[0];
+                if (dateFrom && d < dateFrom) return false;
+                if (dateTo && d > dateTo) return false;
+                return true;
+            });
+        }
+
+        const tireRows = rows.map(r => {
+            const payload = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+            const t = payload?.tireSize;
+            const tire = t && (t.width || t.aspect || t.diameter)
+                ? [t.width, t.aspect, t.diameter].filter(Boolean).join(" / ") : "";
+            if (!tire) return null;
+            const v = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
+            const c = v && (Array.isArray(v.clients) ? v.clients[0] : v.clients);
+            return [c?.name || "—", v?.make || "—", v?.model || "—", tire];
+        }).filter(Boolean) as string[][];
+
+        const wsTire = XLSX.utils.aoa_to_sheet([
+            ["اسم الزبون", "نوع السيارة", "الموديل", "حجم الإطار"],
+            ...tireRows,
+        ]);
+        wsTire["!cols"] = [{wch:24}, {wch:16}, {wch:16}, {wch:16}];
+        if (!wsTire["!opts"]) wsTire["!opts"] = {};
+        (wsTire as any)["!opts"].RTL = true;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsTire, "الإطارات");
+        XLSX.writeFile(wb, `tires_${new Date().toISOString().slice(0,10)}.xlsx`);
+    };
+
     const openProfile = (client: ClientWithVehicles) => {
         setSelectedProfile(client);
         setEditName(client.name);
@@ -760,7 +815,13 @@ export default function CustomersPage() {
                         >
                             <Download size={18} /> <span className="hidden sm:inline">تصدير الفواتير</span>
                         </button>
-                        <button 
+                        <button
+                            onClick={exportTireReport}
+                            className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
+                        >
+                            <Download size={18} /> <span className="hidden sm:inline">تقرير الإطارات</span>
+                        </button>
+                        <button
                             onClick={backupDatabase}
                             disabled={backingUp}
                             className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"

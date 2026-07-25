@@ -277,6 +277,17 @@ const DEFAULT_SUGGESTION_LISTS: Record<string, string[]> = {
     bayNumbers: []
 };
 
+// Tire size entered in ONE field and auto-slashed like a date: "205 / 55 / 16"
+// (width 3 / aspect 2 / rim diameter 2). Kept split into {width,aspect,diameter} on save.
+const formatTireSize = (raw: string): string => {
+    const d = raw.replace(/\D/g, "").slice(0, 7);
+    return [d.slice(0, 3), d.slice(3, 5), d.slice(5, 7)].filter(Boolean).join(" / ");
+};
+const parseTireSize = (val: string): { width: string; aspect: string; diameter: string } => {
+    const [width = "", aspect = "", diameter = ""] = val.split("/").map(s => s.trim());
+    return { width, aspect, diameter };
+};
+
 export default function StandardReception({
     branches,
     selectedBranchId,
@@ -420,6 +431,7 @@ export default function StandardReception({
     // Future odometer = current reading + a service interval. Quick buttons add the interval
     // in km; if the unit is miles the increment is converted (km × 0.6214).
     const [futureOdometer, setFutureOdometer] = useState("");
+    const [tireSize, setTireSize] = useState("");
     const FUTURE_INTERVALS = [3000, 5000, 8000, 10000];
     const addFutureKm = (km: number) => {
         const base = parseInt(odometer || "0") || 0;
@@ -571,6 +583,10 @@ export default function StandardReception({
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
                 if (payload) {
                     setFutureOdometer(payload.futureOdometer || "");
+                    if (payload.tireSize) {
+                        const t = payload.tireSize;
+                        setTireSize([t.width, t.aspect, t.diameter].filter(Boolean).join(" / "));
+                    }
                     if (payload.freeServices) setFreeServices(payload.freeServices);
                     if (payload.services) setServices({ ...initServices(), ...payload.services });
                     if (payload.customServices) setCustomServices(payload.customServices);
@@ -1014,6 +1030,7 @@ export default function StandardReception({
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
                 receptionistName,
                 futureOdometer: futureOdometer || "",
+                tireSize: parseTireSize(tireSize),
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -1098,7 +1115,7 @@ export default function StandardReception({
 
     const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
-        setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setPlateNumber(""); setNotes(""); setBayNumber("");
+        setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setTireSize(""); setPlateNumber(""); setNotes(""); setBayNumber("");
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -1267,6 +1284,14 @@ export default function StandardReception({
                                     <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">العداد المستقبلي</label>
                                     <input type="text" inputMode="numeric" dir="ltr" placeholder="0" className="input-field text-right flex-1" value={withCommas(futureOdometer)} onChange={e => setFutureOdometer(digitsOnly(e.target.value))} />
                                     <span className="text-xs text-muted-foreground shrink-0 w-8 text-center">{odometerUnit === 'mi' ? 'ميل' : 'كم'}</span>
+                                </div>
+                                {/* Tire size (all branches) — one auto-slashing box like the date: 205 / 55 / 16. */}
+                                <div className="pt-1">
+                                    <label className="text-sm font-medium text-muted-foreground">حجم الإطار</label>
+                                    <div className="mt-1" dir="ltr">
+                                        <input type="text" inputMode="numeric" placeholder="205 / 55 / 16" title="العرض / الارتفاع / قطر الجنط" className="input-field text-center w-full" value={tireSize} onChange={e => setTireSize(formatTireSize(e.target.value))} />
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground mt-1 block">العرض / الارتفاع / قطر الجنط (اختياري).</span>
                                 </div>
                             </div>
                         </div>
