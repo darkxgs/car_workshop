@@ -176,6 +176,13 @@ const SECTOR_BRANCH_SERVICES = [
             { key: "wipers", label: "مساحات زجاج", guide: "موسمي", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
             { key: "windshieldFluid", label: "سائل غسيل جام", guide: "عند النقص", detailFields: [{ key: "type", label: "اسم المادة", listId: "materials" }, { key: "qty", label: "العدد" }, { key: "notes", label: "ملاحظات" }] },
         ]
+    },
+    {
+        section: "الإطارات",
+        items: [
+            // Multi-product like additives: each tire = name + qty + note + unit price, "+" to add more.
+            { key: "tires", label: "إطارات", guide: "بيع / تركيب", detailFields: [] },
+        ]
     }
 ];
 
@@ -717,7 +724,7 @@ export default function SectorReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'additives' || key === 'cleaners' || key === 'wipers') {
+            if (key === 'additives' || key === 'cleaners' || key === 'wipers' || key === 'tires') {
                 const sum = sumMultiProduct(newDet);
                 newPrice = sum > 0 ? String(sum) : '';
             } else {
@@ -1503,9 +1510,9 @@ export default function SectorReception({
                                                 </div>
 
                                                 {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives' || svc.key === 'wipers') && (
+                                                {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'additives' || svc.key === 'wipers' || svc.key === 'tires') && (
                                                     <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                        {(svc.key === 'additives' || svc.key === 'wipers') ? (
+                                                        {(svc.key === 'additives' || svc.key === 'wipers' || svc.key === 'tires') ? (
                                                             <div className="flex flex-col gap-2 w-full">
                                                                 {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                     const priceKey = k.replace('prod_', 'price_');
@@ -1599,12 +1606,24 @@ export default function SectorReception({
                                                                                     }}
                                                                                 />
                                                                             </div>
+                                                                            {svc.key === 'tires' && (
+                                                                                <div className="flex items-center gap-1 w-28">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder="ملاحظة"
+                                                                                        className="input-field text-xs py-1.5 w-full"
+                                                                                        value={entry.details[k.replace('prod_', 'notes_')] || ""}
+                                                                                        onChange={e => setServiceDetail(svc.key, k.replace('prod_', 'notes_'), e.target.value)}
+                                                                                    />
+                                                                                </div>
+                                                                            )}
                                                                             {i > 0 && (
                                                                                 <button type="button" onClick={() => {
                                                                                     const newDetails = {...entry.details};
                                                                                     delete newDetails[k];
                                                                                     delete newDetails[priceKey];
                                                                                     delete newDetails[k.replace('prod_', 'qty_')];
+                                                                                    delete newDetails[k.replace('prod_', 'notes_')];
                                                                                     const sum = sumMultiProduct(newDetails);
                                                                                     setServices(prev => ({...prev, [svc.key]: {...prev[svc.key], details: newDetails, price: sum > 0 ? String(sum) : ""}}));
                                                                                 }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
