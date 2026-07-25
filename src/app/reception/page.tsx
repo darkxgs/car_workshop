@@ -6,13 +6,14 @@ import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import {
     UserPlus, Car, Loader2,
-    FileText, Printer, Edit2, X, Trash2, ShoppingCart, RefreshCcw
+    FileText, Printer, Edit2, X, Trash2, ShoppingCart, RefreshCcw, ClipboardList
 } from "lucide-react";
 import { showConfirm, showSuccess, showError } from "@/lib/alerts";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 import StandardReception from "./components/StandardReception";
 import SectorReception from "./components/SectorReception";
 import SaleForm from "./components/SaleForm";
+import InspectionForm from "./components/InspectionForm";
 
 const isAccounted = (o: any) => {
     if (o.order_type === 'sale') return true;
@@ -29,6 +30,7 @@ function ReceptionContainer() {
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // When true the wizard opens as a direct product sale ("بيع منتج") instead of a work order.
     const [wizardSaleMode, setWizardSaleMode] = useState(false);
+    const [inspectionMode, setInspectionMode] = useState(false);
     // null = still loading order_type for the order being edited; true/false once known.
     const [editIsSale, setEditIsSale] = useState<boolean | null>(null);
     const [orders, setOrders] = useState<any[]>([]);
@@ -238,9 +240,22 @@ function ReceptionContainer() {
         const onCloseWizard = () => {
             setIsWizardOpen(false);
             setWizardSaleMode(false);
+            setInspectionMode(false);
             setEditIsSale(null);
             router.replace('/reception');
         };
+
+        // Comprehensive inspection (فحص شامل) — standalone form.
+        if (inspectionMode) {
+            return (
+                <InspectionForm
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    setSelectedBranchId={setSelectedBranchId}
+                    onClose={onCloseWizard}
+                />
+            );
+        }
 
         // New sale, or editing an existing sale -> lightweight sale form.
         if (wizardSaleMode || editIsSale === true) {
@@ -314,6 +329,12 @@ function ReceptionContainer() {
                             className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <ShoppingCart size={18} /> بيع منتج
+                        </button>
+                        <button
+                            onClick={() => { setInspectionMode(true); setIsWizardOpen(true); }}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 text-sm"
+                        >
+                            <ClipboardList size={18} /> فحص شامل
                         </button>
                     </div>
                 </div>

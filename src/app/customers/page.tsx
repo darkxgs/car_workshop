@@ -1353,6 +1353,8 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
 }) {
     const isPaperV2 = report.selected_services?.[0]?.is_paper_v2_format === true;
     const servicePayload = isPaperV2 ? report.selected_services[0] : null;
+    const inspPayload = Array.isArray(report.selected_services) ? report.selected_services[0] : report.selected_services;
+    const isComprehensiveInspection = inspPayload?.isComprehensiveInspection === true;
 
     const services = servicePayload?.services || {};
     const freeServices = servicePayload?.freeServices || {};
@@ -1496,6 +1498,11 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     <button onClick={() => router.push(`/print/${report.id}?mode=full`)} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
                         <FileText size={14}/>
                     </button>
+                    {isComprehensiveInspection && (
+                        <button onClick={() => window.open(`/inspection/${report.id}`, "_blank")} className="px-3 py-1.5 flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white rounded-lg text-blue-400 font-bold text-xs transition-colors border border-blue-500/30" title="طباعة الفحص الشامل">
+                            <FileText size={14}/> فحص شامل
+                        </button>
+                    )}
                     {isOwnerOrAdmin && (
                         <button onClick={() => onDeleteReport(report.id, report.report_number)} className="p-2 bg-muted hover:bg-rose-600 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="حذف الفاتورة">
                             <Trash2 size={14}/>
