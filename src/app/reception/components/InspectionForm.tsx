@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { digitsOnly, withCommas } from "@/lib/format";
 import { useRouter } from "next/navigation";
@@ -30,6 +30,10 @@ export default function InspectionForm({
     const [engineSize, setEngineSize] = useState("");
     const [odometer, setOdometer] = useState("");
     const [technician, setTechnician] = useState("");
+    // Link to an EXISTING customer/vehicle (chosen from search) so no duplicate is created.
+    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<any[]>([]);
     const [insp, setInsp] = useState(emptyInspection());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -37,6 +41,39 @@ export default function InspectionForm({
 
     const setItem = (key: string, field: "status" | "note", value: string) =>
         setInsp(prev => ({ ...prev, items: { ...prev.items, [key]: { ...prev.items[key], [field]: value as any } } }));
+
+    // Search EXISTING customers by phone or booklet serial (BK-…) — same as reception.
+    useEffect(() => {
+        if (selectedClientId) return;
+        const q = phone.trim();
+        if (q.length < 3) { setSuggestions([]); return; }
+        const t = setTimeout(async () => {
+            const sel = "id, name, phone, vehicles(id, make, model, engine_size, plate_number, booklet_serial)";
+            if (q.toUpperCase().startsWith("BK")) {
+                const { data } = await supabase.from("clients").select(sel).eq("vehicles.booklet_serial", q.toUpperCase());
+                setSuggestions((data || []).filter((c: any) => c.vehicles?.some((v: any) => v.booklet_serial?.toUpperCase() === q.toUpperCase())));
+            } else {
+                const { data } = await supabase.from("clients").select(sel).ilike("phone", `%${q}%`).limit(6);
+                setSuggestions(data || []);
+            }
+        }, 400);
+        return () => clearTimeout(t);
+    }, [phone, selectedClientId]);
+
+    const pickCustomer = (c: any) => {
+        setName(c.name || "");
+        setPhone(c.phone || "");
+        setSelectedClientId(c.id);
+        setSuggestions([]);
+        const v = c.vehicles?.[0];
+        if (v) {
+            setMake(v.make || ""); setModel(v.model || "");
+            setEngineSize(v.engine_size || ""); setPlateNumber(v.plate_number || "");
+            setSelectedVehicleId(v.id || null);
+        }
+    };
+
+    const clearLink = () => { setSelectedClientId(null); setSelectedVehicleId(null); };
 
     // Full literal class strings (Tailwind JIT can't see dynamically-built names).
     const STATUS_CLASSES: Record<string, { active: string; idle: string }> = {
@@ -49,10 +86,10 @@ export default function InspectionForm({
         if (!name.trim() && !phone.trim()) { setError("أدخل اسم الزبون أو رقم الهاتف على الأقل."); return; }
         setLoading(true); setError(null);
         try {
-            // ── find-or-create client ──
-            let clientId: string | null = null;
+            // ── client: use the one picked from search, else find-or-create by phone ──
+            let clientId: string | null = selectedClientId;
             const phoneClean = phone.trim();
-            if (phoneClean) {
+            if (!clientId && phoneClean) {
                 const { data: ec } = await supabase.from("clients").select("id").eq("phone", phoneClean).maybeSingle();
                 clientId = ec?.id ?? null;
             }
@@ -62,10 +99,10 @@ export default function InspectionForm({
                 if (ce) throw ce;
                 clientId = nc.id;
             }
-            // ── find-or-create vehicle ──
-            let vehicleId: string | null = null;
+            // ── vehicle: use the picked one, else find-or-create by plate under the client ──
+            let vehicleId: string | null = selectedVehicleId;
             const plateClean = plateNumber.trim();
-            if (plateClean) {
+            if (!vehicleId && plateClean) {
                 const { data: ev } = await supabase.from("vehicles").select("id").eq("plate_number", plateClean).maybeSingle();
                 vehicleId = ev?.id ?? null;
             }
@@ -76,8 +113,6 @@ export default function InspectionForm({
                 }).select("id").single();
                 if (ve) throw ve;
                 vehicleId = nv.id;
-            } else {
-                await supabase.from("vehicles").update({ client_id: clientId }).eq("id", vehicleId);
             }
             // ── insert the inspection as a report ──
             const payload = {
@@ -148,8 +183,28 @@ export default function InspectionForm({
 
                 {/* Customer + vehicle */}
                 <div className="glass-card p-5 rounded-2xl grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Field label="اسم الزبون"><input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="—" /></Field>
-                    <Field label="رقم الهاتف"><input className="input-field text-right" dir="ltr" inputMode="numeric" value={phone} onChange={e => setPhone(digitsOnly(e.target.value))} placeholder="—" /></Field>
+                    <Field label="اسم الزبون">
+                        <input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="—" />
+                        {selectedClientId && <span className="text-[10px] text-emerald-400 font-bold mt-1 block">✓ مرتبط بزبون موجود</span>}
+                    </Field>
+                    <Field label="رقم الهاتف / الدفتر (للبحث)">
+                        <div className="relative">
+                            <input className="input-field text-right w-full" dir="ltr" value={phone}
+                                onChange={e => { setPhone(e.target.value); clearLink(); }}
+                                placeholder="ابحث برقم الهاتف أو BK-…" />
+                            {suggestions.length > 0 && (
+                                <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-xl shadow-xl max-h-56 overflow-auto text-right">
+                                    {suggestions.map(c => (
+                                        <button key={c.id} type="button" onClick={() => pickCustomer(c)}
+                                            className="w-full text-right px-3 py-2 hover:bg-rose-500/10 border-b border-border/40 last:border-0">
+                                            <div className="font-bold text-sm">{c.name}</div>
+                                            <div className="text-xs text-muted-foreground" dir="ltr">{c.phone}{c.vehicles?.[0] ? ` • ${c.vehicles[0].make} ${c.vehicles[0].model}` : ""}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </Field>
                     <Field label="نوع المركبة"><input className="input-field" value={make} onChange={e => setMake(e.target.value)} placeholder="—" /></Field>
                     <Field label="الموديل / السنة"><input className="input-field" value={model} onChange={e => setModel(e.target.value)} placeholder="—" /></Field>
                     <Field label="رقم اللوحة"><input className="input-field" value={plateNumber} onChange={e => setPlateNumber(e.target.value)} placeholder="—" /></Field>
