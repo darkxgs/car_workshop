@@ -145,7 +145,7 @@ export default function PartsPOSPage() {
                         placeholder="ابحث باسم القطعة، القسم، الرقم..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-card border border-border rounded-xl py-4 pr-12 xl:pr-14 pl-4 text-lg text-foreground placeholder-slate-500 focus:outline-none focus:border-amber-500/50 shadow-sm"
+                        className="w-full bg-card border border-border rounded-xl py-4 pr-12 xl:pr-14 pl-4 text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-amber-500/50 shadow-sm"
                     />
                 </div>
 
@@ -167,7 +167,7 @@ export default function PartsPOSPage() {
                                 key={item.id} 
                                 onClick={() => addToCart(item)}
                                 disabled={item.quantity <= 0}
-                                className={`flex flex-col text-right p-4 rounded-2xl border transition-all duration-200 shadow-sm ${item.quantity > 0 ? 'bg-muted hover:bg-card border-border border-border hover:border-amber-500/30' : 'bg-card border-slate-900 opacity-50 cursor-not-allowed'}`}
+                                className={`flex flex-col text-right p-4 rounded-2xl border transition-all duration-200 shadow-sm ${item.quantity > 0 ? 'bg-muted hover:bg-card border-border hover:border-amber-500/30' : 'bg-card border-border opacity-50 cursor-not-allowed'}`}
                             >
                                 <div className="text-xs text-muted-foreground px-2 py-0.5 bg-background rounded block w-max mb-3 border border-border">{item.category || "قطع غيار"}</div>
                                 <h3 className="font-bold text-foreground mb-2 leading-tight flex-1">{item.name}</h3>

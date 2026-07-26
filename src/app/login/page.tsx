@@ -97,7 +97,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full mt-4 py-3 rounded-xl bg-gradient-to-l from-rose-600 to-rose-500 text-foreground font-bold hover:shadow-[0_0_20px_rgba(225,29,72,0.4)] transition-all flex items-center justify-center gap-2"
+                            className="w-full mt-4 py-3 rounded-xl bg-gradient-to-l from-rose-600 to-rose-500 text-white font-bold hover:shadow-[0_0_20px_rgba(225,29,72,0.4)] transition-all flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>

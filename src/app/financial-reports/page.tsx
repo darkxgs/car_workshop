@@ -387,7 +387,7 @@ export default function ReportsPage() {
                                 <Filter size={18} /> {loading ? 'جاري التوليد...' : 'توليد التقرير المحدد'}
                             </button>
                             {activeTab !== 'inventory' && activeTab !== 'analytics' && (
-                                <button onClick={() => { setDateRange({start:'', end:''}); generateReport(true); }} disabled={loading} className="w-full py-3 bg-muted border border-border hover:bg-slate-200 dark:hover:bg-slate-800 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2">
+                                <button onClick={() => { setDateRange({start:'', end:''}); generateReport(true); }} disabled={loading} className="w-full py-3 bg-muted border border-border hover:bg-muted/70 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2">
                                     إظهار تفاصيل كل التواريخ
                                 </button>
                             )}

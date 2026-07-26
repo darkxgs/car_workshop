@@ -267,7 +267,7 @@ export default function KanbanStatusPage() {
 
                                         {columnOrders.length === 0 && (
                                             <div className="text-center p-6 border-2 border-dashed border-border rounded-xl">
-                                                <p className="text-slate-600 text-sm">اسحب البطاقات هنا</p>
+                                                <p className="text-muted-foreground text-sm">لا توجد بطاقات في هذه الحالة</p>
                                             </div>
                                         )}
                                     </div>
