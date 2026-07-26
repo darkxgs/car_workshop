@@ -136,17 +136,11 @@ export default function PrintPage() {
                     height: '60mm',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                     direction: 'rtl',
-                    border: '1px solid #ddd'
                 }}>
-                    <h3 style={{ fontSize: '11px', fontWeight: 800, margin: '0 0 2px 0', color: '#000' }}>مجمع هندسة السيارات</h3>
-                    <span style={{ fontSize: '9px', color: '#444', fontWeight: 600 }}>دفتر الخدمة الرقمي</span>
-                    
                     <div style={{ margin: '4px 0' }}>
                         <BookletCodes serial={serialNum} variant="sticker" />
                     </div>
-
-                    <strong style={{ fontSize: '15px', fontFamily: 'monospace', color: '#000', letterSpacing: '0.5px', marginTop: '1px' }}>{serialNum}</strong>
-                    <span style={{ fontSize: '8px', color: '#666', marginTop: '2px', lineHeight: '1' }}>امسح لعرض سجل الصيانة والزيارات</span>
+                    <strong style={{ fontSize: '15px', fontFamily: 'monospace', color: '#000', letterSpacing: '0.5px', marginTop: '4px' }}>{serialNum}</strong>
                 </div>
             </>
         );
