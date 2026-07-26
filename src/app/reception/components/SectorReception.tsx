@@ -1404,9 +1404,28 @@ export default function SectorReception({
                                                             </div>
 
                                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                            {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
+                                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires') && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                                    {[...svc.detailFields, ...priceFields(svc)].map(df => {
+                                                                    {svc.key === 'tires' ? (
+                                                                        <div className="flex flex-col gap-2 w-full">
+                                                                            {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
+                                                                                const suf = k.replace('prod_', '');
+                                                                                const priceKey = `price_${suf}`, qtyKey = `qty_${suf}`, noteKey = `notes_${suf}`;
+                                                                                return (
+                                                                                    <div key={k} className="flex flex-wrap items-center gap-2">
+                                                                                        <input type="text" placeholder={`اسم الإطار ${i + 1}`} className="input-field text-xs py-1.5 flex-1 min-w-[140px]" value={entry.details[k] || ""} onChange={e => setServiceDetail(svc.key, k, e.target.value)} />
+                                                                                        <input type="text" inputMode="numeric" placeholder="العدد" dir="ltr" className="input-field text-xs py-1.5 w-14 text-center" value={entry.details[qtyKey] || ""} onChange={e => setServiceDetail(svc.key, qtyKey, digitsOnly(e.target.value))} />
+                                                                                        <input type="text" inputMode="numeric" placeholder="سعر الوحدة" dir="ltr" className="input-field text-xs py-1.5 w-24 text-left" value={withCommas(entry.details[priceKey] || "")} onChange={e => setServiceDetail(svc.key, priceKey, digitsOnly(e.target.value))} />
+                                                                                        <input type="text" placeholder="ملاحظة" className="input-field text-xs py-1.5 w-28" value={entry.details[noteKey] || ""} onChange={e => setServiceDetail(svc.key, noteKey, e.target.value)} />
+                                                                                        {i > 0 && (
+                                                                                            <button type="button" onClick={() => { const nd = { ...entry.details }; delete nd[k]; delete nd[priceKey]; delete nd[qtyKey]; delete nd[noteKey]; const sum = sumMultiProduct(nd); setServices(prev => ({ ...prev, [svc.key]: { ...prev[svc.key], details: nd, price: sum > 0 ? String(sum) : "" } })); }} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded-lg">✕</button>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                            <button type="button" onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')} className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3">+ إطار آخر</button>
+                                                                        </div>
+                                                                    ) : [...svc.detailFields, ...priceFields(svc)].map(df => {
                                                                         const resolvedListId = df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                                         const fieldKey = svc.key + "_" + df.key;
                                                                         const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
