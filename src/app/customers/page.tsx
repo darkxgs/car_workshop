@@ -1187,6 +1187,9 @@ export default function CustomersPage() {
                                                         <span>{r.vehicle?.make} {r.vehicle?.model}</span>
                                                         <span>{r.branches?.name ? `${r.branches.name} • ` : ""}{dateStr}</span>
                                                     </div>
+                                                    {(Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services)?.comprehensiveInspection && (
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded self-start mt-1 font-bold ${isSelected ? "bg-white/20 text-white" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>🔍 فحص شامل</span>
+                                                    )}
                                                 </button>
                                             );
                                         })
