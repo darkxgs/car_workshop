@@ -295,6 +295,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                     <span>موظف الاستقبال: <strong>{data?.receptionistName || report.receptionist?.name || '___________'}</strong></span>
                     <span>اسم الفني: <strong>{data?.technicianName || '___________'}</strong></span>
                     <span>وقت الفتح: <strong>{openTime}</strong></span>
+                    <span>وقت الغلق: <strong>{closeTime}</strong></span>
                 </div>
 
                 {/* ══ BOOKLET ══ */}
