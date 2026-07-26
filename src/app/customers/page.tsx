@@ -63,6 +63,7 @@ export default function CustomersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedProfile, setSelectedProfile] = useState<ClientWithVehicles | null>(null);
     const [activeProfileTab, setActiveProfileTab] = useState<string>("summary");
+    const [profileBranchFilter, setProfileBranchFilter] = useState<string>(""); // filter a customer's visits by branch
     const [loadedReports, setLoadedReports] = useState<Record<string, any>>({});
     const [loadingDetails, setLoadingDetails] = useState(false);
 
@@ -683,13 +684,31 @@ export default function CustomersPage() {
         XLSX.writeFile(wb, `tires_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
-    const openProfile = (client: ClientWithVehicles) => {
+    const openProfile = async (client: ClientWithVehicles) => {
         setSelectedProfile(client);
         setEditName(client.name);
         setEditPhone(client.phone);
         setEditEmail(client.email || "");
         setIsEditingInfo(false);
         setActiveProfileTab("summary");
+        setProfileBranchFilter("");
+        // Re-fetch ALL of this client's reports across EVERY branch → one unified profile,
+        // regardless of any branch filter applied to the customer list.
+        const { data } = await supabase
+            .from('vehicles')
+            .select(`id, make, model, plate_number, engine_size, booklet_serial,
+                     inspection_reports(id, report_number, status, order_type, branch_id, created_at, total_price, selected_services, branches(name))`)
+            .eq('client_id', client.id);
+        if (data) {
+            const allReports: any[] = [];
+            const branchNameSet = new Set<string>();
+            data.forEach((v: any) => v.inspection_reports?.forEach((r: any) => {
+                allReports.push({ ...r, vehicle: v });
+                if (r.branches?.name) branchNameSet.add(r.branches.name);
+            }));
+            allReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setSelectedProfile(prev => prev ? { ...prev, allReports, branchNames: Array.from(branchNameSet) } : prev);
+        }
     };
 
     const handleSelectVisitTab = async (reportId: string) => {
@@ -1106,15 +1125,29 @@ export default function CustomersPage() {
                                         <User size={16} />
                                     </button>
 
+                                    {(() => {
+                                        const branchNames: string[] = selectedProfile.branchNames || [];
+                                        const visits = selectedProfile.allReports.filter((r: any) => !profileBranchFilter || r.branches?.name === profileBranchFilter);
+                                        return (
+                                    <>
                                     <div className="border-t border-border/40 my-2 pt-2">
-                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block px-2 mb-2">تاريخ الزيارات ({selectedProfile.allReports.length})</span>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block px-2 mb-2">تاريخ الزيارات ({visits.length})</span>
+                                        {branchNames.length > 1 && (
+                                            <select value={profileBranchFilter} onChange={e => setProfileBranchFilter(e.target.value)}
+                                                className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-xs mb-2 focus:outline-none focus:border-rose-500/50">
+                                                <option value="">كل الفروع ({selectedProfile.allReports.length})</option>
+                                                {branchNames.map((bn: string) => (
+                                                    <option key={bn} value={bn}>{bn} ({selectedProfile.allReports.filter((r: any) => r.branches?.name === bn).length})</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
 
                                     {/* Visits Tabs */}
-                                    {selectedProfile.allReports.length === 0 ? (
-                                        <span className="text-xs text-muted-foreground block text-center py-4">لا توجد زيارات سابقة</span>
+                                    {visits.length === 0 ? (
+                                        <span className="text-xs text-muted-foreground block text-center py-4">لا توجد زيارات{profileBranchFilter ? ` في فرع ${profileBranchFilter}` : " سابقة"}</span>
                                     ) : (
-                                        selectedProfile.allReports.map((r: any) => {
+                                        visits.map((r: any) => {
                                             const isSelected = activeProfileTab === r.id;
                                             const dateStr = new Date(r.created_at).toLocaleDateString("ar-IQ", {
                                                 year: 'numeric',
@@ -1147,12 +1180,15 @@ export default function CustomersPage() {
                                                     </div>
                                                     <div className="flex justify-between items-center text-[10px] opacity-80 mt-1 font-normal">
                                                         <span>{r.vehicle?.make} {r.vehicle?.model}</span>
-                                                        <span>{dateStr}</span>
+                                                        <span>{r.branches?.name ? `${r.branches.name} • ` : ""}{dateStr}</span>
                                                     </div>
                                                 </button>
                                             );
                                         })
                                     )}
+                                    </>
+                                    );
+                                    })()}
                                 </div>
                             </div>
 
@@ -1223,7 +1259,7 @@ export default function CustomersPage() {
                                                 <Gauge size={18} className="text-rose-500" />
                                                 إحصائيات الملف الشخصي للعميل
                                             </h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                                 <div className="bg-gradient-to-br from-rose-500/5 to-rose-600/5 border border-rose-500/10 p-4 rounded-2xl flex flex-col justify-center items-center text-center">
                                                     <Car className="text-rose-400 mb-1.5" size={22} />
                                                     <span className="text-[11px] text-muted-foreground font-medium">المركبات المسجلة</span>
@@ -1241,6 +1277,19 @@ export default function CustomersPage() {
                                                         {selectedProfile.allReports.reduce((acc, r) => acc + (r.total_price || 0), 0).toLocaleString()} <span className="text-[10px] font-sans">IQD</span>
                                                     </span>
                                                 </div>
+                                                {(() => {
+                                                    const nextOil = selectedProfile.allReports.map((r: any) => {
+                                                        const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                                                        return parseInt(String(p?.futureOdometer || "").replace(/[^\d]/g, "")) || 0;
+                                                    }).find((v: number) => v > 0);
+                                                    return (
+                                                        <div className="bg-gradient-to-br from-amber-500/5 to-amber-600/5 border border-amber-500/10 p-4 rounded-2xl flex flex-col justify-center items-center text-center">
+                                                            <Droplets className="text-amber-400 mb-1.5" size={22} />
+                                                            <span className="text-[11px] text-muted-foreground font-medium">تبديل الزيت القادم</span>
+                                                            <span className="text-base font-black mt-1 font-mono" dir="ltr">{nextOil ? `${nextOil.toLocaleString()} كم` : "—"}</span>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
 
