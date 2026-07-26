@@ -12,7 +12,6 @@ import {
 import { showSuccess } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
-import InspectionChecklist from "@/components/InspectionChecklist";
 import { emptyInspection } from "@/lib/comprehensiveInspection";
 import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
@@ -1368,19 +1367,6 @@ export default function SectorReception({
                                     : `خدمات العميل (1-${MAIN_SERVICES.length}) — فحص دوري مع كل زيارة`
                                 }
                             </h3>
-
-                            {/* فحص شامل — optional, filled with the work order (before starting the service) */}
-                            <div className="mb-4 p-3 rounded-2xl border border-blue-500/30 bg-blue-500/5">
-                                <label className="flex items-center gap-2 cursor-pointer font-bold text-sm">
-                                    <input type="checkbox" checked={doInspection} onChange={e => setDoInspection(e.target.checked)} className="w-4 h-4 accent-blue-600" />
-                                    <span className="text-blue-400">إجراء فحص شامل مع أمر العمل</span>
-                                </label>
-                                {doInspection && (
-                                    <div className="mt-3">
-                                        <InspectionChecklist value={inspection} onChange={setInspection} />
-                                    </div>
-                                )}
-                            </div>
 
                             {isSectorBranch ? (
                                 <div className="space-y-6">
