@@ -185,13 +185,6 @@ const SECTOR_BRANCH_SERVICES = [
             // Multi-product like additives: each tire = name + qty + note + unit price, "+" to add more.
             { key: "tires", label: "إطارات", guide: "بيع / تركيب", detailFields: [] },
         ]
-    },
-    {
-        section: "تشخيص الأعطال",
-        items: [
-            // Multi-product: each line = اسم المادة + العدد + ملاحظات + سعر الوحدة, "+" to add more.
-            { key: "faultDiagnosis", label: "تشخيص الأعطال", guide: "المواد والأجور المستخدمة", detailFields: [] },
-        ]
     }
 ];
 
@@ -740,7 +733,7 @@ export default function SectorReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'additives' || key === 'cleaners' || key === 'wipers' || key === 'tires' || key === 'faultDiagnosis') {
+            if (key === 'additives' || key === 'cleaners' || key === 'wipers' || key === 'tires') {
                 const sum = sumMultiProduct(newDet);
                 newPrice = sum > 0 ? String(sum) : '';
             } else {
@@ -1435,9 +1428,9 @@ export default function SectorReception({
                                                             </div>
 
                                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires' || svc.key === 'faultDiagnosis') && (
+                                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires') && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                                    {(svc.key === 'tires' || svc.key === 'faultDiagnosis' || svc.key === 'wipers') ? (
+                                                                    {(svc.key === 'tires' || svc.key === 'wipers') ? (
                                                                         <div className="flex flex-col gap-2 w-full">
                                                                             {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                                 const suf = k.replace('prod_', '');
