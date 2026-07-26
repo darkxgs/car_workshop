@@ -697,6 +697,7 @@ export default function CustomersPage() {
         setIsEditingInfo(false);
         setActiveProfileTab("summary");
         setProfileBranchFilter("");
+        setLoadedReports({}); // clear per-visit cache so freshly-saved inspections/edits show
         // Re-fetch ALL of this client's reports across EVERY branch → one unified profile,
         // regardless of any branch filter applied to the customer list.
         const { data } = await supabase
@@ -718,7 +719,8 @@ export default function CustomersPage() {
 
     const handleSelectVisitTab = async (reportId: string) => {
         setActiveProfileTab(reportId);
-        if (!loadedReports[reportId]) {
+        {
+            // Always refetch so a freshly-saved inspection/edit shows (no stale cache).
             setLoadingDetails(true);
             try {
                 const { data, error } = await supabase
