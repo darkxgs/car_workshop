@@ -160,7 +160,7 @@ function KpiCard({ title, value, unit, trend, isUp, icon, color }: { title: stri
             <div className="z-10 flex items-end justify-between">
                 <div>
                     <span className="text-3xl font-display font-black text-foreground">{value}</span>
-                    <span className="text-xs text-muted-foreground font-mono ml-2 mt-1 inline-block">{unit}</span>
+                    <span className="text-xs text-muted-foreground font-mono ms-2 mt-1 inline-block">{unit}</span>
                 </div>
                 <div className={`flex items-center gap-1 text-xs font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`} dir="ltr">
                     {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {trend}

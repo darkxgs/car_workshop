@@ -1936,7 +1936,7 @@ export default function StandardReception({
                         {/* Pricing */}
                         <div className="bg-rose-950/20 border border-rose-900/30 p-5 rounded-xl space-y-3">
                             <h3 className="text-sm font-bold text-rose-300 mb-3">الأسعار</h3>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label className="text-xs text-muted-foreground block mb-1">المجموع الكلي (د.ع)</label>
                                     <input type="text" inputMode="numeric" className="input-field bg-background text-lg font-bold" placeholder="0" value={withCommas(totalPrice)} onChange={e => setTotalPrice(digitsOnly(e.target.value))} disabled />
@@ -1954,10 +1954,10 @@ export default function StandardReception({
 
                         {/* Actions */}
                         <div className="flex flex-col md:flex-row gap-3 justify-center pt-2">
-                            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted transition-colors font-ibm">
+                            <button onClick={() => setStep(2)} className="px-6 py-3 rounded-xl bg-muted text-foreground font-bold hover:bg-muted/80 transition-colors font-ibm">
                                 رجوع للتعديل
                             </button>
-                            <button onClick={handleSaveOnly} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-bold hover:bg-slate-700 flex items-center justify-center gap-2 font-ibm">
+                            <button onClick={handleSaveOnly} disabled={loading} className="px-6 py-3 rounded-xl bg-muted border border-border text-muted-foreground font-bold hover:bg-muted/80 flex items-center justify-center gap-2 font-ibm">
                                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                                 حفظ فقط
                             </button>

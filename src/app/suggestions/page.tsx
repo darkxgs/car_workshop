@@ -664,7 +664,7 @@ export default function SuggestionsPage() {
                                                 value={newItemNames[cat.key] || ""}
                                                 onChange={e => setNewItemNames(prev => ({ ...prev, [cat.key]: e.target.value }))}
                                                 onKeyDown={e => { if (e.key === "Enter") handleAddItem(cat.key); }}
-                                                className={`flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:${cc.border} focus:outline-none transition-colors font-ibm`}
+                                                className={`flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:border-rose-500 focus:outline-none transition-colors font-ibm`}
                                             />
                                             <button
                                                 onClick={() => handleAddItem(cat.key)}

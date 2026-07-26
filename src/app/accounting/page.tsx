@@ -147,7 +147,7 @@ export default function AccountingPage() {
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="glass-card p-6 rounded-2xl border-emerald-900/40 border flex flex-col justify-between">
+                    <div className="glass-card p-6 rounded-2xl border border-border flex flex-col justify-between">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><TrendingUp size={20} /></div>
                             <p className="text-muted-foreground font-bold text-sm">إجمالي الإيرادات</p>
@@ -165,7 +165,7 @@ export default function AccountingPage() {
                         <p className="text-xs text-muted-foreground mt-2">تكاليف المخزون المؤرشفة</p>
                     </div>
 
-                    <div className="glass-card p-6 rounded-2xl border-blue-900/40 border flex flex-col justify-between">
+                    <div className="glass-card p-6 rounded-2xl border border-border flex flex-col justify-between">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center"><Activity size={20} /></div>
                             <p className="text-muted-foreground font-bold text-sm">صافي الخزينة (الربح)</p>
@@ -186,7 +186,7 @@ export default function AccountingPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Chart */}
-                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border-border">
+                    <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-border">
                         <h3 className="text-lg font-bold text-foreground mb-6">التدفق المالي (أشهر)</h3>
                         <div className="h-[300px] w-full" dir="ltr">
                             {chartData.length > 0 ? (
@@ -208,15 +208,15 @@ export default function AccountingPage() {
                     </div>
 
                     {/* Latest Transactions */}
-                    <div className="glass-card p-6 rounded-2xl border-border flex flex-col h-full max-h-[400px]">
+                    <div className="glass-card p-6 rounded-2xl border border-border flex flex-col h-full max-h-[400px]">
                         <h3 className="text-lg font-bold text-foreground mb-4 border-b border-border pb-4">أحدث الحركات</h3>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pe-2 space-y-3">
                             {loading ? (
                                 <p className="text-muted-foreground text-center">جاري التحميل...</p>
                             ) : transactions.length === 0 ? (
                                 <p className="text-muted-foreground text-center">لا توجد حركات مسجلة</p>
                             ) : transactions.slice(0, 15).map((t, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-xl border border-slate-800/60 hover:border-slate-700 transition-colors">
+                                <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-xl border border-border hover:border-muted-foreground/40 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className={`p-2 rounded-lg ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                                             {t.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}

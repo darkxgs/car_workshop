@@ -327,7 +327,7 @@ export default function ReportsPage() {
                             <button
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
                                 disabled={page === 1 || loading}
-                                className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded hover:bg-muted hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold"
+                                className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded-lg hover:bg-muted hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold"
                             >
                                 السابق
                             </button>
@@ -337,7 +337,7 @@ export default function ReportsPage() {
                             <button
                                 onClick={() => setPage(p => p + 1)}
                                 disabled={page >= totalPages || loading}
-                                className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded hover:bg-muted hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold"
+                                className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded-lg hover:bg-muted hover:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-bold"
                             >
                                 التالي
                             </button>
@@ -346,7 +346,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* A4 Print Preview container*/}
-                <div className="xl:col-span-8 overflow-x-auto bg-background p-4 md:p-8 rounded-3xl border border-rose-900/20 shadow-inner">
+                <div className="xl:col-span-8 overflow-x-auto bg-background p-4 md:p-8 rounded-2xl border border-border shadow-inner">
                     {!selectedReport ? (
                         <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-muted-foreground relative">
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-rose-500/5 blur-[100px] rounded-full pointer-events-none" />
