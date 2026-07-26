@@ -16,23 +16,23 @@ export const ComprehensiveInspectionReport = forwardRef<HTMLDivElement, { report
     const tech = payload?.technicianName || (Array.isArray(payload?.technicians) ? payload.technicians.map((t: any) => t?.name).filter(Boolean).join("، ") : "");
 
     const Box = ({ on }: { on?: boolean }) => (
-        <span style={{ display: "inline-block", width: 13, height: 13, border: "1.3px solid #555", borderRadius: 3, background: on ? RED : "#fff", position: "relative", verticalAlign: "middle" }}>
-            {on ? <span style={{ position: "absolute", top: -3, left: 1, color: "#fff", fontSize: 12, fontWeight: 900 }}>✓</span> : null}
+        <span style={{ display: "inline-block", width: 11, height: 11, border: "1.3px solid #555", borderRadius: 2, background: on ? RED : "#fff", position: "relative", verticalAlign: "middle" }}>
+            {on ? <span style={{ position: "absolute", top: -4, left: 0, color: "#fff", fontSize: 11, fontWeight: 900 }}>✓</span> : null}
         </span>
     );
 
     const InfoCell = ({ label, value }: { label: string; value?: string }) => (
-        <td style={{ padding: "6px 10px", borderBottom: "1px solid #eee", verticalAlign: "top" }}>
-            <div style={{ color: RED, fontWeight: 800, fontSize: 12, marginBottom: 4 }}>{label}</div>
-            <div style={{ fontWeight: 700, fontSize: 13, minHeight: 16, borderBottom: "1px dotted #bbb" }}>{value || ""}</div>
+        <td style={{ padding: "3px 8px", borderBottom: "1px solid #eee", verticalAlign: "top" }}>
+            <div style={{ color: RED, fontWeight: 800, fontSize: 11, marginBottom: 2 }}>{label}</div>
+            <div style={{ fontWeight: 700, fontSize: 12, minHeight: 14, borderBottom: "1px dotted #bbb" }}>{value || ""}</div>
         </td>
     );
 
-    const Section = ({ title, icon, items }: { title: string; icon: string; items: { key: string; label: string }[] }) => (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, tableLayout: "fixed" }}>
+    const Section = ({ num, title, items }: { num: number; title: string; items: { key: string; label: string }[] }) => (
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 5, tableLayout: "fixed" }}>
             <thead>
                 <tr>
-                    <td colSpan={5} style={{ background: "#fbeaea", color: RED, fontWeight: 800, fontSize: 13, padding: "6px 10px", borderRight: `3px solid ${RED}` }}>{icon} {title}</td>
+                    <td colSpan={5} style={{ background: "#fbeaea", color: RED, fontWeight: 800, fontSize: 12, padding: "4px 8px", borderRight: `3px solid ${RED}` }}>{num}- {title}</td>
                 </tr>
                 <tr style={{ background: "#faf5f5" }}>
                     <th style={{ ...th, width: "34%", textAlign: "right" }}>اسم القطعة</th>
@@ -61,7 +61,7 @@ export const ComprehensiveInspectionReport = forwardRef<HTMLDivElement, { report
     );
 
     const Header = () => (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `2px solid ${RED}`, paddingBottom: 8, marginBottom: 6 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `2px solid ${RED}`, paddingBottom: 5, marginBottom: 4 }}>
             <div style={{ fontSize: 11, color: "#444" }}>
                 <div>رقم التقرير: <strong>{report?.report_number ?? "________"}</strong></div>
                 <div>التاريخ: <strong>{dateStr || "____ / ____ / 202__"}</strong></div>
@@ -98,14 +98,14 @@ export const ComprehensiveInspectionReport = forwardRef<HTMLDivElement, { report
                         </tr>
                     </tbody>
                 </table>
-                {first.map((s) => <Section key={s.key} title={s.title} icon={s.icon} items={s.items} />)}
+                {first.map((s, i) => <Section key={s.key} num={i + 1} title={s.title} items={s.items} />)}
                 <div style={{ textAlign: "center", color: "#999", fontSize: 10, marginTop: 10 }}>الصفحة 1 من 2 - هندسة السيارات</div>
             </div>
 
             {/* Page 2 */}
             <div style={{ ...page, pageBreakBefore: "always" }}>
                 <Header />
-                {second.map((s) => <Section key={s.key} title={s.title} icon={s.icon} items={s.items} />)}
+                {second.map((s, i) => <Section key={s.key} num={i + 5} title={s.title} items={s.items} />)}
 
                 <div style={{ display: "flex", gap: 14, marginTop: 14 }}>
                     <div style={{ border: `2px solid ${RED}`, borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 210 }}>
@@ -137,8 +137,8 @@ export const ComprehensiveInspectionReport = forwardRef<HTMLDivElement, { report
 });
 ComprehensiveInspectionReport.displayName = "ComprehensiveInspectionReport";
 
-const page: React.CSSProperties = { width: "210mm", minHeight: "297mm", padding: "12mm 10mm", boxSizing: "border-box" };
-const th: React.CSSProperties = { padding: "5px 8px", fontSize: 12, fontWeight: 800, color: "#444", textAlign: "center", borderBottom: "1px solid #eee" };
-const td: React.CSSProperties = { padding: "5px 8px", fontSize: 12 };
+const page: React.CSSProperties = { width: "210mm", minHeight: "297mm", padding: "8mm 9mm", boxSizing: "border-box" };
+const th: React.CSSProperties = { padding: "2px 6px", fontSize: 11, fontWeight: 800, color: "#444", textAlign: "center", borderBottom: "1px solid #eee" };
+const td: React.CSSProperties = { padding: "2px 6px", fontSize: 11 };
 
 export default ComprehensiveInspectionReport;
