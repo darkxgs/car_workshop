@@ -3,7 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X, RefreshCcw } from "lucide-react";
+import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X, RefreshCcw, Droplet } from "lucide-react";
+
+// حالة المحرك عند الاستلام — لون المحرك من الداخل قبل تبديل الزيت (يُسجَّل مرة واحدة لكل مركبة)
+const ENGINE_COLORS = ["نظيف", "نصف نظيف", "أسود"];
 import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
@@ -135,7 +138,13 @@ export default function WorkOrderDetailPage() {
     const [showInspection, setShowInspection] = useState(false);
     const [inspection, setInspection] = useState(emptyInspection());
     const [savingInspection, setSavingInspection] = useState(false);
-    
+    // حالة المحرك عند الاستلام — لون المحرك قبل تبديل الزيت. يُسجَّل مرة واحدة لكل مركبة؛
+    // بعد أول تسجيل يظهر للقراءة فقط ولا يُطلب من الزبون مجدداً.
+    const [engineColor, setEngineColor] = useState("");
+    const [existingEngineColor, setExistingEngineColor] = useState<string | null>(null);
+    const [savingEngineColor, setSavingEngineColor] = useState(false);
+    const engineColorLoadedRef = useRef(false);
+
     // Diagnostic Modal States
     const [isDiagnosing, setIsDiagnosing] = useState(false);
     const [diagName, setDiagName] = useState("");
@@ -245,10 +254,30 @@ export default function WorkOrderDetailPage() {
         return () => { supabase.removeChannel(channel); };
     }, [id, authLoading]);
 
+    // Load the engine color already recorded for THIS vehicle (across all its visits), once.
+    // If it exists, the section shows read-only so the customer isn't asked to record it again.
+    useEffect(() => {
+        const vid = (order as any)?.vehicle_id;
+        if (!vid || engineColorLoadedRef.current) return;
+        engineColorLoadedRef.current = true;
+        (async () => {
+            const { data } = await supabase
+                .from('inspection_reports')
+                .select('selected_services')
+                .eq('vehicle_id', vid);
+            let found: string | null = null;
+            (data || []).forEach((r: any) => {
+                const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                if (!found && pay?.engineColorOnReceipt) found = pay.engineColorOnReceipt;
+            });
+            if (found) { setExistingEngineColor(found); setEngineColor(found); }
+        })();
+    }, [order]);
+
     const fetchOrder = async () => {
         const { data } = await supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, order_type, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, odometer_unit, technician_rating, technician_rating_notes, total_price, bay_number, notes, selected_services, branch_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
+            .select(`id, report_number, status, order_type, estimated_duration, elapsed_time, start_time, completed_at, is_delayed, odometer_reading, odometer_unit, technician_rating, technician_rating_notes, total_price, bay_number, notes, selected_services, branch_id, vehicle_id, branches(id, name), vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)), receptionist:receptionist_id(name)`)
             .eq('id', id)
             .single();
 
@@ -632,6 +661,26 @@ export default function WorkOrderDetailPage() {
             showError("خطأ", e.message || "تعذّر حفظ الفحص الشامل.");
         } finally {
             setSavingInspection(false);
+        }
+    };
+
+    // Record the engine color ONCE for this vehicle. Stored in the current report payload;
+    // future visits detect it (via the effect above) and show it read-only.
+    const handleSaveEngineColor = async () => {
+        if (!order || !engineColor || existingEngineColor) return;
+        setSavingEngineColor(true);
+        try {
+            const updatedServices = Array.isArray(order.selected_services) ? [...order.selected_services] : [order.selected_services];
+            updatedServices[0] = { ...(updatedServices[0] || {}), engineColorOnReceipt: engineColor };
+            const { error } = await supabase.from('inspection_reports').update({ selected_services: updatedServices }).eq('id', id);
+            if (error) throw error;
+            setExistingEngineColor(engineColor);
+            showSuccess("تم الحفظ", "تم تسجيل لون المحرك عند الاستلام.");
+            fetchOrder();
+        } catch (e: any) {
+            showError("خطأ", e.message || "تعذّر حفظ لون المحرك.");
+        } finally {
+            setSavingEngineColor(false);
         }
     };
 
@@ -1594,6 +1643,35 @@ export default function WorkOrderDetailPage() {
                                 <p className="text-muted-foreground text-sm">التشخيص لم يبدأ أو لم يتم تسجيل ملاحظات العطل.</p>
                             )}
                         </div>
+                    </div>
+
+                    {/* حالة المحرك عند الاستلام — لون المحرك قبل تبديل الزيت (مرة واحدة لكل مركبة) */}
+                    <div>
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-4 pb-3 border-b border-amber-500/10">
+                            <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Droplet className="text-amber-500" size={20}/> حالة المحرك عند الاستلام</h2>
+                            {existingEngineColor && (
+                                <span className="text-[11px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">مسجّل مسبقاً — مرة واحدة لكل مركبة</span>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">لون المحرك من الداخل قبل تبديل الزيت:</p>
+                        <div className="flex flex-wrap gap-3">
+                            {ENGINE_COLORS.map(c => {
+                                const selected = (existingEngineColor || engineColor) === c;
+                                const locked = !!existingEngineColor;
+                                return (
+                                    <button key={c} type="button" disabled={locked}
+                                        onClick={() => !locked && setEngineColor(c)}
+                                        className={`px-6 py-2.5 rounded-xl border font-bold text-sm transition-colors ${selected ? 'bg-amber-500 text-white border-amber-500' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'} ${locked ? 'cursor-default' : ''}`}>
+                                        {c}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {!existingEngineColor && (
+                            <button onClick={handleSaveEngineColor} disabled={savingEngineColor || !engineColor} className="mt-4 w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60">
+                                {savingEngineColor ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle2 size={18}/>} حفظ لون المحرك
+                            </button>
+                        )}
                     </div>
 
                     {/* الفحص الشامل — full inspection checklist, opened on the floor */}
