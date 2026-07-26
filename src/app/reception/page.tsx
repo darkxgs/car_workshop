@@ -97,7 +97,12 @@ function ReceptionContainer() {
                 if (data.length === 1 || employeeBranchId) {
                     setSelectedBranchId(employeeBranchId || data[0].id);
                 } else if (data.length > 0 && !selectedBranchId) {
-                    setSelectedBranchId(data[0].id);
+                    // Owner/Admin (not pinned): restore the branch they last chose here so it
+                    // survives navigation/reload, instead of silently defaulting to the first branch.
+                    let restored: string | null = null;
+                    try { restored = localStorage.getItem("receptionBranchId"); } catch {}
+                    const valid = restored && data.some(b => b.id === restored) ? restored : data[0].id;
+                    setSelectedBranchId(valid);
                 }
             }
         });
@@ -318,7 +323,11 @@ function ReceptionContainer() {
                         {branches.length > 1 && (employeeRole === 'Owner' || employeeRole === 'Admin') && (
                             <select
                                 value={selectedBranchId}
-                                onChange={e => { setSelectedBranchId(e.target.value); setPage(1); }}
+                                onChange={e => {
+                                    setSelectedBranchId(e.target.value);
+                                    try { localStorage.setItem("receptionBranchId", e.target.value); } catch {}
+                                    setPage(1);
+                                }}
                                 className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
                             >
                                 {branches.map(b => (
