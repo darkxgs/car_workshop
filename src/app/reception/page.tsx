@@ -15,6 +15,10 @@ import SectorReception from "./components/SectorReception";
 import SaleForm from "./components/SaleForm";
 import InspectionForm from "./components/InspectionForm";
 
+const ORDER_SELECT = `id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`;
+// Inner-join variant so filters on the embedded vehicle/client actually narrow the rows.
+const ORDER_SELECT_INNER = `id, report_number, status, order_type, created_at, total_price, selected_services, vehicles!inner (make, model, plate_number, clients!inner (name, phone))`;
+
 const isAccounted = (o: any) => {
     if (o.order_type === 'sale') return true;
     const p = (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services)?.pricing;
@@ -47,17 +51,12 @@ function ReceptionContainer() {
     const [previewReport, setPreviewReport] = useState<any>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
 
-    // ---------- Search (filters the loaded reception list) ----------
+    // ---------- Search (server-side: matches ANY order in the whole DB, not just the loaded page) ----------
     const [searchTerm, setSearchTerm] = useState("");
-    const searchQ = searchTerm.trim().toLowerCase();
-    const filteredOrders = !searchQ ? orders : orders.filter((o: any) => {
-        const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
-        const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
-        const sp = o.order_type === 'sale' ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
-        return [String(o.report_number), client?.name, client?.phone, vehicle?.make, vehicle?.model, vehicle?.plate_number, sp?.customerName, sp?.customerPhone]
-            .filter(Boolean)
-            .some((v: any) => String(v).toLowerCase().includes(searchQ));
-    });
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searching, setSearching] = useState(false);
+    const isSearching = searchTerm.trim().length > 0;
+    const filteredOrders = isSearching ? searchResults : orders;
 
     useEffect(() => {
         if (editId) {
@@ -158,6 +157,47 @@ function ReceptionContainer() {
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [employeeBranchId, selectedBranchId]);
+
+    // Server-side search (debounced): an order number / name / phone / plate now matches even if
+    // it lives on an older, not-yet-loaded page — no need to press "تحميل المزيد" first.
+    useEffect(() => {
+        const term = searchTerm.trim();
+        if (!term) { setSearchResults([]); setSearching(false); return; }
+        setSearching(true);
+        const handle = setTimeout(async () => {
+            const branchId = selectedBranchId || employeeBranchId || null;
+            const applyBranch = (q: any) => branchId ? q.eq('branch_id', branchId) : q;
+            const digits = term.replace(/\D/g, "");
+            const like = `%${term}%`;
+            const runs: Promise<any[]>[] = [];
+            // 1) exact order number — the main case
+            if (/^\d+$/.test(term)) {
+                runs.push(applyBranch(
+                    supabase.from('inspection_reports').select(ORDER_SELECT).eq('report_number', parseInt(term, 10)).limit(50)
+                ).then((r: any) => r.data || []).catch(() => []));
+            }
+            // 2) customer name / phone
+            runs.push(applyBranch(
+                supabase.from('inspection_reports').select(ORDER_SELECT_INNER)
+                    .or(`name.ilike.${like}${digits ? `,phone.ilike.%${digits}%` : ""}`, { referencedTable: 'vehicles.clients' })
+                    .order('created_at', { ascending: false }).limit(50)
+            ).then((r: any) => r.data || []).catch(() => []));
+            // 3) vehicle plate / make / model
+            runs.push(applyBranch(
+                supabase.from('inspection_reports').select(ORDER_SELECT_INNER)
+                    .or(`plate_number.ilike.${like},make.ilike.${like},model.ilike.${like}`, { referencedTable: 'vehicles' })
+                    .order('created_at', { ascending: false }).limit(50)
+            ).then((r: any) => r.data || []).catch(() => []));
+            const lists = await Promise.all(runs);
+            const seen = new Set<string>();
+            const merged: any[] = [];
+            lists.flat().forEach((o: any) => { if (o && !seen.has(o.id)) { seen.add(o.id); merged.push(o); } });
+            merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setSearchResults(merged);
+            setSearching(false);
+        }, 300);
+        return () => clearTimeout(handle);
+    }, [searchTerm, selectedBranchId, employeeBranchId]);
 
     // Fetch preview details
     useEffect(() => {
@@ -369,14 +409,14 @@ function ReceptionContainer() {
                         />
                     </div>
 
-                    {loading ? (
+                    {(loading && !isSearching) || (isSearching && searching) ? (
                         <div className="p-20 text-center">
                             <Loader2 className="animate-spin text-rose-500 w-10 h-10 mx-auto" />
                         </div>
                     ) : filteredOrders.length === 0 ? (
                         <div className="p-20 text-center text-muted-foreground space-y-4">
                             <Car size={48} className="mx-auto text-muted-foreground/50" />
-                            <p>{orders.length === 0 ? "لا توجد أوامر عمل مسجلة حالياً." : "لا توجد نتائج مطابقة للبحث."}</p>
+                            <p>{isSearching ? "لا توجد نتائج مطابقة للبحث." : "لا توجد أوامر عمل مسجلة حالياً."}</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -493,8 +533,8 @@ function ReceptionContainer() {
                         </div>
                     )}
                     
-                    {/* Load More Button */}
-                    {!loading && orders.length > 0 && hasMore && (
+                    {/* Load More Button (browse only — search already spans the whole database) */}
+                    {!loading && !isSearching && orders.length > 0 && hasMore && (
                         <div className="p-6 text-center border-t border-border/50">
                             <button
                                 onClick={() => setPage(p => p + 1)}
