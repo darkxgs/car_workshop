@@ -307,7 +307,7 @@ export default function PayrollPage() {
                                 <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
                                     <Save size={18} /> حفظ المعادلة برصيد الشهر
                                 </button>
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-muted hover:bg-slate-300 dark:hover:bg-slate-700 border border-border text-foreground py-3 rounded-xl font-bold transition-colors">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-muted hover:bg-muted/70 border border-border text-foreground py-3 rounded-xl font-bold transition-colors">
                                     تجاهل
                                 </button>
                             </div>

@@ -230,7 +230,7 @@ export default function DocumentsPage() {
 
                         <div className="p-6 flex-1 bg-background/30">
                             {loading ? (
-                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">جاري מסح المجلدات...</div>
+                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">جاري مسح المجلدات...</div>
                             ) : filtered.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                                     <File size={48} className="opacity-20 mb-4 text-purple-500" />

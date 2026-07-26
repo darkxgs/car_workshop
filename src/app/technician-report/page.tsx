@@ -308,11 +308,11 @@ export default function TechnicianReportPage() {
     };
 
     if (authLoading) {
-        return <div className="min-h-screen bg-[#08080d] flex items-center justify-center"><Loader2 className="animate-spin text-rose-500 w-12 h-12" /></div>;
+        return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-rose-500 w-12 h-12" /></div>;
     }
     if (!isAuthorized) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
                     <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
                     <p className="text-muted-foreground">ليس لديك صلاحية لعرض تقارير الفنيين.</p>

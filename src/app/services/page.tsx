@@ -410,7 +410,7 @@ export default function ServicesPage() {
                                 {/* Accordion Header */}
                                 <div 
                                     onClick={() => toggleAccordion(category.id)}
-                                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors select-none"
+                                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors select-none"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`p-1.5 rounded-lg transition-colors ${isExpanded ? 'bg-rose-500/20 text-rose-400' : 'bg-muted border border-border text-muted-foreground'}`}>
@@ -615,7 +615,7 @@ export default function ServicesPage() {
                             <input 
                                 type="text"
                                 placeholder="بحث بالاسم أو كود القطعة..."
-                                className="input-field w-full placeholder:text-slate-500"
+                                className="input-field w-full placeholder:text-muted-foreground"
                                 value={partSearch}
                                 onChange={(e) => setPartSearch(e.target.value)}
                             />

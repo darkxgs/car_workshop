@@ -83,10 +83,10 @@ export default function AlertsPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={markAllRead} className="px-4 py-2 bg-muted hover:bg-muted text-muted-foreground font-bold rounded-xl transition-colors border border-border flex items-center gap-2 text-sm">
+                        <button onClick={markAllRead} className="px-4 py-2 bg-muted hover:bg-muted/70 text-muted-foreground font-bold rounded-xl transition-colors border border-border flex items-center gap-2 text-sm">
                             <CheckCircle size={16} /> تحديد الكل كمقروء
                         </button>
-                        <button onClick={generateAlerts} className="px-3 py-2 bg-muted hover:bg-muted text-foreground rounded-xl transition-colors">
+                        <button onClick={generateAlerts} className="px-3 py-2 bg-muted hover:bg-muted/70 text-foreground rounded-xl transition-colors">
                             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
                         </button>
                     </div>
@@ -106,7 +106,7 @@ export default function AlertsPage() {
                             <span className="text-xs">نظام الورشة يعمل باستقرار وكل شيء على ما يرام.</span>
                         </div>
                     ) : (
-                        <div className="divide-y divide-slate-800/50">
+                        <div className="divide-y divide-border">
                             {alerts.map((alert) => (
                                 <div key={alert.id} className={`p-5 flex gap-4 transition-colors ${alert.read ? 'opacity-60 bg-transparent' : 'bg-muted'}`}>
                                     <div className="shrink-0 pt-1">
@@ -122,7 +122,7 @@ export default function AlertsPage() {
                                         <div className="flex justify-between items-start mb-1">
                                             <h4 className={`font-bold ${alert.read ? 'text-muted-foreground' : 'text-foreground'}`}>
                                                 {alert.title}
-                                                {!alert.read && <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
+                                                {!alert.read && <span className="ms-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
                                             </h4>
                                             <span className="text-xs text-muted-foreground font-mono" dir="ltr">{new Date(alert.time).toLocaleTimeString()}</span>
                                         </div>
