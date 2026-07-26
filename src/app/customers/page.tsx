@@ -97,12 +97,17 @@ export default function CustomersPage() {
     }, [branchFilter, dateFrom, dateTo]);
 
     useEffect(() => {
+        // Throttle realtime refreshes: the customer list is heavy (25 clients + all their
+        // reports/payloads), so refetching on EVERY order change across the workshop caused
+        // a refetch storm and slowness. Collapse bursts into one refetch every 30s.
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('customers_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                setRefreshTrigger(t => t + 1);
+                if (timer) return;
+                timer = setTimeout(() => { timer = null; setRefreshTrigger(t => t + 1); }, 30000);
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
     }, []);
 
     useEffect(() => {
