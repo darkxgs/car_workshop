@@ -181,6 +181,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
         { key: 'wipers', label: 'مساحات زجاج', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'العدد' }] },
         { key: 'windshieldFluid', label: 'سائل غسيل جام', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
         { key: 'tires', label: 'الإطارات', fields: [] },
+        { key: 'faultDiagnosis', label: 'تشخيص الأعطال', fields: [] },
     ];
 
     let SERVICES = isSectorBranch ? flatSectorServices : [
@@ -438,7 +439,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                         <StatusBadge status={(s as any)[svc.key]?.status} />
                                     </td>
                                     <td style={{ padding: rowPadding, verticalAlign: 'middle', overflow: 'hidden' }}>
-                                        {(svc.key === 'additives' || svc.key === 'tires') ? (
+                                        {(svc.key === 'additives' || svc.key === 'tires' || svc.key === 'faultDiagnosis') ? (
                                             <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11px' }}>
                                                 {/* ↑ was 10px → 11px */}
                                                 {Object.keys((s as any)[svc.key]?.details || {}).filter(k => k.startsWith('prod_')).map((k) => {
@@ -449,8 +450,8 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                                                     return (
                                                         <span key={k} style={{ whiteSpace: 'nowrap', fontSize: '11px' }}>
                                                             <Val v={det[k]} w={60} />
-                                                            {svc.key === 'tires' && qty ? <span> × {qty}</span> : null}
-                                                            {svc.key === 'tires' && note ? <span style={{ color: '#b45309' }}> ({note})</span> : null}
+                                                            {(svc.key === 'tires' || svc.key === 'faultDiagnosis') && qty ? <span> × {qty}</span> : null}
+                                                            {(svc.key === 'tires' || svc.key === 'faultDiagnosis') && note ? <span style={{ color: '#b45309' }}> ({note})</span> : null}
                                                         </span>
                                                     );
                                                 })}

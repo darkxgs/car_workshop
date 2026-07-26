@@ -23,7 +23,7 @@ const SERVICE_LABELS: Record<string, string> = {
     fuelSystemCleaner: 'منظف نظام وقود', octaneBooster: 'محسن أوكتان',
     additives: 'معالجات ومحسنات', cleaners: 'منظفات وأساسيات',
     transOil: 'زيت ناقل الحركة', differentialOil: 'زيت الدبل / البكك',
-    maintenanceUnits: 'وحدات الصيانة', tires: 'الإطارات',
+    maintenanceUnits: 'وحدات الصيانة', tires: 'الإطارات', faultDiagnosis: 'تشخيص الأعطال',
 };
 
 /** Normalize an Iraqi phone number to international digits: 9647XXXXXXXXX. */
@@ -51,7 +51,7 @@ function servicesOf(order: any): string {
     const performed: string[] = [];
     for (const [k, v] of Object.entries(services as Record<string, any>)) {
         if (!v || v.status !== "يحتاج تغيير") continue;
-        if (k === "additives" || k === "cleaners" || k === "wipers" || k === "tires") {
+        if (k === "additives" || k === "cleaners" || k === "wipers" || k === "tires" || k === "faultDiagnosis") {
             const det = v.details || {};
             const prods = Object.keys(det)
                 .filter(dk => dk.startsWith("prod_") && det[dk])
@@ -94,7 +94,7 @@ function serviceDetailsOf(order: any): { name: string; details: string; price: n
     for (const [k, v] of Object.entries(services as Record<string, any>)) {
         if (!v || v.status !== "يحتاج تغيير") continue;
         const det = v.details || {};
-        if (k === "additives" || k === "cleaners" || k === "wipers" || k === "tires") {
+        if (k === "additives" || k === "cleaners" || k === "wipers" || k === "tires" || k === "faultDiagnosis") {
             // Multi-product services: each product with its qty, unit price and notes.
             Object.keys(det).filter(dk => dk.startsWith("prod_") && det[dk]).forEach(dk => {
                 const suf = dk.replace("prod_", "");

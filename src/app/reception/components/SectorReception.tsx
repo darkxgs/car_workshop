@@ -183,6 +183,13 @@ const SECTOR_BRANCH_SERVICES = [
             // Multi-product like additives: each tire = name + qty + note + unit price, "+" to add more.
             { key: "tires", label: "إطارات", guide: "بيع / تركيب", detailFields: [] },
         ]
+    },
+    {
+        section: "تشخيص الأعطال",
+        items: [
+            // Multi-product: each line = اسم المادة + العدد + ملاحظات + سعر الوحدة, "+" to add more.
+            { key: "faultDiagnosis", label: "تشخيص الأعطال", guide: "المواد والأجور المستخدمة", detailFields: [] },
+        ]
     }
 ];
 
@@ -724,7 +731,7 @@ export default function SectorReception({
             }
 
             // Recalculate totals for services with subtotal calculations
-            if (key === 'additives' || key === 'cleaners' || key === 'wipers' || key === 'tires') {
+            if (key === 'additives' || key === 'cleaners' || key === 'wipers' || key === 'tires' || key === 'faultDiagnosis') {
                 const sum = sumMultiProduct(newDet);
                 newPrice = sum > 0 ? String(sum) : '';
             } else {
@@ -1404,16 +1411,16 @@ export default function SectorReception({
                                                             </div>
 
                                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
-                                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires') && (
+                                                            {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires' || svc.key === 'faultDiagnosis') && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                                    {svc.key === 'tires' ? (
+                                                                    {(svc.key === 'tires' || svc.key === 'faultDiagnosis') ? (
                                                                         <div className="flex flex-col gap-2 w-full">
                                                                             {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                                 const suf = k.replace('prod_', '');
                                                                                 const priceKey = `price_${suf}`, qtyKey = `qty_${suf}`, noteKey = `notes_${suf}`;
                                                                                 return (
                                                                                     <div key={k} className="flex flex-wrap items-center gap-2">
-                                                                                        <input type="text" placeholder={`اسم الإطار ${i + 1}`} className="input-field text-xs py-1.5 flex-1 min-w-[140px]" value={entry.details[k] || ""} onChange={e => setServiceDetail(svc.key, k, e.target.value)} />
+                                                                                        <input type="text" placeholder={`${svc.key === 'tires' ? 'اسم الإطار' : 'اسم المادة'} ${i + 1}`} className="input-field text-xs py-1.5 flex-1 min-w-[140px]" value={entry.details[k] || ""} onChange={e => setServiceDetail(svc.key, k, e.target.value)} />
                                                                                         <input type="text" inputMode="numeric" placeholder="العدد" dir="ltr" className="input-field text-xs py-1.5 w-14 text-center" value={entry.details[qtyKey] || ""} onChange={e => setServiceDetail(svc.key, qtyKey, digitsOnly(e.target.value))} />
                                                                                         <input type="text" inputMode="numeric" placeholder="سعر الوحدة" dir="ltr" className="input-field text-xs py-1.5 w-24 text-left" value={withCommas(entry.details[priceKey] || "")} onChange={e => setServiceDetail(svc.key, priceKey, digitsOnly(e.target.value))} />
                                                                                         <input type="text" placeholder="ملاحظة" className="input-field text-xs py-1.5 w-28" value={entry.details[noteKey] || ""} onChange={e => setServiceDetail(svc.key, noteKey, e.target.value)} />
@@ -1423,7 +1430,7 @@ export default function SectorReception({
                                                                                     </div>
                                                                                 );
                                                                             })}
-                                                                            <button type="button" onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')} className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3">+ إطار آخر</button>
+                                                                            <button type="button" onClick={() => setServiceDetail(svc.key, `prod_${Date.now()}`, '')} className="text-xs text-rose-500 font-bold border border-rose-500/30 rounded-lg py-1.5 hover:bg-rose-500/10 transition-colors w-max px-3">+ إضافة أخرى</button>
                                                                         </div>
                                                                     ) : [...svc.detailFields, ...priceFields(svc)].map(df => {
                                                                         const resolvedListId = df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
