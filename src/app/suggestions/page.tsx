@@ -462,27 +462,12 @@ export default function SuggestionsPage() {
                 return;
             }
 
-            const exportData: any[][] = [];
-            // Create 8 empty rows to match the required template format
-            for (let i = 0; i < 8; i++) exportData.push([]);
-            
-            // Row 9 is headers
-            const headerRow: any[] = [];
-            headerRow[4] = "العدد";
-            headerRow[8] = "المادة";
-            headerRow[13] = "تـ";
-            exportData.push(headerRow);
-
-            // Add data rows
-            currentList.forEach((item, idx) => {
-                const row: any[] = [];
-                row[4] = "1";
-                row[8] = item.name;
-                row[13] = String(idx + 1);
-                exportData.push(row);
-            });
+            // Clean 2-column export: المادة + السعر (no العدد / تسلسل).
+            const exportData: any[][] = [["المادة", "السعر"]];
+            currentList.forEach(item => exportData.push([item.name, item.price || ""]));
 
             const ws = XLSX.utils.aoa_to_sheet(exportData);
+            ws["!cols"] = [{ wch: 32 }, { wch: 14 }];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "الاقتراحات");
             XLSX.writeFile(wb, `تصدير_${categoryLabel.replace(/\s+/g, '_')}.xlsx`);
@@ -492,6 +477,19 @@ export default function SuggestionsPage() {
             console.error("Excel export error:", err);
             showError("حدث خطأ أثناء تصدير الملف.");
         }
+    };
+
+    // Downloadable import template — exactly the two columns the import reads.
+    const handleDownloadTemplate = () => {
+        const ws = XLSX.utils.aoa_to_sheet([
+            ["المادة", "السعر"],
+            ["مثال: زيت شل 5W30", "15000"],
+            ["مثال: فلتر زيت WOLF", "5000"],
+        ]);
+        ws["!cols"] = [{ wch: 32 }, { wch: 14 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "قالب الاستيراد");
+        XLSX.writeFile(wb, "قالب_استيراد_الاقتراحات.xlsx");
     };
 
     const totalItems = useMemo(() => {
@@ -690,6 +688,12 @@ export default function SuggestionsPage() {
                                                         className={`px-4 py-2.5 bg-blue-500/10 border-blue-500/30 border text-blue-500 font-bold text-sm rounded-xl hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}
                                                     >
                                                         <FileSpreadsheet size={16} /> تصدير
+                                                    </button>
+                                                    <button
+                                                        onClick={handleDownloadTemplate}
+                                                        className={`px-4 py-2.5 bg-amber-500/10 border-amber-500/30 border text-amber-500 font-bold text-sm rounded-xl hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap`}
+                                                    >
+                                                        <FileSpreadsheet size={16} /> قالب
                                                     </button>
                                                 </div>
                                             )}
