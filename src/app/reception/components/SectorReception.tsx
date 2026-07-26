@@ -1437,7 +1437,7 @@ export default function SectorReception({
                                                             {/* Expandable detail fields when يحتاج تغيير is selected */}
                                                             {entry.status === "يحتاج تغيير" && (svc.detailFields.length > 0 || svc.key === 'tires' || svc.key === 'faultDiagnosis') && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
-                                                                    {(svc.key === 'tires' || svc.key === 'faultDiagnosis') ? (
+                                                                    {(svc.key === 'tires' || svc.key === 'faultDiagnosis' || svc.key === 'wipers') ? (
                                                                         <div className="flex flex-col gap-2 w-full">
                                                                             {(Object.keys(entry.details).filter(k => k.startsWith('prod_')).length === 0 ? ['prod_1'] : Object.keys(entry.details).filter(k => k.startsWith('prod_'))).map((k, i) => {
                                                                                 const suf = k.replace('prod_', '');
