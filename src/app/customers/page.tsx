@@ -11,6 +11,7 @@ import {
     CheckCircle2, ShieldCheck, Droplets, Gauge, RefreshCcw
 } from "lucide-react";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
+import { INSPECTION_SECTIONS } from "@/lib/comprehensiveInspection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
@@ -1273,7 +1274,7 @@ export default function CustomersPage() {
                                                             <button onClick={() => router.push(`/reception?inspection=${v.id}`)}
                                                                 className="shrink-0 px-3 py-2 bg-blue-600/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
                                                                 title="فحص شامل جديد لهذه السيارة">
-                                                                <FileText size={14}/> فحص شامل
+                                                                <FileText size={14}/> فحص شامل جديد
                                                             </button>
                                                         </div>
                                                     ))}
@@ -1529,6 +1530,50 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     <span className="text-xs font-bold text-foreground mt-1">{report.branches?.name || "فرع رئيسي"}</span>
                 </div>
             </div>
+
+            {/* Comprehensive inspection RESULT (shown in the customer file) */}
+            {isComprehensiveInspection && inspPayload?.comprehensiveInspection && (() => {
+                const ci = inspPayload.comprehensiveInspection;
+                const badge = (s: string) => s === "سليم" ? "bg-emerald-500/15 text-emerald-400" : s === "صيانة" ? "bg-amber-500/15 text-amber-400" : s === "تالف" ? "bg-rose-500/15 text-rose-400" : "bg-muted text-muted-foreground";
+                return (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <h5 className="text-sm font-bold text-blue-400 flex items-center gap-2"><FileText size={15} /> نتيجة الفحص الشامل</h5>
+                            {ci.rating && <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${badge(ci.rating)}`}>التقييم: {ci.rating}{ci.percentage ? ` (${ci.percentage}%)` : ""}</span>}
+                        </div>
+                        {INSPECTION_SECTIONS.map((sec) => {
+                            const items = sec.items.filter((it) => ci.items?.[it.key]?.status || ci.items?.[it.key]?.note);
+                            if (!items.length) return null;
+                            return (
+                                <div key={sec.key} className="bg-muted/10 border border-border/40 rounded-xl p-3">
+                                    <div className="text-xs font-bold text-foreground mb-2 border-b border-border/40 pb-1">{sec.title}</div>
+                                    <div className="space-y-1.5">
+                                        {items.map((it) => {
+                                            const d = ci.items[it.key];
+                                            return (
+                                                <div key={it.key} className="flex items-center gap-2 text-[11px]">
+                                                    <span className="flex-1 font-medium">{it.label}</span>
+                                                    {d.status && <span className={`px-2 py-0.5 rounded font-bold ${badge(d.status)}`}>{d.status}</span>}
+                                                    {d.note && <span className="text-muted-foreground">— {d.note}</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {ci.finalNotes && (
+                            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-xs">
+                                <span className="font-bold text-amber-400">الملاحظات النهائية: </span>{ci.finalNotes}
+                            </div>
+                        )}
+                        <button onClick={() => window.open(`/inspection/${report.id}`, "_blank")}
+                            className="w-full py-2.5 bg-blue-600/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                            <FileText size={14} /> طباعة الفحص الشامل (PDF)
+                        </button>
+                    </div>
+                );
+            })()}
 
             {/* Engine Oil Block (Highlighted if changed) */}
             {hasOilChange && (
