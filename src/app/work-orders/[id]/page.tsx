@@ -458,7 +458,11 @@ export default function WorkOrderDetailPage() {
             ? withTechnicians(freshBase)
             : [...freshBase];
 
-        await supabase.from('inspection_reports')
+        // Pre-open the print tab synchronously (before the await) so the browser keeps it tied
+        // to the click gesture and doesn't block it as a popup once the update resolves.
+        const printWin = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+
+        const { error: finishError } = await supabase.from('inspection_reports')
             .update({
                 status: 'تم الانتهاء',
                 elapsed_time: finalElapsed,
@@ -475,6 +479,16 @@ export default function WorkOrderDetailPage() {
                 selected_services: updatedServices
             })
             .eq('id', id);
+
+        if (finishError) {
+            if (printWin) printWin.close();
+            showError("تعذّر إنهاء الخدمة", finishError.message || "حدث خطأ أثناء حفظ الفاتورة.");
+            return;
+        }
+
+        // غلق الفاتورة → تطلع ورقة العمل للطباعة تلقائياً
+        if (printWin) printWin.location.href = `/print/${id}?mode=full`;
+
         // After finishing, hand the order over to the accountant (تدقيق والمحاسب).
         showSuccess("تم إنهاء الخدمة", "المركبة جاهزة للتدقيق والمحاسبة.");
         router.push('/work-orders');
