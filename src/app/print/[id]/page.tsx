@@ -24,7 +24,7 @@ export default function PrintPage() {
                 .from("inspection_reports")
                 .select(`
                     id, report_number, status, order_type, total_price, created_at, completed_at, odometer_reading,
-                    estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id,
+                    estimated_duration, elapsed_time, start_time, selected_services, notes, branch_id, vehicle_id,
                     branches(id, name),
                     vehicles (make, model, plate_number, engine_size, booklet_serial, clients (name, phone)),
                     receptionist:receptionist_id(name)
@@ -33,7 +33,21 @@ export default function PrintPage() {
                 .single();
 
             if (reportData) {
-                setReport(reportData);
+                // لون المحرك عند الاستلام يُسجَّل مرة واحدة لكل مركبة (غالباً على أول زيارة)،
+                // فنجلبه من أي زيارة لنفس السيارة كي يظهر على ورقة عمل كل زيارة.
+                let engineColorOnReceipt =
+                    (Array.isArray(reportData.selected_services) ? reportData.selected_services[0] : reportData.selected_services)?.engineColorOnReceipt || null;
+                if (!engineColorOnReceipt && (reportData as any).vehicle_id) {
+                    const { data: vReports } = await supabase
+                        .from("inspection_reports")
+                        .select("selected_services")
+                        .eq("vehicle_id", (reportData as any).vehicle_id);
+                    (vReports || []).forEach((r: any) => {
+                        const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                        if (!engineColorOnReceipt && pay?.engineColorOnReceipt) engineColorOnReceipt = pay.engineColorOnReceipt;
+                    });
+                }
+                setReport({ ...reportData, engineColorOnReceipt });
             }
             setLoading(false);
         };

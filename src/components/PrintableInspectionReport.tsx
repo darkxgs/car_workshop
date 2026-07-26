@@ -33,6 +33,13 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     }));
     const booklet = data?.booklet || {};
 
+    // لون المحرك من الداخل قبل تبديل الزيت (حالة المحرك عند الاستلام) — يُسجَّل مرة واحدة لكل مركبة.
+    // يُمرَّر من صفحة الطباعة على المستوى الأعلى؛ مع رجوع احتياطي لحمولة الزيارة الحالية.
+    const engineColorVal: string | null =
+        report?.engineColorOnReceipt ||
+        (Array.isArray(report?.selected_services) ? report.selected_services[0] : report?.selected_services)?.engineColorOnReceipt ||
+        null;
+
     const v = Array.isArray(report?.vehicles) ? (report.vehicles[0] || {}) : (report?.vehicles || {});
     const client = Array.isArray(v?.clients) ? (v.clients[0] || {}) : (v?.clients || {});
 
@@ -346,6 +353,31 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                             <BookletCodes serial={v.booklet_serial} variant="report" />
                         </div>
                     )}
+                </div>
+
+                {/* ══ ENGINE COLOR ON RECEIPT — حالة المحرك عند الاستلام ══ */}
+                <div style={{
+                    background: '#fff7ed', border: '1px solid #fdba74', borderRadius: '8px',
+                    padding: '6px 12px',
+                    display: 'flex', gap: '18px', alignItems: 'center',
+                    marginBottom: mb('4px', '8px'),
+                    fontSize: '12px',
+                    flexWrap: 'wrap',
+                }}>
+                    <strong style={{ color: '#9a3412' }}>لون المحرك من الداخل قبل تبديل الزيت :</strong>
+                    {['نظيف', 'نصف نظيف', 'أسود'].map(opt => (
+                        <span key={opt} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{
+                                width: '14px', height: '14px', border: '1.5px solid #9a3412', borderRadius: '3px',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '10px', fontWeight: 900,
+                                backgroundColor: engineColorVal === opt ? '#fed7aa' : 'transparent',
+                            }}>
+                                {engineColorVal === opt ? '✓' : ''}
+                            </span>
+                            {opt}
+                        </span>
+                    ))}
                 </div>
 
                 {/* ══ CLIENT + VEHICLE ══ */}
