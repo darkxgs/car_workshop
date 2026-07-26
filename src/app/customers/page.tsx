@@ -1351,7 +1351,7 @@ export default function CustomersPage() {
                                                     </h3>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         {inspections.map((r: any) => (
-                                                            <button key={r.id} onClick={() => window.open(`/inspection/${r.id}`, "_blank")}
+                                                            <button key={r.id} onClick={() => handleSelectVisitTab(r.id)}
                                                                 className="bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-400 p-3.5 rounded-2xl flex items-center justify-between gap-2 transition-colors text-right">
                                                                 <div>
                                                                     <div className="font-bold text-sm">فحص شامل — فاتورة #{r.report_number}</div>
