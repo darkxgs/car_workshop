@@ -1271,11 +1271,6 @@ export default function CustomersPage() {
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            <button onClick={() => router.push(`/reception?inspection=${v.id}`)}
-                                                                className="shrink-0 px-3 py-2 bg-blue-600/10 hover:bg-blue-600 hover:text-white text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
-                                                                title="فحص شامل جديد لهذه السيارة">
-                                                                <FileText size={14}/> فحص شامل جديد
-                                                            </button>
                                                         </div>
                                                     ))}
                                                 </div>
