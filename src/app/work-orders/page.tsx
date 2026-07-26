@@ -216,7 +216,7 @@ export default function WorkOrdersListPage() {
                                         <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
                                             <Car size={24} />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <h3 className="font-bold text-lg text-foreground truncate">{order.vehicles?.make} {order.vehicles?.model}</h3>
                                             <p className="text-sm text-muted-foreground font-mono mt-1" dir="ltr">
                                                 {order.vehicles?.plate_number} 

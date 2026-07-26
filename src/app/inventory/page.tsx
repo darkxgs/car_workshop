@@ -456,7 +456,7 @@ export default function InventoryPage() {
 
 
                         {/* Micro Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                             <div className="glass-card p-5 rounded-2xl border-border flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20"><Box size={24} /></div>
                                 <div>
@@ -647,8 +647,8 @@ export default function InventoryPage() {
                             <h2 className="text-xl font-bold text-foreground">{editingItem ? 'تعديل الصنف' : 'إضافة صنف جديد للمخزن'}</h2>
                         </div>
                         <form onSubmit={handleSave} className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="sm:col-span-2">
                                     <label className="block text-sm font-medium text-muted-foreground mb-1.5">اسم المادة / المنتج <span className="text-rose-500">*</span></label>
                                     <input type="text" required value={formName} onChange={e => setFormName(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-purple-500" />
                                 </div>
@@ -689,7 +689,7 @@ export default function InventoryPage() {
                                 </div>
                                 
                                 {/* Branch Association in Form */}
-                                <div className="col-span-2">
+                                <div className="sm:col-span-2">
                                     <label className="block text-sm font-medium text-muted-foreground mb-1.5">الفرع المرتبط بالمادة <span className="text-rose-500">*</span></label>
                                     <select 
                                         value={formBranchId} 

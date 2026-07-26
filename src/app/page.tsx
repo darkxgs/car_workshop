@@ -234,11 +234,11 @@ export default function Home() {
                     <input
                         type="text"
                         placeholder="ابحث في النظام عن فاتورة أو سيارة..."
-                        className="w-full bg-card border-border border border-border rounded-xl py-2.5 pr-11 pl-4 text-foreground placeholder-slate-500 focus:outline-none focus:border-rose-500/50 transition-colors"
+                        className="w-full bg-card border border-border rounded-xl py-2.5 pr-11 pl-4 text-foreground placeholder-slate-500 focus:outline-none focus:border-rose-500/50 transition-colors"
                     />
                 </div>
 
-                <div className="flex items-center gap-4 mr-auto">
+                <div className="flex items-center gap-4 ms-auto">
                     <NotificationBell direction="down" align="left" />
                     <Link href="/settings" className="p-2.5 bg-card border-border hover:bg-muted rounded-xl border border-border transition-colors text-muted-foreground flex items-center justify-center">
                         <Settings size={20} />
@@ -359,7 +359,7 @@ export default function Home() {
                                 <Activity className="text-emerald-400" size={20} />
                                 أداء الورشة والإيرادات
                             </h3>
-                            <select className="bg-card border-border border border-border text-muted-foreground text-sm rounded-lg py-1.5 px-3 focus:outline-none focus:border-rose-500/50">
+                            <select className="bg-card border border-border text-muted-foreground text-sm rounded-xl py-1.5 px-3 focus:outline-none focus:border-rose-500/50">
                                 <option>آخر 7 أيام نشطة</option>
                             </select>
                         </div>

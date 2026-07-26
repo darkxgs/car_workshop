@@ -891,7 +891,7 @@ export default function CustomersPage() {
                             <input 
                                 type="date" 
                                 value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                                className="bg-background border border-border rounded-xl py-2 pr-10 pl-3 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                                className="bg-background border border-border rounded-xl py-2.5 pr-10 pl-3 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
                             />
                         </div>
                     </div>
@@ -902,7 +902,7 @@ export default function CustomersPage() {
                             <input 
                                 type="date" 
                                 value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                                className="bg-background border border-border rounded-xl py-2 pr-10 pl-3 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                                className="bg-background border border-border rounded-xl py-2.5 pr-10 pl-3 text-foreground text-sm focus:outline-none focus:border-rose-500/50"
                             />
                         </div>
                     </div>
@@ -1063,7 +1063,7 @@ export default function CustomersPage() {
                             <span className="text-xs text-muted-foreground font-medium">
                                 عرض {((currentPage - 1) * PAGE_SIZE) + 1} - {Math.min(currentPage * PAGE_SIZE, totalCount)} من إجمالي {totalCount} عميل
                             </span>
-                            <div className="flex items-center gap-2" dir="ltr">
+                            <div className="flex items-center gap-2">
                                 <button
                                     disabled={currentPage === 1}
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -1421,7 +1421,7 @@ export default function CustomersPage() {
                                 <button type="submit" className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-2.5 rounded-xl font-bold transition-colors">
                                     حفظ
                                 </button>
-                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-muted hover:bg-muted text-foreground py-2.5 rounded-xl font-bold transition-colors">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-muted hover:bg-muted/70 text-foreground py-2.5 rounded-xl font-bold transition-colors">
                                     إلغاء
                                 </button>
                             </div>
@@ -1572,7 +1572,7 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     <p className="h-9 flex items-center text-sm font-bold text-emerald-500 bg-emerald-500/10 px-3 rounded-lg border border-emerald-500/20" dir="ltr">
                         {report.total_price ? report.total_price.toLocaleString() : 0} <span className="text-[10px] mr-1">IQD</span>
                     </p>

@@ -443,7 +443,7 @@ export default function SettingsPage() {
                                 className="input-field min-h-[100px] text-sm resize-none"
                             />
                         </div>
-                        <button className="w-full py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted transition flex items-center justify-center gap-2 border border-border">
+                        <button className="w-full py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted/80 transition flex items-center justify-center gap-2 border border-border">
                             <Save size={18} /> حفظ إعدادات الرسائل
                         </button>
                     </div>
@@ -508,7 +508,7 @@ export default function SettingsPage() {
                                 ))}
                                 {employees.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="text-center py-8 text-muted-foreground font-bold">لم يتم العثور على مستخدمين!</td>
+                                        <td colSpan={5} className="text-center py-8 text-muted-foreground font-bold">لم يتم العثور على مستخدمين!</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -794,7 +794,7 @@ export default function SettingsPage() {
             {/* Edit Branch Modal */}
             {isEditBranchModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="bg-card border border-border rounded-[24px] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 text-right">
                         <div className="p-6 border-b border-border flex justify-between items-center">
                             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <Settings className="text-blue-500" size={22} /> تعديل بيانات الفرع

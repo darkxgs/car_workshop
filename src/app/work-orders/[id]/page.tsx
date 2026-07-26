@@ -952,7 +952,7 @@ export default function WorkOrderDetailPage() {
                             <button
                                 onClick={handleSaveDetailsOnly}
                                 disabled={isSavingDetails}
-                                className="w-full py-3 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 font-ibm"
+                                className="w-full py-3 bg-muted border border-border hover:bg-muted/80 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 font-ibm"
                             >
                                 {isSavingDetails ? (
                                     <>
@@ -1548,7 +1548,7 @@ export default function WorkOrderDetailPage() {
                                     <label className="text-xs font-bold text-muted-foreground">اسم الجزء التالف (مثال: المحرك، فريون، الكير)</label>
                                     <input value={diagName} onChange={e=>setDiagName(e.target.value)} type="text" className="w-full mt-1 bg-card border border-border rounded-lg p-2 text-sm" placeholder="اكتب الجزء المربوط بالعطل..." />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="text-xs font-bold text-muted-foreground">التشخيص</label>
                                         <select value={diagStatus} onChange={e=>setDiagStatus(e.target.value)} className="w-full mt-1 bg-card border border-border rounded-lg p-2 text-sm">
