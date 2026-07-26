@@ -1271,6 +1271,13 @@ export default function CustomersPage() {
                                                                     )}
                                                                 </div>
                                                             </div>
+                                                            {v.booklet_serial && (
+                                                                <button onClick={() => router.push(`/sticker/${encodeURIComponent(v.booklet_serial)}`)}
+                                                                    className="shrink-0 px-3 py-2 bg-rose-600/10 hover:bg-rose-600 hover:text-white text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                                                                    title="طباعة ملصق الدفتر">
+                                                                    <FileText size={14} /> ملصق الدفتر
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
