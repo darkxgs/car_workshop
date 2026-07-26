@@ -8,6 +8,8 @@ import catalogRaw from '@/lib/data/servicesCatalog.json';
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthProvider";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import InspectionChecklist from "@/components/InspectionChecklist";
+import { emptyInspection } from "@/lib/comprehensiveInspection";
 import { showSuccess, showError } from "@/lib/alerts";
 import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
@@ -129,6 +131,10 @@ export default function WorkOrderDetailPage() {
     const [liveSeconds, setLiveSeconds] = useState(0);
     const [isAddingSvc, setIsAddingSvc] = useState(false);
     const [inspectedServices, setInspectedServices] = useState<ReportServiceResult[]>([]);
+    // الفحص الشامل (comprehensive inspection) — opened as a section on the floor.
+    const [showInspection, setShowInspection] = useState(false);
+    const [inspection, setInspection] = useState(emptyInspection());
+    const [savingInspection, setSavingInspection] = useState(false);
     
     // Diagnostic Modal States
     const [isDiagnosing, setIsDiagnosing] = useState(false);
@@ -588,6 +594,31 @@ export default function WorkOrderDetailPage() {
         setDiagName("");
         setDiagNotes("");
         fetchOrder();
+    };
+
+    const openInspection = () => {
+        if (!showInspection) {
+            const p = Array.isArray(order?.selected_services) ? order?.selected_services[0] : order?.selected_services;
+            setInspection(p?.comprehensiveInspection ? { ...emptyInspection(), ...p.comprehensiveInspection } : emptyInspection());
+        }
+        setShowInspection(v => !v);
+    };
+
+    const handleSaveInspection = async () => {
+        if (!order) return;
+        setSavingInspection(true);
+        try {
+            const updatedServices = Array.isArray(order.selected_services) ? [...order.selected_services] : [order.selected_services];
+            updatedServices[0] = { ...(updatedServices[0] || {}), comprehensiveInspection: inspection };
+            const { error } = await supabase.from('inspection_reports').update({ selected_services: updatedServices }).eq('id', id);
+            if (error) throw error;
+            showSuccess("تم الحفظ", "تم حفظ الفحص الشامل.");
+            fetchOrder();
+        } catch (e: any) {
+            showError("خطأ", e.message || "تعذّر حفظ الفحص الشامل.");
+        } finally {
+            setSavingInspection(false);
+        }
     };
 
     const handleEditTime = async () => {
@@ -1549,6 +1580,24 @@ export default function WorkOrderDetailPage() {
                                 <p className="text-muted-foreground text-sm">التشخيص لم يبدأ أو لم يتم تسجيل ملاحظات العطل.</p>
                             )}
                         </div>
+                    </div>
+
+                    {/* الفحص الشامل — full inspection checklist, opened on the floor */}
+                    <div>
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-blue-500/10">
+                            <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Eye className="text-blue-500" size={20}/> الفحص الشامل (Inspection)</h2>
+                            <button onClick={openInspection} className="text-blue-500 hover:text-blue-400 text-sm font-bold flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-colors font-ibm">
+                                <Eye size={16} /> {showInspection ? "إغلاق" : "فتح فحص شامل"}
+                            </button>
+                        </div>
+                        {showInspection && (
+                            <div className="space-y-3">
+                                <InspectionChecklist value={inspection} onChange={setInspection} />
+                                <button onClick={handleSaveInspection} disabled={savingInspection} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60">
+                                    {savingInspection ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle2 size={18}/>} حفظ الفحص الشامل
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                 </div>
