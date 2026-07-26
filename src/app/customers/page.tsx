@@ -1573,28 +1573,28 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <p className="text-base font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20" dir="ltr">
-                        {report.total_price ? report.total_price.toLocaleString() : 0} <span className="text-[10px]">IQD</span>
+                    <p className="h-9 flex items-center text-sm font-bold text-emerald-500 bg-emerald-500/10 px-3 rounded-lg border border-emerald-500/20" dir="ltr">
+                        {report.total_price ? report.total_price.toLocaleString() : 0} <span className="text-[10px] mr-1">IQD</span>
                     </p>
                     {(report.status === "completed" || report.status === "تم الانتهاء") && (
-                        <button onClick={() => onReopenReport(report.id, report.report_number)} className="px-3 py-1.5 flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white rounded-lg text-amber-500 font-bold text-xs transition-colors border border-amber-500/30" title="إرجاع السيارة للعمل">
-                            <RefreshCcw size={14}/> إرجاع للعمل
+                        <button onClick={() => onReopenReport(report.id, report.report_number)} className="h-9 px-3 flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500 hover:text-white rounded-lg text-amber-500 font-bold text-xs transition-colors border border-amber-500/30" title="إرجاع السيارة للعمل">
+                            <RefreshCcw size={15}/> إرجاع للعمل
                         </button>
                     )}
-                    <Link href={`/reception?edit=${report.id}`} className="p-2 bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
-                        <Edit2 size={14}/>
-                    </Link>
-                    <button onClick={() => router.push(`/print/${report.id}?mode=full`)} className="p-2 bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
-                        <FileText size={14}/>
-                    </button>
                     {isComprehensiveInspection && (
-                        <button onClick={() => window.open(`/inspection/${report.id}`, "_blank")} className="px-3 py-1.5 flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white rounded-lg text-blue-400 font-bold text-xs transition-colors border border-blue-500/30" title="طباعة الفحص الشامل">
-                            <FileText size={14}/> فحص شامل
+                        <button onClick={() => window.open(`/inspection/${report.id}`, "_blank")} className="h-9 px-3 flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500 hover:text-white rounded-lg text-blue-400 font-bold text-xs transition-colors border border-blue-500/30" title="طباعة الفحص الشامل">
+                            <FileText size={15}/> فحص شامل
                         </button>
                     )}
+                    <Link href={`/reception?edit=${report.id}`} className="h-9 w-9 flex items-center justify-center bg-muted hover:bg-blue-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="تعديل الفاتورة بالكامل">
+                        <Edit2 size={15}/>
+                    </Link>
+                    <button onClick={() => router.push(`/print/${report.id}?mode=full`)} className="h-9 w-9 flex items-center justify-center bg-muted hover:bg-emerald-500 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="طباعة الفاتورة">
+                        <FileText size={15}/>
+                    </button>
                     {isOwnerOrAdmin && (
-                        <button onClick={() => onDeleteReport(report.id, report.report_number)} className="p-2 bg-muted hover:bg-rose-600 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="حذف الفاتورة">
-                            <Trash2 size={14}/>
+                        <button onClick={() => onDeleteReport(report.id, report.report_number)} className="h-9 w-9 flex items-center justify-center bg-muted hover:bg-rose-600 hover:text-white rounded-lg text-muted-foreground transition-colors border border-border" title="حذف الفاتورة">
+                            <Trash2 size={15}/>
                         </button>
                     )}
                 </div>
