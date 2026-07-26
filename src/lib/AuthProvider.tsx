@@ -99,7 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Set name manually inside fetch since we have the data
             setEmployeeName(data[0].name);
-            setEmployeeBranchId(data[0].branch_id);
+            // Branch-pinned employees always use their own branch. Owner/Admin (branch_id null)
+            // keep the branch they last chose (persisted) so re-auth/navigation never silently
+            // flips it — this was the source of the "I switch branch then find another selected" glitch.
+            let branchToUse: string | null = data[0].branch_id;
+            if (!branchToUse) {
+                try { branchToUse = localStorage.getItem("activeBranchId"); } catch {}
+            }
+            setEmployeeBranchId(branchToUse);
             setEmployeeId(data[0].id);
             
             setPermissionDashboard(data[0].permission_dashboard);
@@ -284,6 +291,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
     };
 
+    // Exposed branch setter: persists the choice so the selected branch survives navigations,
+    // re-auth, and reloads (single durable source of truth for the whole app).
+    const changeBranch = useCallback((id: string | null) => {
+        setEmployeeBranchId(id);
+        try {
+            if (id) localStorage.setItem("activeBranchId", id);
+            else localStorage.removeItem("activeBranchId");
+        } catch {}
+    }, []);
+
     const handleEmergencyReset = async () => {
         try {
             // Force clear corrupted state that causes hangs after tab minimize
@@ -369,7 +386,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user, session, employeeRole, employeeName, employeeBranchId, employeeId,
             permissionDashboard, permissionReception, permissionWorkOrders,
             permissionCustomers, permissionReports, permissionEmployees,
-            loading, signOut, setEmployeeBranchId
+            loading, signOut, setEmployeeBranchId: changeBranch
         }}>
             {children}
         </AuthContext.Provider>

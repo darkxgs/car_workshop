@@ -243,6 +243,11 @@ export default function WorkOrderDetailPage() {
     // Fetch
     useEffect(() => {
         if (authLoading) return;
+        // Reset per-vehicle engine-color state so navigating between work orders without a
+        // remount doesn't carry the previous vehicle's recorded color into this one.
+        engineColorLoadedRef.current = false;
+        setEngineColor("");
+        setExistingEngineColor(null);
         fetchOrder();
         
         // Subscription for live mid-air updates
@@ -651,7 +656,7 @@ export default function WorkOrderDetailPage() {
         if (!order) return;
         setSavingInspection(true);
         try {
-            const updatedServices = Array.isArray(order.selected_services) ? [...order.selected_services] : [order.selected_services];
+            const updatedServices = [...(await freshSelectedServices())];
             updatedServices[0] = { ...(updatedServices[0] || {}), comprehensiveInspection: inspection };
             const { error } = await supabase.from('inspection_reports').update({ selected_services: updatedServices }).eq('id', id);
             if (error) throw error;
@@ -670,7 +675,7 @@ export default function WorkOrderDetailPage() {
         if (!order || !engineColor || existingEngineColor) return;
         setSavingEngineColor(true);
         try {
-            const updatedServices = Array.isArray(order.selected_services) ? [...order.selected_services] : [order.selected_services];
+            const updatedServices = [...(await freshSelectedServices())];
             updatedServices[0] = { ...(updatedServices[0] || {}), engineColorOnReceipt: engineColor };
             const { error } = await supabase.from('inspection_reports').update({ selected_services: updatedServices }).eq('id', id);
             if (error) throw error;
