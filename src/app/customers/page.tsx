@@ -1320,6 +1320,26 @@ export default function CustomersPage() {
                                                                 <h4 className="font-bold text-sm">{v.make} {v.model} <span className="text-[10px] text-muted-foreground">({v.engine_size || "—"})</span></h4>
                                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                                                     <span className="text-[11px] font-mono text-muted-foreground">اللوحة: <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-sans">{v.plate_number || "—"}</span></span>
+                                                                    {(() => {
+                                                                        // لون المحرك عند الاستلام (مسجَّل مرة واحدة لهذه المركبة)
+                                                                        let engColor: string | null = null;
+                                                                        for (const r of (selectedProfile.allReports || [])) {
+                                                                            if (r.vehicle?.id !== v.id) continue;
+                                                                            const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                                                                            if (pay?.engineColorOnReceipt) { engColor = pay.engineColorOnReceipt; break; }
+                                                                        }
+                                                                        if (!engColor) return null;
+                                                                        const tone = engColor === 'نظيف'
+                                                                            ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                                                                            : engColor === 'أسود'
+                                                                                ? 'text-slate-300 bg-slate-500/15 border-slate-500/30'
+                                                                                : 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+                                                                        return (
+                                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${tone}`}>
+                                                                                لون المحرك عند الاستلام: {engColor}
+                                                                            </span>
+                                                                        );
+                                                                    })()}
                                                                     {false && v.booklet_serial && (
                                                                         <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 font-mono">
                                                                             دفتر: {v.booklet_serial}
