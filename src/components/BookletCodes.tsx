@@ -36,7 +36,7 @@ export default function BookletCodes({
 
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: cfg.gap }}>
-            <QRCodeSVG value={url} size={cfg.qr} level="M" marginSize={0} bgColor="#ffffff" fgColor="#000000" />
+            <QRCodeSVG value={url} size={cfg.qr} level="M" marginSize={2} bgColor="#ffffff" fgColor="#000000" />
             {/* Barcode only on the full report; the sticker is QR-only (per request). */}
             {variant === "report" && (
                 <Barcode
