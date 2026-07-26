@@ -12,6 +12,8 @@ import {
 import { showSuccess } from "@/lib/alerts";
 import { withCommas, digitsOnly } from "@/lib/format";
 import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
+import InspectionChecklist from "@/components/InspectionChecklist";
+import { emptyInspection } from "@/lib/comprehensiveInspection";
 import { syncOrderToGoogleSheets } from "@/lib/googleSheetsSync";
 
 type Step = 1 | 2 | 3;
@@ -431,6 +433,9 @@ export default function SectorReception({
     };
     // Tire size (القطاع only): width / aspect ratio / rim diameter — e.g. 205 / 55 / 16.
     const [tireSize, setTireSize] = useState("");
+    // فحص شامل مع أمر العمل (optional) — filled inline, saved into the report payload.
+    const [doInspection, setDoInspection] = useState(false);
+    const [inspection, setInspection] = useState(emptyInspection());
     const [plateNumber, setPlateNumber] = useState("");
 
     // ---------- STEP 2: Services ----------
@@ -547,6 +552,10 @@ export default function SectorReception({
                     if (payload.tireSize) {
                         const t = payload.tireSize;
                         setTireSize([t.width, t.aspect, t.diameter].filter(Boolean).join(" / "));
+                    }
+                    if (payload.comprehensiveInspection) {
+                        setDoInspection(true);
+                        setInspection({ ...emptyInspection(), ...payload.comprehensiveInspection });
                     }
                     if (payload.freeServices) setFreeServices(payload.freeServices);
                     if (payload.services) setServices({ ...initServices(), ...payload.services });
@@ -998,6 +1007,7 @@ export default function SectorReception({
                 receptionistName,
                 futureOdometer: futureOdometer || "",
                 tireSize: parseTireSize(tireSize),
+                ...(doInspection ? { comprehensiveInspection: inspection } : {}),
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -1083,6 +1093,7 @@ export default function SectorReception({
     const resetWizard = (newBranchId?: string) => {
         setName(""); setPhone(""); setMake(""); setModel(""); setEngineSize("");
         setOdometer(""); setOdometerUnit('km'); setFutureOdometer(""); setTireSize(""); setPlateNumber(""); setNotes(""); setBayNumber("");
+        setDoInspection(false); setInspection(emptyInspection());
         setFreeServices({ windshieldWater: false, tirePressure: false, engineClean: false });
         setServices(initServices());
         setCustomServices([]);
@@ -1364,6 +1375,19 @@ export default function SectorReception({
                                     : `خدمات العميل (1-${MAIN_SERVICES.length}) — فحص دوري مع كل زيارة`
                                 }
                             </h3>
+
+                            {/* فحص شامل — optional, filled with the work order (before starting the service) */}
+                            <div className="mb-4 p-3 rounded-2xl border border-blue-500/30 bg-blue-500/5">
+                                <label className="flex items-center gap-2 cursor-pointer font-bold text-sm">
+                                    <input type="checkbox" checked={doInspection} onChange={e => setDoInspection(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+                                    <span className="text-blue-400">إجراء فحص شامل مع أمر العمل</span>
+                                </label>
+                                {doInspection && (
+                                    <div className="mt-3">
+                                        <InspectionChecklist value={inspection} onChange={setInspection} />
+                                    </div>
+                                )}
+                            </div>
 
                             {isSectorBranch ? (
                                 <div className="space-y-6">

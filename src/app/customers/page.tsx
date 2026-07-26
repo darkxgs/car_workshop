@@ -1362,7 +1362,7 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
     const isPaperV2 = report.selected_services?.[0]?.is_paper_v2_format === true;
     const servicePayload = isPaperV2 ? report.selected_services[0] : null;
     const inspPayload = Array.isArray(report.selected_services) ? report.selected_services[0] : report.selected_services;
-    const isComprehensiveInspection = inspPayload?.isComprehensiveInspection === true;
+    const isComprehensiveInspection = !!inspPayload?.comprehensiveInspection;
 
     const services = servicePayload?.services || {};
     const freeServices = servicePayload?.freeServices || {};
