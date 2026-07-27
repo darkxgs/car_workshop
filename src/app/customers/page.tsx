@@ -1469,8 +1469,7 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
     
     const oilSvc = services.engineOil || {};
     const oilDetails = oilSvc.details || {};
-    const hasOilChange = oilSvc.status === "يحتاج تغيير" || oldServicesList.some((s: any) => s.service === "engineOil" || s.label?.includes("زيت المحرك"));
-    
+
     const replacedItems: string[] = [];
     const inspectedItems: string[] = [];
 
@@ -1675,31 +1674,6 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
                     </div>
                 );
             })()}
-
-            {/* Engine Oil Block (Highlighted if changed) */}
-            {hasOilChange && (
-                <div className="p-4 bg-gradient-to-br from-[#1c1313]/50 to-[#221715]/40 rounded-2xl border border-rose-950/40 relative overflow-hidden">
-                    <div className="absolute top-[-20px] left-[-20px] w-24 h-24 bg-rose-500/5 rounded-full blur-xl pointer-events-none"></div>
-                    <h5 className="text-xs font-bold text-rose-400 flex items-center gap-2 mb-3">
-                        <Droplets size={14} />
-                        خدمة تغيير زيت المحرك
-                    </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px]">
-                        <div className="bg-background/40 p-2 rounded-xl border border-border/30">
-                            <span className="block text-[10px] text-muted-foreground mb-1">النوع / الماركة</span>
-                            <span className="font-bold text-foreground">{oilDetails.type || oilDetails.brand || "—"}</span>
-                        </div>
-                        <div className="bg-background/40 p-2 rounded-xl border border-border/30">
-                            <span className="block text-[10px] text-muted-foreground mb-1">درجة اللزوجة</span>
-                            <span className="font-bold text-foreground font-mono">{oilDetails.viscosity || "—"}</span>
-                        </div>
-                        <div className="bg-background/40 p-2 rounded-xl border border-border/30">
-                            <span className="block text-[10px] text-muted-foreground mb-1">حجم التعبئة</span>
-                            <span className="font-bold text-foreground font-mono">{oilDetails.liters || oilDetails.qty || "—"} لتر</span>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Replaced Parts / Completed Services List */}
             {replacedItems.length > 0 && (
