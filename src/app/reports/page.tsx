@@ -297,8 +297,8 @@ export default function ReportsPage() {
                                         onClick={() => setSelectedReportId(report.id)}
                                         className={`w-full text-right p-4 rounded-xl border transition-all flex flex-col gap-2 relative overflow-hidden ${
                                             selectedReportId === report.id
-                                                ? "bg-gradient-to-l from-rose-950/40 to-[#0a0a0a] border-rose-500/50 shadow-[0_0_15px_rgba(225,29,72,0.15)]"
-                                                : "bg-card border-border hover:bg-muted hover:border-slate-700"
+                                                ? "bg-rose-500/10 border-rose-500/50 shadow-[0_0_15px_rgba(225,29,72,0.15)]"
+                                                : "bg-card border-border hover:bg-muted hover:border-rose-500/30"
                                         }`}
                                     >
                                         {selectedReportId === report.id && <div className="absolute top-0 bottom-0 right-0 w-1 bg-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.8)]" />}
@@ -364,7 +364,7 @@ export default function ReportsPage() {
                     {!selectedReport ? (
                         <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-muted-foreground relative">
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-rose-500/5 blur-[100px] rounded-full pointer-events-none" />
-                            <FileText size={48} className="mb-4 text-slate-700 relative z-10" />
+                            <FileText size={48} className="mb-4 text-muted-foreground/50 relative z-10" />
                             <p className="relative z-10 font-bold">قم باختيار تقرير من القائمة لعرضه وطباعته</p>
                         </div>
                     ) : (
@@ -378,7 +378,7 @@ export default function ReportsPage() {
                                         <h4 className="text-muted-foreground font-bold mb-3 text-sm">أجور اليد والخدمات المنفذة</h4>
                                         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                             {reportServices.filter(s => s.service_price && s.service_price > 0).length === 0 ? (
-                                                <p className="text-xs text-slate-600">لا توجد أجور مسجلة.</p>
+                                                <p className="text-xs text-muted-foreground">لا توجد أجور مسجلة.</p>
                                             ) : reportServices.filter(s => s.service_price && s.service_price > 0).map(s => (
                                                 <div key={s.id} className="flex justify-between items-center text-sm border-b border-border pb-1">
                                                     <span className="text-muted-foreground">{s.category}</span>
@@ -393,12 +393,12 @@ export default function ReportsPage() {
                                         <h4 className="text-muted-foreground font-bold mb-3 text-sm">قطع المخزن المستخدمة</h4>
                                         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                             {usedParts.length === 0 ? (
-                                                <p className="text-xs text-slate-600">لم يتم صرف أي قطع لهذا التقرير.</p>
+                                                <p className="text-xs text-muted-foreground">لم يتم صرف أي قطع لهذا التقرير.</p>
                                             ) : usedParts.map(p => (
                                                 <div key={p.id} className="flex justify-between items-center text-sm border-b border-border pb-1">
                                                     <div className="flex flex-col">
                                                         <span className="text-muted-foreground">{p.inventory.name}</span>
-                                                        <span className="text-xs text-slate-600">الكمية: {p.quantity} × {p.unit_price}</span>
+                                                        <span className="text-xs text-muted-foreground">الكمية: {p.quantity} × {p.unit_price}</span>
                                                     </div>
                                                     <span className="text-emerald-400 font-mono font-bold">{p.total_price} IQD</span>
                                                 </div>
