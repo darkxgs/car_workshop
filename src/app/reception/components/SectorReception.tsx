@@ -2058,50 +2058,43 @@ export default function SectorReception({
                             style={{ maxHeight: '90vh', maxWidth: '900px' }}
                             dir="rtl"
                         >
-                            {/* ── Header (never moves) ── */}
-                            <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 flex-shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-xl font-bold text-foreground">🔍 معاينة التقرير والفاتورة</h3>
+                            {/* ── Header — wraps on mobile so the close (X) is always reachable ── */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 sm:px-6 py-3 flex-shrink-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                        onClick={() => setPreviewReportId(null)}
+                                        className="p-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-400 rounded-xl transition-all border border-rose-500/30 shrink-0"
+                                        title="إغلاق"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                    <h3 className="text-base sm:text-xl font-bold text-foreground truncate">🔍 معاينة التقرير</h3>
                                     {previewReport && (
-                                        <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2.5 py-1 font-mono">
+                                        <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg px-2 py-1 font-mono shrink-0">
                                             #{previewReport.report_number}
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 flex-wrap justify-end">
                                     <div className="flex bg-muted rounded-xl p-1 border border-border/40">
                                         <button
                                             onClick={() => setPreviewMode('full')}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                            className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'full' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
                                         >
-                                            تقرير شامل (للعميل)
+                                            شامل (للعميل)
                                         </button>
                                         <button
                                             onClick={() => setPreviewMode('short')}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                            className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${previewMode === 'short' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'text-muted-foreground hover:text-foreground'}`}
                                         >
-                                            تقرير مختصر (للفني)
+                                            مختصر (للفني)
                                         </button>
                                     </div>
                                     <button
                                         onClick={() => window.open(`/print/${previewReportId}?mode=${previewMode}`, '_blank')}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
+                                        className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-600/20 text-xs"
                                     >
-                                        <Printer size={16} /> إرسال للطباعة 🖨️
-                                    </button>
-                                    {false && (bookletSerial || (previewReport?.vehicles ? (Array.isArray(previewReport.vehicles) ? previewReport.vehicles[0]?.booklet_serial : previewReport.vehicles.booklet_serial) : null)) && (
-                                        <button
-                                            onClick={() => window.open(`/print/${previewReportId}?mode=sticker`, '_blank')}
-                                            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-amber-600/20 text-xs"
-                                        >
-                                            🏷️ ملصق الدفتر
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setPreviewReportId(null)}
-                                        className="p-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-all border border-border/40"
-                                    >
-                                        <X size={18} />
+                                        <Printer size={16} /> <span className="hidden sm:inline">إرسال للطباعة</span> 🖨️
                                     </button>
                                 </div>
                             </div>
