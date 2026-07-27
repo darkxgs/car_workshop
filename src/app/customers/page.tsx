@@ -51,6 +51,8 @@ export default function CustomersPage() {
     const [branchFilter, setBranchFilter] = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
+    // فلتر الزائر: متكرر (أكثر من زيارة) / زار أكثر من فرع — يُحسب على كل قاعدة البيانات.
+    const [visitFilter, setVisitFilter] = useState<"" | "repeat" | "multibranch">("");
     const [branches, setBranches] = useState<{id:string, name:string}[]>([]);
 
     // Pagination
@@ -94,7 +96,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [branchFilter, dateFrom, dateTo]);
+    }, [branchFilter, dateFrom, dateTo, visitFilter]);
 
     useEffect(() => {
         // Throttle realtime refreshes: the customer list is heavy (25 clients + all their
@@ -113,7 +115,7 @@ export default function CustomersPage() {
     useEffect(() => {
         if (authLoading || !isAuthorized) return;
         fetchClients();
-    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized, refreshTrigger]);
+    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, visitFilter, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized, refreshTrigger]);
 
     const fetchBranches = async () => {
         const { data } = await supabase.from('branches').select('id, name');
@@ -176,14 +178,55 @@ export default function CustomersPage() {
             if (dateTo) query = query.lte('vehicles.inspection_reports.created_at', `${dateTo}T23:59:59`);
             if (searchClientIds) query = query.in('id', Array.from(searchClientIds));
 
-            const { data, count, error } = await query
-                .order('created_at', { ascending: false })
-                .range(offset, offset + PAGE_SIZE - 1);
+            // فلتر الزائر المتكرر / متعدد الفروع — يُحسب على كل قاعدة البيانات (كل الفروع)،
+            // ثم يُقسَّم لصفحات محلياً حتى لا يطول رابط الطلب. الترتيب: الأكثر زيارات أولاً.
+            let filterCount: number | null = null;
+            if (visitFilter) {
+                const PAGE = 1000;
+                const vehToClient = new Map<string, string>();
+                for (let from = 0; from < 100000; from += PAGE) {
+                    const { data: vs } = await supabase.from('vehicles').select('id, client_id').range(from, from + PAGE - 1);
+                    (vs || []).forEach((v: any) => { if (v.client_id) vehToClient.set(v.id, v.client_id); });
+                    if (!vs || vs.length < PAGE) break;
+                }
+                const visitsByClient = new Map<string, number>();
+                const branchesByClient = new Map<string, Set<string>>();
+                for (let from = 0; from < 200000; from += PAGE) {
+                    const { data: rs } = await supabase.from('inspection_reports').select('vehicle_id, branch_id').range(from, from + PAGE - 1);
+                    (rs || []).forEach((r: any) => {
+                        const cid = r.vehicle_id ? vehToClient.get(r.vehicle_id) : null;
+                        if (!cid) return;
+                        visitsByClient.set(cid, (visitsByClient.get(cid) || 0) + 1);
+                        if (r.branch_id) {
+                            if (!branchesByClient.has(cid)) branchesByClient.set(cid, new Set());
+                            branchesByClient.get(cid)!.add(r.branch_id);
+                        }
+                    });
+                    if (!rs || rs.length < PAGE) break;
+                }
+                let qualified = visitFilter === 'repeat'
+                    ? [...visitsByClient.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).map(([id]) => id)
+                    : [...branchesByClient.entries()].filter(([, s]) => s.size > 1).sort((a, b) => b[1].size - a[1].size).map(([id]) => id);
+                if (searchClientIds) qualified = qualified.filter(id => searchClientIds!.has(id));
+                filterCount = qualified.length;
+                const pageIds = qualified.slice(offset, offset + PAGE_SIZE);
+                if (pageIds.length === 0) {
+                    setClients([]);
+                    setTotalCount(filterCount);
+                    setLoading(false);
+                    return;
+                }
+                query = query.in('id', pageIds);
+            }
+
+            let finalQuery = query.order('created_at', { ascending: false });
+            if (!visitFilter) finalQuery = finalQuery.range(offset, offset + PAGE_SIZE - 1);
+            const { data, count, error } = await finalQuery;
 
             if (error) throw error;
 
             if (data) {
-                setTotalCount(count || 0);
+                setTotalCount(filterCount ?? (count || 0));
                 const mapped = data.map((c: any) => {
                     const allReports: any[] = [];
                     const branchIdSet = new Set<string>();
@@ -882,6 +925,18 @@ export default function CustomersPage() {
                         >
                             <option value="">كل الفروع</option>
                             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="w-full sm:w-auto">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5">نوع الزائر</label>
+                        <select
+                            value={visitFilter}
+                            onChange={(e) => setVisitFilter(e.target.value as "" | "repeat" | "multibranch")}
+                            className="bg-background border border-border rounded-xl py-2.5 px-4 min-w-[170px] text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                        >
+                            <option value="">كل العملاء</option>
+                            <option value="repeat">زائر متكرر (أكثر من زيارة)</option>
+                            <option value="multibranch">زار أكثر من فرع</option>
                         </select>
                     </div>
                     <div className="w-full sm:w-auto">
