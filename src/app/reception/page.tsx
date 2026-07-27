@@ -32,6 +32,7 @@ function ReceptionContainer() {
     const editId = searchParams.get('edit');
     const saleParam = searchParams.get('sale');
     const inspectionParam = searchParams.get('inspection'); // vehicleId to inspect (from customer file)
+    const vehicleParam = searchParams.get('vehicle'); // vehicleId to prefill a NEW work order (barcode scan flow)
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     // When true the wizard opens as a direct product sale ("بيع منتج") instead of a work order.
     const [wizardSaleMode, setWizardSaleMode] = useState(false);
@@ -76,12 +77,19 @@ function ReceptionContainer() {
             setInspectionMode(true);
             setEditIsSale(null);
             setIsWizardOpen(true);
+        } else if (vehicleParam) {
+            // Barcode scan flow -> /reception?vehicle=<vehicleId>: open a NEW work order
+            // with the customer's known info prefilled (the form reads the param itself).
+            setWizardSaleMode(false);
+            setInspectionMode(false);
+            setEditIsSale(false);
+            setIsWizardOpen(true);
         } else {
             setIsWizardOpen(false);
             setInspectionMode(false);
             setEditIsSale(null);
         }
-    }, [editId, saleParam, inspectionParam]);
+    }, [editId, saleParam, inspectionParam, vehicleParam]);
 
     // Fetch branches on mount
     useEffect(() => {

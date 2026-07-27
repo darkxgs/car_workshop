@@ -255,7 +255,7 @@ export default function PublicBookletPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
-                            href={`/reception?search=${serial}`}
+                            href={`/reception?vehicle=${vehicle?.id || ""}`}
                             className="bg-white text-amber-700 hover:bg-amber-50 px-3.5 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold"
                         >
                             <Wrench size={14} /> استقبال صيانة جديدة
@@ -278,17 +278,16 @@ export default function PublicBookletPage() {
             <header className="border-b border-border/40 bg-[#0c0c12]/80 backdrop-blur-md sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-950/40 shrink-0">
-                            <Car className="text-white" size={20} />
-                        </div>
+                        {/* شعار المركز */}
+                        <img src="/logo.png" alt="هندسة السيارات" className="w-11 h-11 rounded-xl object-contain bg-white/5 border border-border/40 p-1 shrink-0" />
                         <div>
                             <h1 className="font-bold text-lg text-foreground tracking-tight flex items-center gap-2">
-                                دفتر الخدمة الرقمي
+                                هندسة السيارات
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                     <ShieldCheck size={10} /> موثق
                                 </span>
                             </h1>
-                            <p className="text-[11px] text-muted-foreground font-medium">سجل صيانة المركبة الإلكتروني المعتمد</p>
+                            <p className="text-[11px] text-muted-foreground font-medium">دفتر الخدمة الرقمي — سجل صيانة المركبة المعتمد</p>
                         </div>
                     </div>
                     <div className="px-3.5 py-1.5 bg-muted/60 border border-border rounded-xl">

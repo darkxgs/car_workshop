@@ -610,6 +610,41 @@ export default function StandardReception({
         loadReport();
     }, [editId]);
 
+    // Barcode-scan flow: /reception?vehicle=<id> — prefill everything the system already knows
+    // (name, phone, vehicle, tire size, booklet) so staff never re-ask a returning customer.
+    const prefillVehicleId = searchParams.get('vehicle');
+    useEffect(() => {
+        if (!prefillVehicleId || editId) return;
+        const loadPrefill = async () => {
+            const { data: v } = await supabase.from('vehicles')
+                .select('id, make, model, engine_size, plate_number, booklet_serial, clients(id, name, phone)')
+                .eq('id', prefillVehicleId).single();
+            if (!v) return;
+            const client = Array.isArray(v.clients) ? v.clients[0] : v.clients;
+            if (client) { setName(client.name || ""); setPhone(client.phone || ""); setSelectedClientId(client.id); }
+            setMake(v.make || ""); setModel(v.model || "");
+            setEngineSize(v.engine_size || ""); setPlateNumber(v.plate_number || "");
+            setBookletSerial(v.booklet_serial || "");
+            if (v.booklet_serial) setBookletType("قديم");
+            // Latest known tire size + booklet changes count from previous visits.
+            const { data: reps } = await supabase.from('inspection_reports')
+                .select('selected_services, created_at')
+                .eq('vehicle_id', prefillVehicleId)
+                .order('created_at', { ascending: false })
+                .limit(15);
+            let tire: any = null; let changes = "";
+            for (const r of reps || []) {
+                const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                if (!tire && p?.tireSize) tire = p.tireSize;
+                if (!changes && p?.booklet?.changes) changes = String(p.booklet.changes);
+                if (tire && changes) break;
+            }
+            if (tire) setTireSize([tire.width, tire.aspect, tire.diameter].filter(Boolean).join(" / "));
+            if (changes) setBookletChanges(changes);
+        };
+        loadPrefill();
+    }, [prefillVehicleId, editId]);
+
     // Real-time calculation of total price, discount, and owed amounts
     useEffect(() => {
         const sumServices = Object.values(services).reduce((acc, svc) => acc + (parseFloat(svc.price) || 0), 0);
