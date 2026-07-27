@@ -1287,7 +1287,9 @@ export default function CustomersPage() {
                                                 {(() => {
                                                     const nextOil = selectedProfile.allReports.map((r: any) => {
                                                         const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
-                                                        return parseInt(String(p?.futureOdometer || "").replace(/[^\d]/g, "")) || 0;
+                                                        const v = parseInt(String(p?.futureOdometer || "").replace(/[^\d]/g, "")) || 0;
+                                                        // Reject garbage/bad entries — a real next-oil odometer is well under 2,000,000 km.
+                                                        return v > 0 && v <= 2_000_000 ? v : 0;
                                                     }).find((v: number) => v > 0);
                                                     return (
                                                         <div className="bg-gradient-to-br from-amber-500/5 to-amber-600/5 border border-amber-500/10 p-4 rounded-2xl flex flex-col justify-center items-center text-center">
@@ -1316,36 +1318,32 @@ export default function CustomersPage() {
                                                             <div className="w-10 h-10 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center shrink-0">
                                                                 <Car size={20}/>
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <h4 className="font-bold text-sm">{v.make} {v.model} <span className="text-[10px] text-muted-foreground">({v.engine_size || "—"})</span></h4>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="font-bold text-sm truncate">{v.make} {v.model} <span className="text-[10px] text-muted-foreground">({v.engine_size || "—"})</span></h4>
                                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                                                     <span className="text-[11px] font-mono text-muted-foreground">اللوحة: <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-sans">{v.plate_number || "—"}</span></span>
-                                                                    {(() => {
-                                                                        // لون المحرك عند الاستلام (مسجَّل مرة واحدة لهذه المركبة)
-                                                                        let engColor: string | null = null;
-                                                                        for (const r of (selectedProfile.allReports || [])) {
-                                                                            if (r.vehicle?.id !== v.id) continue;
-                                                                            const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
-                                                                            if (pay?.engineColorOnReceipt) { engColor = pay.engineColorOnReceipt; break; }
-                                                                        }
-                                                                        if (!engColor) return null;
-                                                                        const tone = engColor === 'نظيف'
-                                                                            ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
-                                                                            : engColor === 'أسود'
-                                                                                ? 'text-slate-300 bg-slate-500/15 border-slate-500/30'
-                                                                                : 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-                                                                        return (
-                                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${tone}`}>
-                                                                                لون المحرك عند الاستلام: {engColor}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                    {false && v.booklet_serial && (
-                                                                        <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 font-mono">
-                                                                            دفتر: {v.booklet_serial}
-                                                                        </span>
-                                                                    )}
                                                                 </div>
+                                                                {(() => {
+                                                                    // لون المحرك عند الاستلام (مسجَّل مرة واحدة لهذه المركبة) — شريحة واضحة على سطر خاص
+                                                                    let engColor: string | null = null;
+                                                                    for (const r of (selectedProfile.allReports || [])) {
+                                                                        if (r.vehicle?.id !== v.id) continue;
+                                                                        const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                                                                        if (pay?.engineColorOnReceipt) { engColor = pay.engineColorOnReceipt; break; }
+                                                                    }
+                                                                    if (!engColor) return null;
+                                                                    const tone = engColor === 'نظيف'
+                                                                        ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                                                                        : engColor === 'أسود'
+                                                                            ? 'text-slate-300 bg-slate-500/15 border-slate-500/30'
+                                                                            : 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+                                                                    return (
+                                                                        <div className={`mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border ${tone}`}>
+                                                                            <Droplets size={12} className="shrink-0" />
+                                                                            <span className="font-medium opacity-70">لون المحرك عند الاستلام:</span> {engColor}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                             {v.booklet_serial && (
                                                                 <button onClick={() => router.push(`/sticker/${encodeURIComponent(v.booklet_serial)}`)}
