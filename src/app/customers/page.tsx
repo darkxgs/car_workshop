@@ -1145,25 +1145,25 @@ export default function CustomersPage() {
 
             {/* Profile Modal */}
             {selectedProfile && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 shadow-2xl">
-                        
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4">
+                    <div className="bg-card border border-border rounded-none sm:rounded-2xl w-full max-w-5xl h-full sm:h-auto max-h-full sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 shadow-2xl">
+
                         {/* Modal Header */}
-                        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-500 font-bold text-2xl shrink-0">
+                        <div className="p-4 sm:p-6 border-b border-border flex justify-between items-center bg-muted/30">
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-500 font-bold text-xl sm:text-2xl shrink-0">
                                     {selectedProfile.name.charAt(0)}
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+                                <div className="min-w-0">
+                                    <h2 className="text-lg sm:text-2xl font-bold text-foreground truncate">
                                         {selectedProfile.name}
                                     </h2>
-                                    <p className="text-muted-foreground text-sm flex items-center gap-2 mt-1">
-                                        <Phone size={14}/> <span dir="ltr">{selectedProfile.phone}</span>
+                                    <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2 mt-0.5 sm:mt-1">
+                                        <Phone size={14} className="shrink-0"/> <span dir="ltr">{selectedProfile.phone}</span>
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setSelectedProfile(null)} className="p-2 bg-background hover:bg-rose-500 text-muted-foreground hover:text-white rounded-xl transition-colors border border-border">
+                            <button onClick={() => setSelectedProfile(null)} className="p-2 bg-background hover:bg-rose-500 text-muted-foreground hover:text-white rounded-xl transition-colors border border-border shrink-0">
                                 <X size={24} />
                             </button>
                         </div>
@@ -1171,8 +1171,8 @@ export default function CustomersPage() {
                         {/* Modal Body: Split view */}
                         <div className="flex flex-col md:flex-row overflow-hidden flex-1 min-h-0">
                             
-                            {/* Right Sidebar - Visit Tabs */}
-                            <div className="w-full md:w-80 border-b md:border-b-0 md:border-l border-border bg-muted/10 flex flex-col overflow-y-auto custom-scrollbar">
+                            {/* Right Sidebar - Visit Tabs (capped height on phones so content stays visible) */}
+                            <div className="w-full md:w-80 max-h-52 md:max-h-none shrink-0 md:shrink border-b md:border-b-0 md:border-l border-border bg-muted/10 flex flex-col overflow-y-auto custom-scrollbar">
                                 <div className="p-4 space-y-2">
                                     {/* Summary Tab */}
                                     <button
@@ -1350,7 +1350,7 @@ export default function CustomersPage() {
                                                         <div className="bg-gradient-to-br from-amber-500/5 to-amber-600/5 border border-amber-500/10 p-4 rounded-2xl flex flex-col justify-center items-center text-center">
                                                             <Droplets className="text-amber-400 mb-1.5" size={22} />
                                                             <span className="text-[11px] text-muted-foreground font-medium">تبديل الزيت القادم</span>
-                                                            <span className="text-base font-black mt-1 font-mono" dir="ltr">{nextOil ? `${nextOil.toLocaleString()} كم` : "—"}</span>
+                                                            <span className="text-base font-black mt-1 font-mono">{nextOil ? <><span dir="ltr">{nextOil.toLocaleString()}</span> كم</> : "—"}</span>
                                                         </div>
                                                     );
                                                 })()}
