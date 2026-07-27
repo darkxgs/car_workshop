@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
     Car, MapPin, User, ShieldCheck,
-    AlertCircle, Wrench,
+    AlertCircle, Wrench, Phone,
     Droplets, CheckCircle2, Activity, Gauge
 } from "lucide-react";
 import Link from "next/link";
@@ -226,6 +226,24 @@ export default function PublicBookletPage() {
     const totalVisits = reports.length;
     const latestOdometer = reports.length > 0 ? Math.max(...reports.map(r => r.odometer_reading || 0)) : 0;
 
+    // Live status of the most recent visit — lets the customer track their car remotely (refresh to update).
+    const latestReport = reports.length > 0
+        ? [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        : null;
+    const statusInfo = (() => {
+        if (!latestReport) return null;
+        const s = latestReport.status;
+        if (s === 'ملغى' || s === 'cancelled') return null;
+        const done = s === 'تم الانتهاء' || s === 'completed';
+        const pricing = (Array.isArray(latestReport.selected_services) ? latestReport.selected_services[0] : latestReport.selected_services)?.pricing;
+        const accounted = pricing?.accounted === true;
+        if (done && accounted) return { step: 4, label: 'مكتملة — تم التسليم' };
+        if (done) return { step: 3, label: 'تم الانتهاء — بانتظار المحاسبة' };
+        if (s === 'قيد العمل' || s === 'in_progress') return { step: 2, label: 'قيد العمل الآن' };
+        return { step: 1, label: 'تم استلام السيارة' };
+    })();
+    const STATUS_STEPS = ['تم الاستلام', 'قيد العمل', 'بانتظار المحاسبة', 'مكتملة'];
+
     return (
         <div className="relative min-h-screen bg-[#07070a] text-foreground font-ibm pb-16 overflow-x-hidden" dir="rtl">
             {isEmployee && (
@@ -319,29 +337,79 @@ export default function PublicBookletPage() {
                 {/* Tab Content */}
                 <div className="animate-fade-in">
                     {activeTab === "summary" ? (
-                        /* Vehicle Specs Dashboard */
+                        <>
+                        {/* Live status tracker — the customer can follow their car remotely (refresh to update) */}
+                        {statusInfo && (
+                            <section className="glass-card p-5 md:p-6 rounded-3xl border border-border/60 shadow-xl mb-6">
+                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Activity size={16} className="text-rose-400" /> حالة سيارتك الآن</h3>
+                                    <span className="text-[11px] text-muted-foreground font-mono">زيارة #{latestReport?.report_number}</span>
+                                </div>
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold text-sm mb-5">
+                                    {statusInfo.label}
+                                </div>
+                                <div>
+                                    {/* circles + connectors */}
+                                    <div className="flex items-center">
+                                        {STATUS_STEPS.map((label, i) => {
+                                            const active = statusInfo.step >= i + 1;
+                                            const lineActive = statusInfo.step >= i + 2;
+                                            return (
+                                                <div key={i} className={`flex items-center ${i < STATUS_STEPS.length - 1 ? 'flex-1' : ''}`}>
+                                                    <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold border ${active ? 'bg-rose-500 border-rose-500 text-white' : 'bg-muted border-border text-muted-foreground'}`}>
+                                                        {active ? '✓' : i + 1}
+                                                    </div>
+                                                    {i < STATUS_STEPS.length - 1 && <div className={`h-0.5 flex-1 mx-1 rounded ${lineActive ? 'bg-rose-500' : 'bg-border'}`} />}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* labels aligned under circles */}
+                                    <div className="flex mt-2">
+                                        {STATUS_STEPS.map((label, i) => {
+                                            const active = statusInfo.step >= i + 1;
+                                            return (
+                                                <span key={i} className={`text-[9px] text-center leading-tight ${i < STATUS_STEPS.length - 1 ? 'flex-1' : 'w-8'} ${active ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>{label}</span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+                        {/* Vehicle Specs Dashboard */}
                         <section className="glass-card p-6 md:p-8 rounded-3xl border border-border/60 shadow-xl overflow-hidden relative">
                             <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-blue-500/10 to-transparent rounded-br-full pointer-events-none"></div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                                 <div className="md:col-span-2 space-y-4">
+                                    {/* 1) Owner name first */}
                                     <div className="space-y-1">
-                                        <span className="text-xs font-bold text-rose-500 tracking-widest uppercase">المركبة الحالية</span>
-                                        <h2 className="text-3xl font-extrabold text-foreground">{vehicle.make} {vehicle.model}</h2>
+                                        <span className="text-xs font-bold text-rose-500 tracking-widest uppercase">صاحب المركبة</span>
+                                        <h2 className="text-2xl md:text-3xl font-extrabold text-foreground flex items-center gap-2">
+                                            <User size={24} className="text-rose-400 shrink-0" />
+                                            {vehicle.clients?.name || "—"}
+                                        </h2>
+                                    </div>
+
+                                    {/* 2) Vehicle info */}
+                                    <div className="space-y-1">
+                                        <span className="text-xs text-muted-foreground font-medium">المركبة</span>
+                                        <h3 className="text-lg font-bold text-foreground">{vehicle.make} {vehicle.model}</h3>
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         <div className="bg-background/40 p-3 rounded-2xl border border-border/40">
                                             <span className="block text-xs text-muted-foreground mb-1">رقم اللوحة</span>
-                                            <span className="font-bold text-sm font-mono">{vehicle.plate_number}</span>
+                                            <span className="font-bold text-sm font-mono">{vehicle.plate_number || "—"}</span>
                                         </div>
                                         <div className="bg-background/40 p-3 rounded-2xl border border-border/40">
                                             <span className="block text-xs text-muted-foreground mb-1">حجم المحرك</span>
                                             <span className="font-bold text-sm">{vehicle.engine_size || "—"}</span>
                                         </div>
+                                        {/* 3) Phone (masked for privacy on this public page) */}
                                         <div className="bg-background/40 p-3 rounded-2xl border border-border/40 col-span-2 sm:col-span-1">
-                                            <span className="block text-xs text-muted-foreground mb-1">المالك</span>
-                                            <span className="font-bold text-sm flex items-center gap-1.5">
-                                                <User size={14} className="text-rose-400 shrink-0" />
+                                            <span className="block text-xs text-muted-foreground mb-1">رقم الهاتف</span>
+                                            <span className="font-bold text-sm font-mono flex items-center gap-1.5">
+                                                <Phone size={14} className="text-rose-400 shrink-0" />
                                                 {maskPhone(vehicle.clients?.phone)}
                                             </span>
                                         </div>
@@ -366,6 +434,7 @@ export default function PublicBookletPage() {
                                 </div>
                             </div>
                         </section>
+                        </>
                     ) : (
                         /* Render Selected Visit Details */
                         (() => {
