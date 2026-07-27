@@ -162,7 +162,7 @@ export default function InspectionForm({
 
     if (done) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl max-w-md w-full text-center border border-emerald-500/20">
                     <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold mb-2">تم حفظ الفحص الشامل</h2>
@@ -187,7 +187,7 @@ export default function InspectionForm({
     const assessed = allItems.filter(i => i.status).length;
 
     return (
-        <div className="min-h-screen bg-[#08080d] p-4 md:p-8 pb-28 font-ibm" dir="rtl">
+        <div className="min-h-screen bg-background p-4 md:p-8 pb-28 font-ibm" dir="rtl">
             <div className="max-w-5xl mx-auto space-y-5">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

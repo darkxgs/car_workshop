@@ -797,7 +797,7 @@ export default function CustomersPage() {
     // Access guards (placed after all hooks so the Rules of Hooks are respected).
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
             </div>
         );
@@ -805,7 +805,7 @@ export default function CustomersPage() {
 
     if (!isAuthorized) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
                     <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
                     <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى سجل العملاء والمركبات.</p>
@@ -1156,7 +1156,7 @@ export default function CustomersPage() {
                                     ) : (
                                         visits.map((r: any) => {
                                             const isSelected = activeProfileTab === r.id;
-                                            const dateStr = new Date(r.created_at).toLocaleDateString("ar-IQ", {
+                                            const dateStr = new Date(r.created_at).toLocaleDateString("en-GB", {
                                                 year: 'numeric',
                                                 month: '2-digit',
                                                 day: '2-digit'
@@ -1375,7 +1375,7 @@ export default function CustomersPage() {
                                                                 className="bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-400 p-3.5 rounded-2xl flex items-center justify-between gap-2 transition-colors text-right">
                                                                 <div>
                                                                     <div className="font-bold text-sm">فحص شامل — فاتورة #{r.report_number}</div>
-                                                                    <div className="text-[11px] opacity-80">{r.branches?.name || ""} • {new Date(r.created_at).toLocaleDateString("ar-IQ")}</div>
+                                                                    <div className="text-[11px] opacity-80">{r.branches?.name || ""} • {new Date(r.created_at).toLocaleDateString("en-GB")}</div>
                                                                 </div>
                                                                 <FileText size={18} className="shrink-0" />
                                                             </button>
@@ -1553,10 +1553,10 @@ function VisitDetailsView({ report, isOwnerOrAdmin, onDeleteReport, onReopenRepo
     });
 
     const dateObj = new Date(report.created_at);
-    const formattedDate = dateObj.toLocaleDateString("ar-IQ", {
+    const formattedDate = dateObj.toLocaleDateString("en-GB", {
         year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        month: '2-digit',
+        day: '2-digit'
     });
     const formattedTime = dateObj.toLocaleTimeString("ar-IQ", {
         hour: '2-digit',

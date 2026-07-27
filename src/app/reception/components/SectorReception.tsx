@@ -2006,7 +2006,7 @@ export default function SectorReception({
 
             {branchChangePending && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in font-ibm">
-                    <div className="bg-[#0b0f19] border border-rose-900/30 rounded-3xl p-6 max-w-md w-full shadow-[0_0_50px_rgba(244,63,94,0.15)] animate-scale-in text-center space-y-6" dir="rtl">
+                    <div className="bg-card border border-rose-900/30 rounded-3xl p-6 max-w-md w-full shadow-[0_0_50px_rgba(244,63,94,0.15)] animate-scale-in text-center space-y-6" dir="rtl">
                         {/* Glowing Alert Icon */}
                         <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(244,63,94,0.2)]">
                             <AlertCircle className="text-rose-500 w-8 h-8 animate-pulse" />
@@ -2054,7 +2054,7 @@ export default function SectorReception({
                     >
                         {/* Inner card: animate here only, not on the centering wrapper */}
                         <div
-                            className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
+                            className="bg-card border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
                             style={{ maxHeight: '90vh', maxWidth: '900px' }}
                             dir="rtl"
                         >

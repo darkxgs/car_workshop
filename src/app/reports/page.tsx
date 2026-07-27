@@ -2,6 +2,10 @@
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { Printer, FileText, Search, Loader2, Car, Calendar, AlertCircle, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthProvider";
+import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 // Numeric date DD/MM/YYYY (no month names — easier to scan than "٢٦ يوليو").
 const fmtDate = (d: string | Date) => {
@@ -9,10 +13,6 @@ const fmtDate = (d: string | Date) => {
     const p = (n: number) => String(n).padStart(2, '0');
     return `${p(x.getDate())}/${p(x.getMonth() + 1)}/${x.getFullYear()}`;
 };
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/lib/AuthProvider";
-import { PrintableInspectionReport } from "@/components/PrintableInspectionReport";
 
 type ReportServiceResult = {
     id: string;
@@ -221,7 +221,7 @@ export default function ReportsPage() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
             </div>
         );

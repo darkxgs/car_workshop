@@ -103,7 +103,7 @@ export default function WorkOrdersListPage() {
     // Access guards (placed after all hooks so the Rules of Hooks are respected).
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
             </div>
         );
@@ -111,7 +111,7 @@ export default function WorkOrdersListPage() {
 
     if (!isAuthorized) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
                     <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
                     <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى ساحة الورشة والعمل الحي.</p>

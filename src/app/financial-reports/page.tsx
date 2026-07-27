@@ -211,7 +211,7 @@ export default function ReportsPage() {
                     data.forEach(r => {
                         // Track daily visits
                         const dateObj = new Date(r.created_at);
-                        const dateStr = dateObj.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+                        const dateStr = dateObj.toLocaleDateString('en-GB', { month: '2-digit', day: '2-digit' });
                         visitsMap[dateStr] = (visitsMap[dateStr] || 0) + 1;
 
                         const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
@@ -607,7 +607,7 @@ export default function ReportsPage() {
                                                                 {row.status}
                                                             </span>
                                                         </td>
-                                                        <td className="p-4 text-muted-foreground font-mono text-xs text-center">{new Date(row.created_at).toLocaleDateString('ar-SA')}</td>
+                                                        <td className="p-4 text-muted-foreground font-mono text-xs text-center">{new Date(row.created_at).toLocaleDateString('en-GB')}</td>
                                                         <td className="p-4 font-mono font-bold text-lg text-emerald-500 text-left">{row.total_price.toLocaleString()}</td>
                                                     </>
                                                 )}

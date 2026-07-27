@@ -45,7 +45,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
 
     const openTime = report?.start_time ? new Date(report.start_time).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' }) : '___________';
     const closeTime = report?.completed_at ? new Date(report.completed_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' }) : '___________';
-    const dateStr = report?.created_at ? new Date(report.created_at).toLocaleDateString('ar-IQ') : new Date().toLocaleDateString('ar-IQ');
+    const dateStr = report?.created_at ? new Date(report.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
 
     /* ── Reusable helpers ── */
     const Val = ({ v: val, w = 80 }: { v?: string | number; w?: number }) => (

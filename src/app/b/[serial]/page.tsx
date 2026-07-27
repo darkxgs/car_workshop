@@ -296,9 +296,9 @@ export default function PublicBookletPage() {
                     </button>
                     {reports.map((report) => {
                         const dateObj = new Date(report.created_at);
-                        const formattedDate = dateObj.toLocaleDateString("ar-IQ", {
-                            month: 'numeric',
-                            day: 'numeric'
+                        const formattedDate = dateObj.toLocaleDateString("en-GB", {
+                            month: '2-digit',
+                            day: '2-digit'
                         });
                         return (
                             <button
@@ -437,10 +437,10 @@ export default function PublicBookletPage() {
                             });
 
                             const dateObj = new Date(report.created_at);
-                            const formattedDate = dateObj.toLocaleDateString("ar-IQ", {
+                            const formattedDate = dateObj.toLocaleDateString("en-GB", {
                                 year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
+                                month: '2-digit',
+                                day: '2-digit'
                             });
                             const formattedTime = dateObj.toLocaleTimeString("ar-IQ", {
                                 hour: '2-digit',
