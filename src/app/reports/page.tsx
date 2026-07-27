@@ -1,7 +1,14 @@
 "use client";
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { Printer, FileText, Search, Loader2, Car, Calendar, DollarSign, AlertCircle, User } from "lucide-react";
+import { Printer, FileText, Search, Loader2, Car, Calendar, AlertCircle, User } from "lucide-react";
+
+// Numeric date DD/MM/YYYY (no month names — easier to scan than "٢٦ يوليو").
+const fmtDate = (d: string | Date) => {
+    const x = new Date(d);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(x.getDate())}/${p(x.getMonth() + 1)}/${x.getFullYear()}`;
+};
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -161,6 +168,7 @@ export default function ReportsPage() {
 
                 const { data, error, count } = await query
                     .order('created_at', { ascending: false })
+                    .order('report_number', { ascending: false }) // tiebreaker: newest order number first when dates tie
                     .range(from, to);
 
                 if (error) throw error;
@@ -320,8 +328,8 @@ export default function ReportsPage() {
                                             <span className="truncate">{report.vehicles.make} - {report.vehicles.plate_number}</span>
                                         </div>
                                         <div className="flex justify-between items-center w-full mt-2 border-t border-border pt-2 text-xs text-muted-foreground pr-2">
-                                            <span className="flex items-center gap-1 truncate"><Calendar size={12}/> {new Date(report.created_at).toLocaleDateString()}</span>
-                                            <span className="flex items-center gap-1 font-mono text-emerald-400"><DollarSign size={12}/> {report.total_price} IQD</span>
+                                            <span className="flex items-center gap-1 truncate"><Calendar size={12}/> {fmtDate(report.created_at)}</span>
+                                            <span className="flex items-center gap-1 font-mono text-emerald-400 font-bold">{Number(report.total_price || 0).toLocaleString()} د.ع</span>
                                         </div>
                                     </button>
                                 ))

@@ -119,6 +119,7 @@ function ReceptionContainer() {
             .from('inspection_reports')
             .select(`id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`)
             .order('created_at', { ascending: false })
+            .order('report_number', { ascending: false }) // tiebreaker: newest order number first when dates tie
             .range((targetPage - 1) * 50, targetPage * 50 - 1);
         
         if (selectedBranchId) {
@@ -268,7 +269,7 @@ function ReceptionContainer() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
             </div>
         );
@@ -276,7 +277,7 @@ function ReceptionContainer() {
 
     if (employeeRole !== 'Owner' && !permissionReception) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
                     <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
                     <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى نظام الاستقبال وأوامر العمل.</p>
@@ -349,7 +350,7 @@ function ReceptionContainer() {
     }
 
     return (
-        <div className="min-h-screen bg-[#08080d] p-4 md:p-8 font-ibm" dir="rtl">
+        <div className="min-h-screen bg-background p-4 md:p-8 font-ibm" dir="rtl">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -439,9 +440,10 @@ function ReceptionContainer() {
                                         const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
                                         const isSale = o.order_type === 'sale';
                                         const salePayload = isSale ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
-                                        const date = new Date(o.created_at).toLocaleDateString('ar-EG', {
-                                            year: 'numeric', month: 'short', day: 'numeric'
-                                        });
+                                        // Numeric DD/MM/YYYY — no month names.
+                                        const d0 = new Date(o.created_at);
+                                        const pad2 = (n: number) => String(n).padStart(2, '0');
+                                        const date = `${pad2(d0.getDate())}/${pad2(d0.getMonth() + 1)}/${d0.getFullYear()}`;
 
                                         return (
                                             <tr key={o.id} className="hover:bg-muted/20 transition-colors">
