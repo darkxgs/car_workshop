@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { Printer, FileText, Search, Loader2, Car, Calendar, DollarSign, AlertCircle } from "lucide-react";
+import { Printer, FileText, Search, Loader2, Car, Calendar, DollarSign, AlertCircle, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -310,8 +310,14 @@ export default function ReportsPage() {
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1 pr-2">
-                                            <Car size={16} className="text-muted-foreground shrink-0" />
-                                            <span className="font-bold text-foreground text-sm truncate">{report.vehicles.make} - {report.vehicles.plate_number}</span>
+                                            <User size={16} className="text-rose-400 shrink-0" />
+                                            <span className="font-bold text-foreground text-sm truncate">
+                                                {(Array.isArray(report.vehicles.clients) ? report.vehicles.clients[0]?.name : report.vehicles.clients?.name) || 'عميل نقدي'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 pr-2 text-xs text-muted-foreground">
+                                            <Car size={14} className="shrink-0" />
+                                            <span className="truncate">{report.vehicles.make} - {report.vehicles.plate_number}</span>
                                         </div>
                                         <div className="flex justify-between items-center w-full mt-2 border-t border-border pt-2 text-xs text-muted-foreground pr-2">
                                             <span className="flex items-center gap-1 truncate"><Calendar size={12}/> {new Date(report.created_at).toLocaleDateString()}</span>
