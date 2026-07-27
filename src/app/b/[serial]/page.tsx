@@ -648,8 +648,36 @@ export default function PublicBookletPage() {
 
             </main>
 
+            {/* فروعنا وأرقام التواصل */}
+            <section className="max-w-4xl mx-auto px-4 mt-14">
+                <div className="glass-card rounded-3xl border border-border/60 p-6 md:p-8">
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
+                        <Phone size={17} className="text-rose-400" /> فروعنا وأرقام التواصل
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mb-5">مرحباً بك في هندسة السيارات — قسم العلاقات</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[
+                            { name: "فرع القطاع", address: "سايدين مستشفى الصدر", phone: "07766331112" },
+                            { name: "فرع الصناعية", address: "شارع البكرات", phone: "07766331113" },
+                            { name: "فرع المجر", address: "داخل محطة انوار المجر", phone: "07766331114" },
+                        ].map((b) => (
+                            <div key={b.name} className="bg-background/40 border border-border/40 rounded-2xl p-4 flex flex-col gap-2">
+                                <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                                    <MapPin size={14} className="text-rose-400 shrink-0" /> {b.name}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">{b.address}</span>
+                                <a href={`tel:${b.phone}`} dir="ltr"
+                                    className="mt-1 inline-flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-400 border border-rose-500/30 rounded-xl px-3 py-2 text-sm font-bold font-mono transition-colors">
+                                    <Phone size={14} /> {b.phone}
+                                </a>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
             {/* Footer / Copyright */}
-            <footer className="mt-20 border-t border-border/40 pt-8 text-center text-xs text-muted-foreground">
+            <footer className="mt-14 border-t border-border/40 pt-8 text-center text-xs text-muted-foreground">
                 <div className="max-w-4xl mx-auto px-4 space-y-2">
                     <p className="font-bold">نظام هندسة السيارات © {new Date().getFullYear()}</p>
                     <p className="text-[10px] opacity-60">تاريخ آخر صيانة يعتمد على العمليات المنفذة داخل فروعنا المعتمدة.</p>
