@@ -198,7 +198,7 @@ export default function WarrantyPage() {
                                             </td>
                                             <td className="p-4">
                                                 <span className="font-mono text-xs bg-background px-3 py-1 rounded border border-border inline-block" dir="ltr">
-                                                    {new Date(rec.expiry_date).toLocaleDateString()}
+                                                    {new Date(rec.expiry_date).toLocaleDateString('en-GB')}
                                                 </span>
                                             </td>
                                             <td className="p-4 text-center">
@@ -281,7 +281,7 @@ export default function WarrantyPage() {
                                         ))}
                                     </div>
                                     <p className="text-[11px] text-muted-foreground mt-3">
-                                        ينتهي هذا الضمان في: <strong className="text-foreground">{(() => { const d = new Date(); d.setMonth(d.getMonth() + formDurationMonths); return d.toLocaleDateString('ar-EG'); })()}</strong>
+                                        ينتهي هذا الضمان في: <strong className="text-foreground">{(() => { const d = new Date(); d.setMonth(d.getMonth() + formDurationMonths); return d.toLocaleDateString('en-GB'); })()}</strong>
                                     </p>
                                 </div>
                             )}

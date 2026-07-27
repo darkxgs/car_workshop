@@ -114,11 +114,11 @@ export default function Home() {
                 const last7Days = Array.from({length: 7}).map((_, i) => {
                     const d = new Date();
                     d.setDate(d.getDate() - i);
-                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
                 }).reverse();
 
                 const chartArr = last7Days.map(dateStr => {
-                    const dayReports = allReports.filter(r => new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === dateStr);
+                    const dayReports = allReports.filter(r => new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) === dateStr);
                     const orders = dayReports.length;
                     const revenue = dayReports.filter(r => r.status === 'تم الانتهاء').reduce((sum, r) => sum + Number(r.total_price || 0), 0);
                     return { name: dateStr, orders, revenue };
@@ -207,7 +207,7 @@ export default function Home() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="animate-spin text-emerald-500 w-12 h-12" />
             </div>
         );
@@ -215,7 +215,7 @@ export default function Home() {
 
     if (employeeRole !== 'Owner' && !permissionDashboard) {
         return (
-            <div className="min-h-screen bg-[#08080d] flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 text-center font-ibm" dir="rtl">
                 <div className="glass-card p-8 rounded-3xl border border-rose-500/20 max-w-md w-full">
                     <h2 className="text-2xl font-bold text-rose-500 mb-2">غير مصرح بالوصول</h2>
                     <p className="text-muted-foreground mb-6">ليس لديك صلاحية للوصول إلى لوحة التحكم.</p>
@@ -263,7 +263,7 @@ export default function Home() {
                     <div>
                         <h1 className="text-3xl font-display font-bold text-foreground mb-2">لوحة التحكم الرئيسية</h1>
                         <p className="text-muted-foreground flex items-center gap-2">
-                            نظرة عامة على أداء ومسار أوامر العمل - {new Date().toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            نظرة عامة على أداء ومسار أوامر العمل - {new Date().toLocaleDateString('en-GB')}
                         </p>
                     </div>
 

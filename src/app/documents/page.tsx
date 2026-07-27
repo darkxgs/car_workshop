@@ -44,7 +44,7 @@ export default function DocumentsPage() {
                 type: d.file_type,
                 size: d.file_size,
                 file_path: d.file_path,
-                date: new Date(d.created_at).toLocaleDateString('ar-SA')
+                date: new Date(d.created_at).toLocaleDateString('en-GB')
             })));
         }
         setLoading(false);

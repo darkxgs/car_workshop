@@ -179,7 +179,7 @@ export default function SaleForm({
                         </div>
                         <div className="text-left text-sm">
                             <p>رقم الفاتورة: #{done.number}</p>
-                            <p>التاريخ: {new Date().toLocaleDateString("ar-EG")}</p>
+                            <p>التاريخ: {new Date().toLocaleDateString("en-GB")}</p>
                         </div>
                     </div>
                     {(customerName || customerPhone) && (

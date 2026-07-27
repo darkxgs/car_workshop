@@ -47,7 +47,7 @@ function monthStr() {
 
 function monthLabel(ym: string) {
     const [y, m] = ym.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
+    return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "2-digit", year: "numeric" });
 }
 
 // Maintenance work a technician did on a report: services flagged "يحتاج تغيير" + custom/free services.
@@ -203,7 +203,7 @@ export default function TechnicianReportPage() {
             const order: OrderItem = {
                 id: r.id,
                 report_number: r.report_number,
-                date: new Date(r.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "2-digit" }),
+                date: new Date(r.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }),
                 status: r.status,
                 vehicle: v ? `${v.make || ""} ${v.model || ""}${v.plate_number ? ` (${v.plate_number})` : ""}`.trim() : "—",
                 services: sc,
@@ -503,7 +503,7 @@ export default function TechnicianReportPage() {
                         </div>
                         <div className="text-left text-sm">
                             <p>الشهر: {monthLabel(month)}</p>
-                            <p>تاريخ الطباعة: {new Date().toLocaleDateString("ar-EG")}</p>
+                            <p>تاريخ الطباعة: {new Date().toLocaleDateString("en-GB")}</p>
                         </div>
                     </div>
 

@@ -223,7 +223,7 @@ export default function AccountingPage() {
                                         </div>
                                         <div>
                                             <p className="text-foreground text-sm font-bold truncate max-w-[140px] leading-tight">{t.description}</p>
-                                            <p className="text-muted-foreground text-[10px] mt-0.5">{new Date(t.date).toLocaleDateString('ar-SA')}</p>
+                                            <p className="text-muted-foreground text-[10px] mt-0.5">{new Date(t.date).toLocaleDateString('en-GB')}</p>
                                         </div>
                                     </div>
                                     <span className={`font-mono font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`} dir="ltr">

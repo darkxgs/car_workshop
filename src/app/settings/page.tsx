@@ -490,7 +490,7 @@ export default function SettingsPage() {
                                             </span>
                                         </td>
                                         <td className="py-4 px-4 text-muted-foreground font-mono" dir="ltr">{emp.phone || 'لا يوجد'}</td>
-                                        <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString()}</td>
+                                        <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString('en-GB')}</td>
                                         <td className="py-4 px-4 text-left">
                                             <div className="flex justify-end gap-2">
                                                 {(employeeRole === 'Owner' || emp.role !== 'Owner') && (

@@ -562,7 +562,7 @@ function ReceptionContainer() {
                         style={{ display: 'grid', alignItems: 'start', justifyItems: 'center', padding: '16px', paddingTop: '24px' }}
                     >
                         <div
-                            className="bg-[#0c101d] border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
+                            className="bg-card border border-cyan-900/30 rounded-3xl shadow-[0_0_60px_rgba(6,182,212,0.15)] animate-scale-in flex flex-col overflow-hidden w-full"
                             style={{ maxHeight: '90vh', maxWidth: '900px' }}
                             dir="rtl"
                         >

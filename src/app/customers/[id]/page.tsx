@@ -178,7 +178,7 @@ export default function CustomerProfilePage() {
 
                                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                     <Calendar size={14} className="text-emerald-400" />
-                                    <span>عميل منذ: {new Date(client.created_at).toLocaleDateString("ar-SA")}</span>
+                                    <span>عميل منذ: {new Date(client.created_at).toLocaleDateString("en-GB")}</span>
                                 </div>
                             </div>
                         </div>
@@ -309,7 +309,7 @@ export default function CustomerProfilePage() {
                                                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                                                     <span className="flex items-center gap-1">
                                                         <Calendar size={11} />
-                                                        {new Date(report.created_at).toLocaleDateString("ar-SA")}
+                                                        {new Date(report.created_at).toLocaleDateString("en-GB")}
                                                     </span>
                                                     {report.odometer_reading > 0 && (
                                                         <span className="flex items-center gap-1">

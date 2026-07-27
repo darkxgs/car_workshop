@@ -158,7 +158,7 @@ export default function EmployeesPage() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <CalIcon size={16} className="text-muted-foreground" />
-                                        <span>تاريخ الانضمام: {new Date(emp.created_at).toLocaleDateString('ar-SA')}</span>
+                                        <span>تاريخ الانضمام: {new Date(emp.created_at).toLocaleDateString('en-GB')}</span>
                                     </div>
                                 </div>
                                 
