@@ -606,3 +606,15 @@
     font-size: 16px !important;
   }
 }
+/* A4 report preview inside the app (reception / work-order modals).
+   The document is a fixed 800px wide, so on phones a static zoom overflowed the
+   screen and the sheet was cut off. Scale it down as the viewport narrows. */
+@media (max-width: 900px) {
+  .print-preview-doc { zoom: 0.55 !important; }
+}
+@media (max-width: 640px) {
+  .print-preview-doc { zoom: 0.42 !important; }
+}
+@media (max-width: 430px) {
+  .print-preview-doc { zoom: 0.34 !important; }
+}
