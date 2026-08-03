@@ -54,22 +54,43 @@ export type AdminGuardResult =
     | { ok: true; supabaseAdmin: SupabaseClient<Database>; userId: string; role: UserRole }
     | { ok: false; error: string };
 
+export type UserManagerGuardResult =
+    | {
+          ok: true;
+          supabaseAdmin: SupabaseClient<Database>;
+          userId: string;
+          role: UserRole;
+          /** Owner/Admin. Only they may hand out (or touch) Owner/Admin accounts. */
+          isAdmin: boolean;
+      }
+    | { ok: false; error: string };
+
+type CallerResult =
+    | {
+          ok: true;
+          supabaseAdmin: SupabaseClient<Database>;
+          userId: string;
+          role: UserRole;
+          canManageUsers: boolean;
+      }
+    | { ok: false; error: string };
+
 /**
- * Authorization gate for privileged server actions.
+ * Identify the caller and load the fields the guards below decide on.
  *
- * 1. Identifies the caller from their session cookie. `getUser()` validates the
- *    JWT against the Supabase auth server, so it cannot be spoofed by a forged
- *    cookie.
- * 2. Looks the caller up in the `employees` table and confirms their role is
- *    permitted to manage accounts.
- *
- * Returns the elevated (service-role) client only when both checks pass, so the
- * caller physically cannot reach the privileged client otherwise.
+ * `getUser()` validates the JWT against the Supabase auth server, so the identity
+ * cannot be spoofed by a forged cookie. Errors are returned in Arabic because they
+ * are shown verbatim to staff in the Settings screen.
  */
-export async function requireAdmin(): Promise<AdminGuardResult> {
+async function resolveCaller(): Promise<CallerResult> {
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) {
-        return { ok: false, error: "Missing Supabase Service Role configuration." };
+        return {
+            ok: false,
+            error:
+                "إعدادات الخادم ناقصة: مفتاح SUPABASE_SERVICE_ROLE_KEY غير مضبوط. " +
+                "أضفه في متغيرات البيئة (Environment Variables) وأعد النشر.",
+        };
     }
 
     const serverClient = await createSupabaseServerClient();
@@ -79,22 +100,72 @@ export async function requireAdmin(): Promise<AdminGuardResult> {
     } = await serverClient.auth.getUser();
 
     if (userError || !user) {
-        return { ok: false, error: "Unauthorized: no active session." };
+        return { ok: false, error: "انتهت الجلسة. سجّل الخروج ثم الدخول من جديد وأعد المحاولة." };
     }
 
     const { data: employee, error: roleError } = await supabaseAdmin
         .from("employees")
-        .select("role")
+        .select("role, permission_employees")
         .eq("auth_id", user.id)
         .limit(1)
         .maybeSingle();
 
     if (roleError) {
-        return { ok: false, error: roleError.message };
+        return { ok: false, error: `تعذّر قراءة صلاحيات المستخدم: ${roleError.message}` };
     }
-    if (!employee || !ADMIN_ROLES.includes(employee.role)) {
-        return { ok: false, error: "Forbidden: admin privileges required." };
+    if (!employee) {
+        return { ok: false, error: "لا يوجد سجل موظف مرتبط بهذا الحساب. راجع المالك." };
     }
 
-    return { ok: true, supabaseAdmin, userId: user.id, role: employee.role };
+    return {
+        ok: true,
+        supabaseAdmin,
+        userId: user.id,
+        role: employee.role,
+        canManageUsers: ADMIN_ROLES.includes(employee.role) || employee.permission_employees === true,
+    };
+}
+
+/**
+ * Strict gate: Owner/Admin only. For actions that go beyond account management
+ * (e.g. the AI assistant, which runs arbitrary read-only SQL).
+ */
+export async function requireAdmin(): Promise<AdminGuardResult> {
+    const caller = await resolveCaller();
+    if (!caller.ok) return caller;
+
+    if (!ADMIN_ROLES.includes(caller.role)) {
+        return { ok: false, error: "هذا الإجراء مسموح للمالك أو مدير النظام فقط." };
+    }
+
+    return { ok: true, supabaseAdmin: caller.supabaseAdmin, userId: caller.userId, role: caller.role };
+}
+
+/**
+ * Gate for managing staff accounts.
+ *
+ * This mirrors what the Settings page actually shows: Owner/Admin, PLUS anyone
+ * carrying the `permission_employees` flag. Previously the page opened for the
+ * flag but every action here demanded Owner/Admin, so supervisors saw the buttons
+ * and every single save failed with "Forbidden".
+ *
+ * `isAdmin` is returned so callers can still keep the sharp edges (creating,
+ * editing or deleting Owner/Admin accounts) reserved for real admins — otherwise
+ * the flag would be a self-promotion path.
+ */
+export async function requireUserManager(): Promise<UserManagerGuardResult> {
+    const caller = await resolveCaller();
+    if (!caller.ok) return caller;
+
+    if (!caller.canManageUsers) {
+        return { ok: false, error: "ليس لديك صلاحية إدارة المستخدمين. اطلب من المالك تفعيل صلاحية «الموظفون»." };
+    }
+
+    return {
+        ok: true,
+        supabaseAdmin: caller.supabaseAdmin,
+        userId: caller.userId,
+        role: caller.role,
+        isAdmin: ADMIN_ROLES.includes(caller.role),
+    };
 }

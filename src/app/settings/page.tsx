@@ -12,6 +12,9 @@ import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 export default function SettingsPage() {
     const { t } = useLanguage();
     const { employeeRole, loading: authLoading, permissionEmployees } = useAuth();
+    // Owner/Admin. Staff who only carry the "الموظفون" permission flag can manage
+    // accounts, but not admin-level ones — mirrors requireUserManager() on the server.
+    const isAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
     
     // Auth & Employees State
     const [employees, setEmployees] = useState<any[]>([]);
@@ -184,9 +187,17 @@ export default function SettingsPage() {
         setIsSubmitting(false);
     };
 
+    // Who this user may edit/delete — same rule the server enforces, so the screen
+    // never offers an action that is going to come back rejected.
+    const canManage = (emp: any) => {
+        if (emp.role === 'Owner') return employeeRole === 'Owner';
+        if (emp.role === 'Admin') return isAdmin;
+        return true;
+    };
+
     const handleEditUserClick = (emp: any) => {
-        if (emp.role === 'Owner' && employeeRole !== 'Owner') {
-            showError("غير مصرح", "لا يمكن لمدير النظام تعديل بيانات المالك الأساسي.");
+        if (!canManage(emp)) {
+            showError("غير مصرح", "لا يمكنك تعديل بيانات هذا الحساب.");
             return;
         }
         setEditingEmployeeId(emp.auth_id);
@@ -493,13 +504,13 @@ export default function SettingsPage() {
                                         <td className="py-4 px-4 text-muted-foreground font-mono text-xs">{new Date(emp.created_at).toLocaleDateString('en-GB')}</td>
                                         <td className="py-4 px-4 text-left">
                                             <div className="flex justify-end gap-2">
-                                                {(employeeRole === 'Owner' || emp.role !== 'Owner') && (
+                                                {canManage(emp) && (
                                                     <button onClick={() => handleEditUserClick(emp)} className="text-blue-500 hover:bg-blue-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-blue-500/20">تعديل</button>
                                                 )}
-                                                {(employeeRole === 'Owner' || emp.role !== 'Owner') && (
+                                                {canManage(emp) && (
                                                     <button onClick={() => handleDeleteUser(emp.auth_id, emp.name, emp.role)} className="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition-colors text-xs font-bold border border-rose-500/20">حذف</button>
                                                 )}
-                                                {emp.role === 'Owner' && employeeRole !== 'Owner' && (
+                                                {!canManage(emp) && (
                                                     <span className="text-xs text-muted-foreground italic px-1">محمي</span>
                                                 )}
                                             </div>
@@ -595,7 +606,9 @@ export default function SettingsPage() {
                                     <select id="emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
-                                        <option value="Admin">مدير عام (أقصى صلاحية)</option>
+                                        {/* Only a real admin may hand out admin-level roles — the server
+                                            enforces the same rule, so hide what would just fail. */}
+                                        {isAdmin && <option value="Admin">مدير عام (أقصى صلاحية)</option>}
                                         {employeeRole === 'Owner' && <option value="Owner">مالك النظام (صلاحية كاملة)</option>}
                                     </select>
                                 </div>
@@ -714,7 +727,9 @@ export default function SettingsPage() {
                                     <select id="edit-emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
                                         <option value="Receptionist">موظف استقبال</option>
                                         <option value="Supervisor">مشرف فني (ورشة)</option>
-                                        <option value="Admin">مدير عام (أقصى صلاحية)</option>
+                                        {/* Only a real admin may hand out admin-level roles — the server
+                                            enforces the same rule, so hide what would just fail. */}
+                                        {isAdmin && <option value="Admin">مدير عام (أقصى صلاحية)</option>}
                                         {employeeRole === 'Owner' && <option value="Owner">مالك النظام (صلاحية كاملة)</option>}
                                     </select>
                                 </div>

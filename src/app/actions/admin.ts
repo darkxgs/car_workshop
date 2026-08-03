@@ -1,7 +1,10 @@
 "use server";
 
 import { UserRole } from "@/lib/types";
-import { requireAdmin } from "@/lib/supabase-server";
+import { requireAdmin, requireUserManager } from "@/lib/supabase-server";
+
+// Roles a non-admin user-manager may neither grant nor touch.
+const PRIVILEGED_ROLES: UserRole[] = ["Owner", "Admin"];
 
 // Admin Server Action to securely instantiate employees with usernames and permissions
 export async function createEmployeeAccount(formData: {
@@ -18,11 +21,17 @@ export async function createEmployeeAccount(formData: {
     permission_reports?: boolean;
     permission_employees?: boolean;
 }) {
-    // SECURITY: server actions are public POST endpoints — verify the caller is an
-    // admin before touching the service-role client (which bypasses RLS).
-    const guard = await requireAdmin();
+    // SECURITY: server actions are public POST endpoints — verify the caller may
+    // manage users before touching the service-role client (which bypasses RLS).
+    const guard = await requireUserManager();
     if (!guard.ok) return { success: false, error: guard.error };
-    const { supabaseAdmin } = guard;
+    const { supabaseAdmin, isAdmin } = guard;
+
+    // A user-manager who isn't Owner/Admin cannot mint an Owner/Admin account,
+    // which would otherwise turn the permission flag into a self-promotion path.
+    if (!isAdmin && PRIVILEGED_ROLES.includes(formData.role)) {
+        return { success: false, error: "لا يمكنك إنشاء حساب بصلاحية مالك أو مدير نظام." };
+    }
 
     try {
         const cleanUsername = formData.username.trim().toLowerCase();
@@ -97,9 +106,26 @@ export async function updateEmployeeAccount(
         permission_employees?: boolean;
     }
 ) {
-    const guard = await requireAdmin();
+    const guard = await requireUserManager();
     if (!guard.ok) return { success: false, error: guard.error };
-    const { supabaseAdmin } = guard;
+    const { supabaseAdmin, isAdmin } = guard;
+
+    if (!isAdmin) {
+        // Non-admin managers may not edit an Owner/Admin account (that would let
+        // them reset the owner's password) nor promote anyone into those roles.
+        const { data: target } = await supabaseAdmin
+            .from("employees")
+            .select("role")
+            .eq("auth_id", authId)
+            .maybeSingle();
+
+        if (target && PRIVILEGED_ROLES.includes(target.role)) {
+            return { success: false, error: "لا يمكنك تعديل حساب المالك أو مدير النظام." };
+        }
+        if (PRIVILEGED_ROLES.includes(formData.role)) {
+            return { success: false, error: "لا يمكنك منح صلاحية مالك أو مدير نظام." };
+        }
+    }
 
     try {
         const cleanUsername = formData.username.trim().toLowerCase();
@@ -149,13 +175,25 @@ export async function updateEmployeeAccount(
 
 // Admin Server Action to delete an employee
 export async function deleteEmployeeAccount(authId: string) {
-    const guard = await requireAdmin();
+    const guard = await requireUserManager();
     if (!guard.ok) return { success: false, error: guard.error };
-    const { supabaseAdmin, userId } = guard;
+    const { supabaseAdmin, userId, isAdmin } = guard;
 
     // Guard against an admin deleting their own account and locking themselves out.
     if (authId === userId) {
-        return { success: false, error: "You cannot delete your own account." };
+        return { success: false, error: "لا يمكنك حذف حسابك الشخصي." };
+    }
+
+    if (!isAdmin) {
+        const { data: target } = await supabaseAdmin
+            .from("employees")
+            .select("role")
+            .eq("auth_id", authId)
+            .maybeSingle();
+
+        if (target && PRIVILEGED_ROLES.includes(target.role)) {
+            return { success: false, error: "لا يمكنك حذف حساب المالك أو مدير النظام." };
+        }
     }
 
     try {
@@ -200,7 +238,7 @@ export async function getAuthEmails() {
 // Admin Server Action to list app users (employees joined with their auth email).
 // Replaces the previously-missing `/api/users` route handler.
 export async function listAppUsers() {
-    const guard = await requireAdmin();
+    const guard = await requireUserManager();
     if (!guard.ok) return { success: false, error: guard.error, users: [] };
     const { supabaseAdmin } = guard;
 
