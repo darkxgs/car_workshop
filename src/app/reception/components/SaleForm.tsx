@@ -30,6 +30,7 @@ export default function SaleForm({
     const [customerName, setCustomerName] = useState("");
     const [customerPhone, setCustomerPhone] = useState("");
     const [products, setProducts] = useState<Product[]>([{ name: "", qty: "1", price: "" }]);
+    const [discount, setDiscount] = useState("");
     const [productNames, setProductNames] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [done, setDone] = useState<{ id: string; number: number | null } | null>(null);
@@ -62,6 +63,8 @@ export default function SaleForm({
                 if (Array.isArray(payload.products) && payload.products.length > 0) {
                     setProducts(payload.products.map((p: any) => ({ name: p.name || "", qty: String(p.qty ?? "1"), price: String(p.price ?? "") })));
                 }
+                const savedDiscount = parseFloat(String(payload.pricing?.discount ?? "0")) || 0;
+                setDiscount(savedDiscount > 0 ? String(savedDiscount) : "");
             }
         })();
     }, [editId, setSelectedBranchId]);
@@ -70,6 +73,10 @@ export default function SaleForm({
         () => products.reduce((s, p) => s + (parseFloat(p.qty) || 0) * (parseFloat(p.price) || 0), 0),
         [products]
     );
+    // A sale is settled on the spot, so the net (after discount) is both what the
+    // customer pays and what the accounting page counts as income for the day.
+    const discountValue = Math.min(parseFloat(discount) || 0, total);
+    const netTotal = total - discountValue;
 
     const updateProduct = (i: number, field: keyof Product, val: string) =>
         setProducts((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: val } : p)));
@@ -96,8 +103,8 @@ export default function SaleForm({
                 products: valid.map((p) => ({ name: p.name.trim(), qty: parseFloat(p.qty) || 1, price: parseFloat(p.price) || 0 })),
                 pricing: {
                     grandTotal: String(total),
-                    discount: "0",
-                    amountReceived: String(total),
+                    discount: String(discountValue),
+                    amountReceived: String(netTotal),
                     accounted: true,
                     accountedAt: new Date().toISOString(),
                 }
@@ -106,7 +113,9 @@ export default function SaleForm({
             if (editReportId) {
                 const { error } = await supabase.from("inspection_reports").update({
                     branch_id: branchId,
-                    total_price: total,
+                    // Net, so the daily income matches what was actually collected —
+                    // same convention the accounting page uses for maintenance invoices.
+                    total_price: netTotal,
                     selected_services: payload,
                 }).eq("id", editReportId);
                 if (error) throw error;
@@ -120,7 +129,7 @@ export default function SaleForm({
                     order_type: "sale",
                     status: "تم الانتهاء",
                     odometer_reading: 0,
-                    total_price: total,
+                    total_price: netTotal,
                     selected_services: payload,
                 }).select("id, report_number").single();
                 if (error) throw error;
@@ -141,6 +150,7 @@ export default function SaleForm({
         setCustomerName("");
         setCustomerPhone("");
         setProducts([{ name: "", qty: "1", price: "" }]);
+        setDiscount("");
         router.replace("/reception?sale=1");
     };
 
@@ -155,7 +165,11 @@ export default function SaleForm({
                     </div>
                     <div>
                         <h2 className="text-3xl font-display font-bold text-foreground mb-2">تم تسجيل البيع!</h2>
-                        <p className="text-muted-foreground">رقم الفاتورة: <span className="font-mono font-bold text-rose-400">#{done.number}</span> • الإجمالي: <span className="font-bold text-emerald-400">{total.toLocaleString()}</span></p>
+                        <p className="text-muted-foreground">
+                            رقم الفاتورة: <span className="font-mono font-bold text-rose-400">#{done.number}</span>
+                            {discountValue > 0 && <> • الخصم: <span className="font-bold text-amber-400">{discountValue.toLocaleString()}</span></>}
+                            {" "}• الصافي: <span className="font-bold text-emerald-400">{netTotal.toLocaleString()}</span>
+                        </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-3">
                         <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20">
@@ -209,9 +223,21 @@ export default function SaleForm({
                             })}
                         </tbody>
                         <tfoot>
+                            {discountValue > 0 && (
+                                <>
+                                    <tr className="border-t-2 border-black font-bold">
+                                        <td className="p-2 border border-gray-400" colSpan={3}>الإجمالي قبل الخصم</td>
+                                        <td className="p-2 border border-gray-400 text-center">{total.toLocaleString()}</td>
+                                    </tr>
+                                    <tr className="font-bold">
+                                        <td className="p-2 border border-gray-400" colSpan={3}>الخصم</td>
+                                        <td className="p-2 border border-gray-400 text-center">- {discountValue.toLocaleString()}</td>
+                                    </tr>
+                                </>
+                            )}
                             <tr className="border-t-2 border-black font-black">
-                                <td className="p-2 border border-gray-400" colSpan={3}>الإجمالي الكلي</td>
-                                <td className="p-2 border border-gray-400 text-center">{total.toLocaleString()}</td>
+                                <td className="p-2 border border-gray-400" colSpan={3}>{discountValue > 0 ? "الصافي المطلوب" : "الإجمالي الكلي"}</td>
+                                <td className="p-2 border border-gray-400 text-center">{netTotal.toLocaleString()}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -295,9 +321,33 @@ export default function SaleForm({
                         ))}
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-border/50 pt-4 mt-2">
-                        <span className="text-lg font-bold text-foreground">الإجمالي الكلي</span>
-                        <span className="text-2xl font-black text-emerald-400">{total.toLocaleString()}</span>
+                    <div className="border-t border-border/50 pt-4 mt-2 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-muted-foreground">الإجمالي قبل الخصم</span>
+                            <span className="text-lg font-bold text-foreground">{total.toLocaleString()}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <label htmlFor="sale-discount" className="text-sm font-bold text-amber-400 shrink-0">الخصم (د.ع)</label>
+                            <input
+                                id="sale-discount"
+                                type="text"
+                                inputMode="numeric"
+                                dir="ltr"
+                                value={withCommasDecimal(discount)}
+                                onChange={(e) => setDiscount(decimalsOnly(e.target.value))}
+                                placeholder="0"
+                                className="input-field w-40 text-center font-bold"
+                            />
+                        </div>
+                        {(parseFloat(discount) || 0) > total && (
+                            <p className="text-xs text-rose-400 text-left">الخصم أكبر من الإجمالي — سيُحتسب الخصم بقيمة الإجمالي فقط.</p>
+                        )}
+
+                        <div className="flex items-center justify-between border-t border-border/50 pt-3">
+                            <span className="text-lg font-bold text-foreground">الصافي المطلوب</span>
+                            <span className="text-2xl font-black text-emerald-400">{netTotal.toLocaleString()}</span>
+                        </div>
                     </div>
                 </div>
 
