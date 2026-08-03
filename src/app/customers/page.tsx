@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
     Users, User, Search, Download, Plus, MapPin, Phone,
@@ -59,6 +59,9 @@ export default function CustomersPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    // Marks the next fetch as a background one (realtime), so the list refreshes in
+    // place instead of blanking to "جاري تحميل البيانات..." while the user is reading.
+    const silentRefresh = useRef(false);
     const PAGE_SIZE = 25;
 
     // Modals & Tabbed Profile
@@ -106,7 +109,11 @@ export default function CustomersPage() {
         const channel = supabase.channel('customers_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
                 if (timer) return;
-                timer = setTimeout(() => { timer = null; setRefreshTrigger(t => t + 1); }, 30000);
+                timer = setTimeout(() => {
+                    timer = null;
+                    silentRefresh.current = true;
+                    setRefreshTrigger(t => t + 1);
+                }, 30000);
             })
             .subscribe();
         return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
@@ -123,7 +130,9 @@ export default function CustomersPage() {
     };
 
     const fetchClients = async () => {
-        setLoading(true);
+        const silent = silentRefresh.current;
+        silentRefresh.current = false;
+        if (!silent) setLoading(true);
         try {
             const activeBranchId = employeeBranchId || branchFilter;
             const hasReportFilter = !!(activeBranchId || dateFrom || dateTo);
