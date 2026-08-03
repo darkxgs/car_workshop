@@ -84,8 +84,12 @@ export default function AuditPage() {
         fetchBranches();
     }, []);
 
-    const fetchOrders = async () => {
-        setLoading(true);
+    // `silent` keeps the current list on screen while the data refreshes underneath.
+    // Without it every realtime event (any order changing anywhere in the workshop)
+    // blanked the whole page to a spinner — collapsing the invoice the accountant had
+    // open and throwing them back to the top of the list mid-audit.
+    const fetchOrders = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             // 1. Fetch pending orders (status = 'تم الانتهاء', order_type !== 'sale', and accounted is not true)
             let qPending = supabase.from('inspection_reports')
@@ -171,7 +175,7 @@ export default function AuditPage() {
 
         const channel = supabase.channel('audit_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchOrders();
+                fetchOrders(true);
             })
             .subscribe();
 
@@ -298,7 +302,9 @@ export default function AuditPage() {
                 .eq('id', o.id);
             if (error) throw error;
             showSuccess("تمت المحاسبة", `تم إغلاق الفاتورة #${o.report_number}. الصافي ${net.toLocaleString('en-US')} د.ع.`);
-            fetchOrders();
+            // Silent: the success toast is the feedback — no need to blank the list and
+            // lose the accountant's place in it.
+            fetchOrders(true);
         } catch (err: any) {
             console.error(err);
             showError("خطأ", err.message || "تعذر حفظ المحاسبة.");
@@ -324,7 +330,7 @@ export default function AuditPage() {
             const { error } = await supabase.from('inspection_reports').update({ selected_services: services }).eq('id', o.id);
             if (error) throw error;
             showSuccess("تم الحذف", `تم حذف الفاتورة #${o.report_number} من المحاسبة.`);
-            fetchOrders();
+            fetchOrders(true);
         } catch (err: any) {
             console.error(err);
             showError("خطأ", err.message || "تعذر حذف الفاتورة من المحاسبة.");
@@ -344,7 +350,7 @@ export default function AuditPage() {
             const { error } = await supabase.from('inspection_reports').update({ selected_services: services }).eq('id', o.id);
             if (error) throw error;
             showSuccess("تم الاسترجاع", `تم إرجاع الفاتورة #${o.report_number} إلى المحاسبة.`);
-            fetchOrders();
+            fetchOrders(true);
         } catch (err: any) {
             console.error(err);
             showError("خطأ", err.message || "تعذر استرجاع الفاتورة.");

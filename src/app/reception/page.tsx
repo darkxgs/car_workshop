@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -116,6 +116,72 @@ function ReceptionContainer() {
     }, [employeeBranchId]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    // Read inside async callbacks (realtime, wizard-close) where `page` would be stale.
+    const pageRef = useRef(1);
+    pageRef.current = page;
+
+    // ── Scroll memory ────────────────────────────────────────────────────────
+    // Opening a card swaps this whole list out for the wizard. Remember where the
+    // user was standing so "رجوع" puts them back on the same row instead of at the
+    // top of a freshly reloaded page.
+    const listScrollY = useRef(0);
+    // Set while navigating into the wizard, so the router's scroll-to-top (and any
+    // scrolling done inside the wizard) can't overwrite the remembered position.
+    const scrollLocked = useRef(false);
+    const wasWizardOpen = useRef(false);
+
+    const rememberScroll = () => {
+        listScrollY.current = window.scrollY;
+        scrollLocked.current = true;
+    };
+
+    useEffect(() => {
+        const onScroll = () => {
+            if (!scrollLocked.current) listScrollY.current = window.scrollY;
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    // Jump back to a remembered offset. The rows may still be painting, so keep
+    // trying for a few frames until the page is actually tall enough to reach it.
+    const restoreScroll = (y: number) => {
+        if (y <= 0) return;
+        let attempts = 0;
+        const tick = () => {
+            window.scrollTo(0, y);
+            if (Math.abs(window.scrollY - y) > 2 && attempts++ < 20) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    };
+
+    // Silent refresh: re-fetch every page the user has already loaded and swap the
+    // rows in WITHOUT blanking the table. Used by realtime and when returning from
+    // the wizard, so the list never collapses to a spinner under the user — that
+    // was what threw them back to the top mid-review.
+    const refreshLoadedOrders = async (restoreTo?: number) => {
+        const count = Math.min(pageRef.current * 50, 1000);
+        let query = supabase
+            .from('inspection_reports')
+            .select(ORDER_SELECT)
+            .order('created_at', { ascending: false })
+            .order('report_number', { ascending: false })
+            .range(0, count - 1);
+
+        if (selectedBranchId) {
+            query = query.eq('branch_id', selectedBranchId);
+        } else if (employeeBranchId) {
+            query = query.eq('branch_id', employeeBranchId);
+        }
+
+        const { data } = await query;
+        if (data) {
+            setOrders(data);
+            setHasMore(data.length >= count);
+        }
+        setLoading(false);
+        if (restoreTo) restoreScroll(restoreTo);
+    };
 
     const fetchOrders = async (resetPage = false) => {
         const targetPage = resetPage ? 1 : page;
@@ -148,8 +214,21 @@ function ReceptionContainer() {
     };
 
     useEffect(() => {
+        const returningFromWizard = wasWizardOpen.current && !isWizardOpen;
+        wasWizardOpen.current = isWizardOpen;
         if (isWizardOpen) return;
-        fetchOrders(true);
+
+        if (returningFromWizard) {
+            // Capture the target before re-enabling the scroll listener, so nothing
+            // can overwrite it while the rows are coming back.
+            const restoreTo = listScrollY.current;
+            scrollLocked.current = false;
+            // Keep every page the user had loaded — resetting to the first 50 rows
+            // was half of why "رجوع" never landed back on the same row.
+            refreshLoadedOrders(restoreTo);
+        } else {
+            fetchOrders(true);
+        }
     }, [isWizardOpen, employeeBranchId, selectedBranchId]);
 
     useEffect(() => {
@@ -161,7 +240,9 @@ function ReceptionContainer() {
     useEffect(() => {
         const channel = supabase.channel('reception_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchOrders(true);
+                // Silent: any order changing anywhere in the workshop used to wipe the
+                // table to a spinner and reset it to the first 50 rows mid-read.
+                refreshLoadedOrders();
             })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
@@ -303,7 +384,9 @@ function ReceptionContainer() {
             setWizardSaleMode(false);
             setInspectionMode(false);
             setEditIsSale(null);
-            router.replace('/reception');
+            // scroll:false — we restore the remembered position ourselves once the
+            // rows are back; letting the router jump to the top first would undo it.
+            router.replace('/reception', { scroll: false });
         };
 
         // Comprehensive inspection (فحص شامل) — standalone form.
@@ -385,19 +468,19 @@ function ReceptionContainer() {
                             </select>
                         )}
                         <button
-                            onClick={() => { setWizardSaleMode(false); setIsWizardOpen(true); }}
+                            onClick={() => { rememberScroll(); setWizardSaleMode(false); setIsWizardOpen(true); }}
                             className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <UserPlus size={18} /> إنشاء كرت فحص جديد
                         </button>
                         <button
-                            onClick={() => { setWizardSaleMode(true); setIsWizardOpen(true); }}
+                            onClick={() => { rememberScroll(); setWizardSaleMode(true); setIsWizardOpen(true); }}
                             className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <ShoppingCart size={18} /> بيع منتج
                         </button>
                         <button
-                            onClick={() => { setInspectionMode(true); setIsWizardOpen(true); }}
+                            onClick={() => { rememberScroll(); setInspectionMode(true); setIsWizardOpen(true); }}
                             className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <ClipboardList size={18} /> فحص شامل
@@ -509,6 +592,7 @@ function ReceptionContainer() {
                                                         )}
                                                         <button
                                                             onClick={() => {
+                                                                rememberScroll();
                                                                 if (o.branch_id) setSelectedBranchId(o.branch_id);
                                                                 router.push(`/reception?edit=${o.id}`);
                                                             }}
