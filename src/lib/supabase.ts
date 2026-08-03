@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { processLock } from '@supabase/supabase-js'
 import type { Database } from './types'
+import { AUTH_COOKIE_NAME } from './supabase-cookie'
 
 // Custom fetch wrapper to prevent infinite deadlocks when tabs hibernate/wake up.
 // Supabase is known to freeze ALL requests if a token refresh gets deadlocked in the background.
@@ -50,6 +51,10 @@ export const supabase = createBrowserClient<Database>(
     getSupabaseUrl(),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+        // Pin the session cookie name. Without this it is derived from the proxy
+        // URL above, which does NOT match what the server client derives from the
+        // real Supabase URL — so no Server Action could ever see the session.
+        cookieOptions: { name: AUTH_COOKIE_NAME },
         global: {
             fetch: customFetch
         },

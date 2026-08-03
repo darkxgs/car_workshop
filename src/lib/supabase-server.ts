@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database, UserRole } from "./types";
+import { AUTH_COOKIE_NAME } from "./supabase-cookie";
 
 // Roles allowed to manage other user accounts.
 const ADMIN_ROLES: UserRole[] = ["Owner", "Admin"];
@@ -19,6 +20,8 @@ export async function createSupabaseServerClient() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
+            // Must match the browser client exactly — see supabase-cookie.ts.
+            cookieOptions: { name: AUTH_COOKIE_NAME },
             cookies: {
                 getAll() {
                     return cookieStore.getAll();
