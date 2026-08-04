@@ -273,6 +273,7 @@ const DEFAULT_SUGGESTION_LISTS: Record<string, string[]> = {
     sparkPlugsBrands: [],
     windshieldFluids: [],
     technicianNames: [],
+    receptionistNames: [],
     supervisorNames: [],
     bayNumbers: []
 };
@@ -406,13 +407,24 @@ export default function StandardReception({
 
     // ---------- Employees ----------
     const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
-    const [selectedReceptionistId, setSelectedReceptionistId] = useState<string>("");
-    
+    // Held as a NAME, not an employee id: reception staff are picked from the
+    // "أسماء موظفي الاستقبال" suggestion list and don't need a login account.
+    const [receptionistName, setReceptionistName] = useState<string>("");
+
     useEffect(() => {
-        if (employeeId && !editId) {
-            setSelectedReceptionistId(employeeId);
+        // Default to the signed-in user's own name for a new card.
+        if (employeeId && !editId && !receptionistName) {
+            const me = employees.find(e => e.id === employeeId);
+            if (me) setReceptionistName(me.name);
         }
-    }, [employeeId, editId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [employeeId, editId, employees]);
+
+    // Resolve the typed name back to an employee row when one exists, so
+    // receptionist_id (and everything joining on it) keeps working as before.
+    const resolvedReceptionistId = employees.find(
+        e => e.name.trim() === receptionistName.trim()
+    )?.id || "";
 
     const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
     const [assignedTechnician, setAssignedTechnician] = useState<string>("");
@@ -578,7 +590,12 @@ export default function StandardReception({
                 setNotes(data.notes || "");
                 setBayNumber(data.bay_number || "");
                 if (data.branch_id) setSelectedBranchId(data.branch_id);
-                if (data.receptionist_id) setSelectedReceptionistId(data.receptionist_id);
+                // Fall back to the linked employee's name; the payload's own
+                // receptionistName (set just below) wins when present.
+                if (data.receptionist_id) {
+                    const linked = employees.find(e => e.id === data.receptionist_id);
+                    if (linked) setReceptionistName(linked.name);
+                }
                 
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
                 if (payload) {
@@ -592,6 +609,7 @@ export default function StandardReception({
                     if (payload.customServices) setCustomServices(payload.customServices);
                     if (payload.shiftName) setShiftName(payload.shiftName);
                     if (payload.shiftSupervisor) setShiftSupervisor(payload.shiftSupervisor);
+                    if (payload.receptionistName) setReceptionistName(payload.receptionistName);
                     if (payload.technicianName) setAssignedTechnician(payload.technicianName);
                     if (payload.booklet) {
                         setBookletType(payload.booklet.type || "");
@@ -776,7 +794,7 @@ export default function StandardReception({
 
             // Override listId for non-sector branches:
             if (!isSectorBranch) {
-                if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "bayNumbers") {
+                if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "receptionistNames" && listId !== "bayNumbers") {
                     listId = "materials";
                 } else if (field.startsWith('prod_')) {
                     listId = "materials";
@@ -844,7 +862,7 @@ export default function StandardReception({
 
         // Override listId for non-sector branches:
         if (!isSectorBranch) {
-            if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "bayNumbers") {
+            if (listId && listId !== "technicianNames" && listId !== "supervisorNames" && listId !== "receptionistNames" && listId !== "bayNumbers") {
                 listId = "materials";
             } else if (field.startsWith('prod_')) {
                 listId = "materials";
@@ -998,7 +1016,7 @@ export default function StandardReception({
                 vehicleId = nv!.id;
             }
 
-            const receptionistName = employees.find(e => e.id === selectedReceptionistId)?.name || '';
+            const receptionistNameToSave = receptionistName.trim();
 
             // Calculate estimated duration in minutes
             const SERVICE_ESTIMATED_MINUTES: Record<string, number> = {
@@ -1063,7 +1081,7 @@ export default function StandardReception({
                 technicianName: assignedTechnician,
                 booklet: { type: bookletType, changes: bookletChanges, serial: finalBookletSerial },
                 pricing: { totalPrice, discount, amountReceived, amountOwedByClient: "0", amountOwedToClient: "0" },
-                receptionistName,
+                receptionistName: receptionistNameToSave,
                 futureOdometer: futureOdometer || "",
                 tireSize: parseTireSize(tireSize),
             };
@@ -1087,7 +1105,7 @@ export default function StandardReception({
 
                 const { error: re } = await supabase.from('inspection_reports')
                     .update({
-                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
+                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: resolvedReceptionistId || employeeId,
                         odometer_reading: parseInt(odometer || "0") || 0,
                         odometer_unit: odometerUnit,
                         order_type: isSale ? 'sale' : 'maintenance',
@@ -1117,7 +1135,7 @@ export default function StandardReception({
 
             const { data: rd, error: re } = await supabase.from('inspection_reports')
                 .insert({
-                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: selectedReceptionistId || employeeId,
+                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: resolvedReceptionistId || employeeId,
                     odometer_reading: parseInt(odometer || "0") || 0,
                     odometer_unit: odometerUnit,
                     order_type: isSale ? 'sale' : 'maintenance',
@@ -1157,7 +1175,7 @@ export default function StandardReception({
         setBookletType("");
         setBookletChanges("");
         setSelectedBranchId(newBranchId || "");
-        setSelectedReceptionistId(employeeId || ""); setSelectedTechnicianId(""); setAssignedTechnician("");
+        setReceptionistName(employees.find(e => e.id === employeeId)?.name || ""); setSelectedTechnicianId(""); setAssignedTechnician("");
         setTotalPrice(""); setDiscount(""); setAmountReceived("");
         setCreatedWorkOrderId(null); setReportNumber(null); setSelectedClientId(null); setEditReportId(null);
         setStep(1);
@@ -1258,16 +1276,28 @@ export default function StandardReception({
                             )}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-muted-foreground">موظف الاستقبال</label>
-                                <select
-                                    value={selectedReceptionistId}
-                                    onChange={e => setSelectedReceptionistId(e.target.value)}
+                                {/* Free text backed by the "أسماء موظفي الاستقبال" suggestion list, the
+                                    same way the technician and supervisor fields work. It used to be a
+                                    dropdown of `employees`, which meant a receptionist had to be given a
+                                    login account just to be named on a work order. Staff who DO have an
+                                    account still resolve to their employee row (so receptionist_id keeps
+                                    working); anyone else is simply recorded by name. */}
+                                <input
+                                    type="text"
+                                    list="receptionist-names-list"
                                     className="input-field"
-                                >
-                                    <option value="">-- اختر موظف الاستقبال --</option>
-                                    {employees.filter(e => e.role === 'Receptionist' || e.role === 'Admin' || e.role === 'Owner').map(e => (
-                                        <option key={e.id} value={e.id}>{e.name}</option>
+                                    placeholder="اسم موظف الاستقبال..."
+                                    value={receptionistName}
+                                    onChange={e => setReceptionistName(e.target.value)}
+                                />
+                                <datalist id="receptionist-names-list">
+                                    {(suggestionLists.receptionistNames || []).map((s: any, i: number) => (
+                                        <option key={`s${i}`} value={typeof s === 'object' && s !== null ? s.name : s} />
                                     ))}
-                                </select>
+                                    {employees
+                                        .filter(e => e.role === 'Receptionist' || e.role === 'Admin' || e.role === 'Owner')
+                                        .map(e => <option key={e.id} value={e.name} />)}
+                                </datalist>
                             </div>
                         </div>
                     </div>
@@ -1482,7 +1512,7 @@ export default function StandardReception({
                                                             {entry.status === "يحتاج تغيير" && svc.detailFields.length > 0 && (
                                                                 <div className="flex flex-wrap gap-2 px-4 pb-3 pr-10 border-t border-border/50 pt-3">
                                                                     {[...svc.detailFields, ...priceFields(svc)].map(df => {
-                                                                        const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
+                                                                        const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'receptionistNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                                         const fieldKey = svc.key + "_" + df.key;
                                                                         const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
                                                                         return (
@@ -1727,7 +1757,7 @@ export default function StandardReception({
                                                                     </select>
                                                                 );
                                                             }
-                                                            const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
+                                                            const resolvedListId = !isSectorBranch && df.listId && df.listId !== 'technicianNames' && df.listId !== 'supervisorNames' && df.listId !== 'receptionistNames' && df.listId !== 'bayNumbers' ? "materials" : df.listId;
                                                             const fieldKey = svc.key + "_" + df.key;
                                                             const suggestions = (focusedListId === resolvedListId && focusedFieldKey === fieldKey) ? getFilteredSuggestions() : [];
                                                             return (
