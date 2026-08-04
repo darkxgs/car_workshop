@@ -606,6 +606,35 @@
     font-size: 16px !important;
   }
 }
+/* =============================================
+   RESPONSIVE TYPE SCALE
+   Page titles are written as text-3xl (30px) all over the app, which is right on
+   a desktop but oversized on a 360px phone — a long Arabic title ate three lines
+   and pushed the actual content below the fold. These rules are intentionally
+   unlayered so they win over Tailwind's utilities, and they only ever scale a
+   heading DOWN on small screens; the desktop look is untouched.
+   Scoped to .font-display / .font-ibm so print sheets keep their exact sizing.
+   ============================================= */
+@media screen and (max-width: 640px) {
+  h1.font-display,
+  h1.font-ibm {
+    font-size: 1.5rem;   /* 24px */
+    line-height: 2rem;
+  }
+  h2.font-display {
+    font-size: 1.25rem;  /* 20px */
+    line-height: 1.75rem;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  h1.font-display,
+  h1.font-ibm {
+    font-size: 1.3125rem; /* 21px */
+    line-height: 1.75rem;
+  }
+}
+
 /* A4 report preview inside the app (reception / work-order modals).
    The document is a fixed 800px wide, so on phones a static zoom overflowed the
    screen and the sheet was cut off. Scale it down as the viewport narrows. */

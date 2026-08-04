@@ -567,7 +567,7 @@ export default function SettingsPage() {
             {/* ADD EMPLOYEE MODAL */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
-                    <form onSubmit={handleCreateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
+                    <form onSubmit={handleCreateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md max-h-[90vh] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
                         <div className="p-6 border-b border-border bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between shrink-0">
                             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <Users className="text-cyan-500" /> إضافة مستخدم جديد للنظام (Access)
@@ -600,7 +600,9 @@ export default function SettingsPage() {
                                 <input id="emp-password" name="password" required minLength={6} type="password" autoComplete="new-password" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left tracking-widest" dir="ltr" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mt-2">
+                            {/* Stacks on phones — two selects side by side in a 360px-wide
+                                modal truncated the role/branch names. */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                                 <div className="space-y-2">
                                     <label htmlFor="emp-role" className="text-sm font-medium text-muted-foreground">المنصب الدقيق والصلاحية</label>
                                     <select id="emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
@@ -629,7 +631,7 @@ export default function SettingsPage() {
 
                             <div className="space-y-3 border-t border-border pt-4 mt-4">
                                 <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
-                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                     <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
                                         <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
                                         <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
@@ -671,7 +673,7 @@ export default function SettingsPage() {
             {/* EDIT EMPLOYEE MODAL */}
             {isEditModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" dir="rtl">
-                    <form onSubmit={handleUpdateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
+                    <form onSubmit={handleUpdateUser} className="bg-card border border-cyan-900/40 rounded-[24px] w-full max-w-md max-h-[90vh] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col relative animate-in zoom-in duration-200 text-right">
                         <div className="p-6 border-b border-border bg-gradient-to-l from-slate-900 to-[#050505] flex items-center justify-between shrink-0">
                             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <Settings className="text-cyan-500" /> تعديل بيانات المستخدم
@@ -721,7 +723,9 @@ export default function SettingsPage() {
                                 <input id="edit-emp-password" name="password" minLength={6} type="password" autoComplete="new-password" className="w-full bg-background border border-border rounded-xl p-3 text-foreground focus:border-cyan-500 font-mono text-left tracking-widest" dir="ltr" placeholder="أدخل كلمة مرور جديدة للتغيير" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mt-2">
+                            {/* Stacks on phones — two selects side by side in a 360px-wide
+                                modal truncated the role/branch names. */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                                 <div className="space-y-2">
                                     <label htmlFor="edit-emp-role" className="text-sm font-medium text-muted-foreground">الصلاحية</label>
                                     <select id="edit-emp-role" name="role" className="w-full bg-cyan-950/20 border border-cyan-900/50 font-bold rounded-xl p-3 text-cyan-400 focus:border-cyan-500" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
@@ -750,7 +754,7 @@ export default function SettingsPage() {
 
                             <div className="space-y-3 border-t border-border pt-4 mt-4">
                                 <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
-                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                     <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
                                         <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
                                         <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
@@ -809,7 +813,7 @@ export default function SettingsPage() {
             {/* Edit Branch Modal */}
             {isEditBranchModalOpen && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-[24px] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 text-right">
+                    <div className="bg-card border border-border rounded-[24px] w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200 text-right">
                         <div className="p-6 border-b border-border flex justify-between items-center">
                             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <Settings className="text-blue-500" size={22} /> تعديل بيانات الفرع
