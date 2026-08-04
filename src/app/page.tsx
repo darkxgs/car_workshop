@@ -444,7 +444,7 @@ export default function Home() {
                 </div>
 
                 {/* 5. Notifications Board (Full Width) */}
-                <div className="glass-card p-8 rounded-2xl border-border bg-card/80 backdrop-blur-xl flex flex-col max-h-[600px]">
+                <div className="glass-card p-4 sm:p-8 rounded-2xl border-border bg-card/80 backdrop-blur-xl flex flex-col max-h-[600px]">
                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-border shrink-0">
                         <h3 className="text-xl font-bold text-foreground flex items-center gap-3">
                             <Bell className="text-amber-400" size={24} />

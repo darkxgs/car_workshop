@@ -25,6 +25,42 @@ const isAccounted = (o: any) => {
     return p?.accounted === true;
 };
 
+// The fields shown for one order, derived once and rendered by both the desktop
+// table and the phone card list so the two can never drift apart.
+const orderView = (o: any) => {
+    const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
+    const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
+    const isSale = o.order_type === 'sale';
+    const salePayload = isSale ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
+    // Numeric DD/MM/YYYY — no month names.
+    const d0 = new Date(o.created_at);
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const done = o.status === 'تم الانتهاء';
+
+    return {
+        isSale,
+        name: isSale ? (salePayload?.customerName || 'عميل نقدي') : (client?.name || 'عميل نقدي'),
+        phone: isSale ? (salePayload?.customerPhone || '-') : (client?.phone || '-'),
+        item: isSale
+            ? ((Array.isArray(salePayload?.products) && salePayload.products.length
+                ? salePayload.products.map((p: any) => p?.name).filter(Boolean).join('، ')
+                : '') || '—')
+            : `${vehicle?.make || ''} ${vehicle?.model || ''}`.trim(),
+        plate: isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة'),
+        date: `${pad2(d0.getDate())}/${pad2(d0.getMonth() + 1)}/${d0.getFullYear()}`,
+        statusLabel: done
+            ? (isAccounted(o) ? 'تم الانتهاء' : 'في انتظار المحاسبة')
+            : o.status === 'قيد العمل' ? 'قيد العمل' : 'انتظار',
+        statusClass: done
+            ? (isAccounted(o)
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20')
+            : o.status === 'قيد العمل'
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+    };
+};
+
 function ReceptionContainer() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -356,6 +392,62 @@ function ReceptionContainer() {
         }
     };
 
+    // The row actions, shared by the desktop table and the phone cards. Buttons keep a
+    // 44px touch target on phones (Apple's minimum) and shrink to the compact icon size
+    // from md up, where they sit in a table cell.
+    const renderActions = (o: any, isSale: boolean) => {
+        const btn = "p-2.5 md:p-2 min-w-11 min-h-11 md:min-w-0 md:min-h-0 flex items-center justify-center rounded-xl border transition-all";
+        return (
+            <>
+                {!isSale && (
+                    <>
+                        <button
+                            onClick={() => { setPreviewReportId(o.id); setPreviewMode('full'); }}
+                            className={`${btn} bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white`}
+                            title="معاينة وطباعة شاملة"
+                        >
+                            <Printer size={16} />
+                        </button>
+                        <button
+                            onClick={() => { setPreviewReportId(o.id); setPreviewMode('short'); }}
+                            className={`${btn} bg-amber-600/10 text-amber-400 border-amber-500/20 hover:bg-amber-600 hover:text-white`}
+                            title="معاينة وطباعة مختصرة للفني"
+                        >
+                            <FileText size={16} />
+                        </button>
+                    </>
+                )}
+                <button
+                    onClick={() => {
+                        rememberScroll();
+                        if (o.branch_id) setSelectedBranchId(o.branch_id);
+                        router.push(`/reception?edit=${o.id}`);
+                    }}
+                    className={`${btn} bg-rose-600/10 text-rose-400 border-rose-500/20 hover:bg-rose-600 hover:text-white`}
+                    title="تعديل أمر العمل"
+                >
+                    <Edit2 size={16} />
+                </button>
+                {o.status === 'تم الانتهاء' && (
+                    <button
+                        onClick={() => handleReopenOrder(o.id, o.report_number)}
+                        className={`${btn} bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500 hover:text-white`}
+                        title="إرجاع السيارة للعمل"
+                    >
+                        <RefreshCcw size={16} />
+                    </button>
+                )}
+                <button
+                    onClick={() => handleDeleteOrder(o.id, o.report_number)}
+                    className={`${btn} bg-rose-600/10 text-rose-400 border-rose-500/20 hover:bg-rose-600 hover:text-white`}
+                    title="حذف أمر العمل"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </>
+        );
+    };
+
     if (authLoading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -444,13 +536,15 @@ function ReceptionContainer() {
         <div className="min-h-screen bg-background p-4 md:p-8 font-ibm" dir="rtl">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-display font-bold text-foreground">الاستقبال وأوامر العمل</h1>
-                        <p className="text-muted-foreground text-sm mt-1">إدارة كروت فحص المركبات وتسجيل دخول السيارات للورشة</p>
+                        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">الاستقبال وأوامر العمل</h1>
+                        <p className="text-muted-foreground text-xs md:text-sm mt-1">إدارة كروت فحص المركبات وتسجيل دخول السيارات للورشة</p>
                     </div>
-                    
-                    <div className="flex flex-wrap gap-3 items-center">
+
+                    {/* Phones: each action gets its own full-width row — wrapping left the
+                        three buttons ragged and hard to hit. From sm up they sit inline. */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center">
                         {/* Branch Selector on Dashboard */}
                         {branches.length > 1 && (employeeRole === 'Owner' || employeeRole === 'Admin') && (
                             <select
@@ -460,7 +554,7 @@ function ReceptionContainer() {
                                     try { localStorage.setItem("receptionBranchId", e.target.value); } catch {}
                                     setPage(1);
                                 }}
-                                className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
+                                className="w-full sm:w-auto bg-card border border-border rounded-xl px-4 py-3 sm:py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
                             >
                                 {branches.map(b => (
                                     <option key={b.id} value={b.id}>{b.name}</option>
@@ -469,19 +563,19 @@ function ReceptionContainer() {
                         )}
                         <button
                             onClick={() => { rememberScroll(); setWizardSaleMode(false); setIsWizardOpen(true); }}
-                            className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-sm"
+                            className="w-full sm:w-auto justify-center px-6 py-3.5 sm:py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <UserPlus size={18} /> إنشاء كرت فحص جديد
                         </button>
                         <button
                             onClick={() => { rememberScroll(); setWizardSaleMode(true); setIsWizardOpen(true); }}
-                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
+                            className="w-full sm:w-auto justify-center px-6 py-3.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <ShoppingCart size={18} /> بيع منتج
                         </button>
                         <button
                             onClick={() => { rememberScroll(); setInspectionMode(true); setIsWizardOpen(true); }}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 text-sm"
+                            className="w-full sm:w-auto justify-center px-6 py-3.5 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 text-sm"
                         >
                             <ClipboardList size={18} /> فحص شامل
                         </button>
@@ -490,7 +584,7 @@ function ReceptionContainer() {
 
                 {/* Orders table */}
                 <div className="glass-card rounded-3xl border border-border/50 overflow-hidden">
-                    <div className="p-6 border-b border-border/50 bg-card/30 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                    <div className="p-4 md:p-6 border-b border-border/50 bg-card/30 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
                         <h2 className="font-bold text-lg text-foreground shrink-0">سجل أوامر العمل</h2>
                         <input
                             type="text"
@@ -511,7 +605,9 @@ function ReceptionContainer() {
                             <p>{isSearching ? "لا توجد نتائج مطابقة للبحث." : "لا توجد أوامر عمل مسجلة حالياً."}</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-right border-collapse">
                                 <thead>
                                     <tr className="bg-muted/40 text-muted-foreground text-xs font-bold border-b border-border/50">
@@ -527,97 +623,31 @@ function ReceptionContainer() {
                                 </thead>
                                 <tbody className="divide-y divide-border/30 text-sm">
                                     {filteredOrders.map((o: any) => {
-                                        const vehicle = Array.isArray(o.vehicles) ? o.vehicles[0] : o.vehicles;
-                                        const client = vehicle ? (Array.isArray(vehicle.clients) ? vehicle.clients[0] : vehicle.clients) : null;
-                                        const isSale = o.order_type === 'sale';
-                                        const salePayload = isSale ? (Array.isArray(o.selected_services) ? o.selected_services[0] : o.selected_services) : null;
-                                        // Numeric DD/MM/YYYY — no month names.
-                                        const d0 = new Date(o.created_at);
-                                        const pad2 = (n: number) => String(n).padStart(2, '0');
-                                        const date = `${pad2(d0.getDate())}/${pad2(d0.getMonth() + 1)}/${d0.getFullYear()}`;
-
+                                        const v = orderView(o);
                                         return (
                                             <tr key={o.id} className="hover:bg-muted/20 transition-colors">
                                                 <td className="p-4 font-mono font-bold text-rose-400">
                                                     <span className="inline-flex items-center gap-2">
                                                         #{o.report_number}
-                                                        {o.order_type === 'sale' && (
+                                                        {v.isSale && (
                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">بيع منتج</span>
                                                         )}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 font-bold">{isSale ? (salePayload?.customerName || 'عميل نقدي') : (client?.name || 'عميل نقدي')}</td>
-                                                <td className="p-4 text-muted-foreground font-mono">{isSale ? (salePayload?.customerPhone || '-') : (client?.phone || '-')}</td>
-                                                <td className="p-4 font-bold">{isSale
-                                                    ? <span className="text-emerald-400">{(Array.isArray(salePayload?.products) && salePayload.products.length
-                                                        ? salePayload.products.map((p: any) => p?.name).filter(Boolean).join('، ')
-                                                        : '') || '—'}</span>
-                                                    : `${vehicle?.make || ''} ${vehicle?.model || ''}`}</td>
-                                                <td className="p-4 font-mono text-xs">{isSale ? '—' : (vehicle?.plate_number || 'بدون لوحة')}</td>
-                                                <td className="p-4">
-                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
-                                                         o.status === 'تم الانتهاء'
-                                                             ? (isAccounted(o)
-                                                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                                 : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20')
-                                                             : o.status === 'قيد العمل'
-                                                                 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                                                 : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                                     }`}>
-                                                         {o.status === 'تم الانتهاء'
-                                                             ? (isAccounted(o) ? 'تم الانتهاء' : 'في انتظار المحاسبة')
-                                                             : o.status === 'قيد العمل' ? 'قيد العمل' : 'انتظار'}
-                                                     </span>
+                                                <td className="p-4 font-bold">{v.name}</td>
+                                                <td className="p-4 text-muted-foreground font-mono">{v.phone}</td>
+                                                <td className="p-4 font-bold">
+                                                    {v.isSale ? <span className="text-emerald-400">{v.item}</span> : v.item}
                                                 </td>
-                                                <td className="p-4 text-muted-foreground text-xs font-mono">{date}</td>
+                                                <td className="p-4 font-mono text-xs">{v.plate}</td>
+                                                <td className="p-4">
+                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${v.statusClass}`}>
+                                                        {v.statusLabel}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-muted-foreground text-xs font-mono">{v.date}</td>
                                                 <td className="p-4 text-center">
-                                                    <div className="flex gap-2 justify-center">
-                                                        {!isSale && (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => { setPreviewReportId(o.id); setPreviewMode('full'); }}
-                                                                    className="p-2 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
-                                                                    title="معاينة وطباعة شاملة"
-                                                                >
-                                                                    <Printer size={16} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { setPreviewReportId(o.id); setPreviewMode('short'); }}
-                                                                    className="p-2 bg-amber-600/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
-                                                                    title="معاينة وطباعة مختصرة للفني"
-                                                                >
-                                                                    <FileText size={16} />
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        <button
-                                                            onClick={() => {
-                                                                rememberScroll();
-                                                                if (o.branch_id) setSelectedBranchId(o.branch_id);
-                                                                router.push(`/reception?edit=${o.id}`);
-                                                            }}
-                                                            className="p-2 bg-rose-600/10 text-rose-400 border border-rose-500/20 rounded-xl hover:bg-rose-600 hover:text-white transition-all"
-                                                            title="تعديل أمر العمل"
-                                                        >
-                                                            <Edit2 size={16} />
-                                                        </button>
-                                                        {o.status === 'تم الانتهاء' && (
-                                                            <button
-                                                                onClick={() => handleReopenOrder(o.id, o.report_number)}
-                                                                className="p-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-500 hover:text-white transition-all"
-                                                                title="إرجاع السيارة للعمل"
-                                                            >
-                                                                <RefreshCcw size={16} />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleDeleteOrder(o.id, o.report_number)}
-                                                            className="p-2 bg-rose-600/10 text-rose-400 border border-rose-500/20 rounded-xl hover:bg-rose-600 hover:text-white transition-all"
-                                                            title="حذف أمر العمل"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                                                    <div className="flex gap-2 justify-center">{renderActions(o, v.isSale)}</div>
                                                 </td>
                                             </tr>
                                         );
@@ -625,6 +655,44 @@ function ReceptionContainer() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Phone card list — the 8-column table only ever showed its first
+                            three columns on a phone; the rest were cut off past the edge. */}
+                        <div className="md:hidden divide-y divide-border/30">
+                            {filteredOrders.map((o: any) => {
+                                const v = orderView(o);
+                                return (
+                                    <div key={o.id} className="p-4 space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-mono font-bold text-rose-400">#{o.report_number}</span>
+                                                    {v.isSale && (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">بيع منتج</span>
+                                                    )}
+                                                </div>
+                                                <p className="font-bold text-foreground mt-1 truncate">{v.name}</p>
+                                                <p className="text-muted-foreground text-xs font-mono mt-0.5" dir="ltr">{v.phone}</p>
+                                            </div>
+                                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 ${v.statusClass}`}>
+                                                {v.statusLabel}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                            <span className={`font-bold ${v.isSale ? 'text-emerald-400' : 'text-foreground'}`}>{v.item || '—'}</span>
+                                            {!v.isSale && (
+                                                <span className="font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{v.plate}</span>
+                                            )}
+                                            <span className="font-mono text-muted-foreground">{v.date}</span>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">{renderActions(o, v.isSale)}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        </>
                     )}
                     
                     {/* Load More Button (browse only — search already spans the whole database) */}

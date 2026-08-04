@@ -867,7 +867,7 @@ export default function CustomersPage() {
     }
 
     return (
-        <div className="min-h-screen p-6 md:p-8 font-ibm" dir="rtl">
+        <div className="min-h-screen p-4 md:p-8 font-ibm" dir="rtl">
             <div className="max-w-[1400px] mx-auto space-y-8 animate-fade-in">
 
                 {/* Header */}

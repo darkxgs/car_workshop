@@ -408,11 +408,16 @@ export default function ReportsPage() {
                                 </div>
                             </div>
 
-                            {/* PDF Render Container (Normal View) */}
-                            <div className="shadow-2xl mx-auto min-w-[794px] w-[210mm] bg-[#f8fafc] text-slate-900 rounded-lg overflow-hidden flex justify-center py-4 print:hidden">
-                                <PrintableInspectionReport 
-                                    report={selectedReport}
-                                />
+                            {/* PDF Render Container (Normal View) — the sheet is a fixed 794px
+                                wide, so on a phone it stretched the whole page sideways. Scale it
+                                with the shared .print-preview-doc rule (same treatment as the
+                                reception / work-order previews) and let it scroll in its own box. */}
+                            <div className="overflow-x-auto print:hidden">
+                                <div className="shadow-2xl mx-auto min-w-[794px] w-[210mm] bg-[#f8fafc] text-slate-900 rounded-lg overflow-hidden flex justify-center py-4 print-preview-doc">
+                                    <PrintableInspectionReport
+                                        report={selectedReport}
+                                    />
+                                </div>
                             </div>
 
                             {/* Native Print Container (Hidden in browser, Absolute top layer in print) */}

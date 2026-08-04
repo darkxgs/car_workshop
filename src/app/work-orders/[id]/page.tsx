@@ -740,7 +740,7 @@ export default function WorkOrderDetailPage() {
     const progressPct = totalEstimatedSeconds > 0 ? Math.min(100, (liveSeconds / totalEstimatedSeconds) * 100) : 0;
 
     return (
-        <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto" dir="rtl">
+        <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto" dir="rtl">
             {/* Header */}
             <div className="print:hidden flex flex-col md:flex-row justify-between gap-4 items-start md:items-center bg-card p-6 rounded-3xl border border-border shadow-sm">
                 <div>

@@ -124,7 +124,7 @@ export default function PartsPOSPage() {
 
     return (
         <>
-        <div className="min-h-screen p-6 font-ibm flex flex-col md:flex-row gap-6 max-w-[1600px] mx-auto relative print:hidden" dir="rtl">
+        <div className="min-h-screen p-4 md:p-6 font-ibm flex flex-col md:flex-row gap-6 max-w-[1600px] mx-auto relative print:hidden" dir="rtl">
             
             {/* Left: Products Grid (65%) */}
             <div className="flex-1 space-y-6">

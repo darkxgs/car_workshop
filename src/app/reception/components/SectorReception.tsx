@@ -1882,7 +1882,7 @@ export default function SectorReception({
             {/* ===== STEP 3: Review & Pricing ===== */}
             {step === 3 && !createdWorkOrderId && (
                 <div className="space-y-6 animate-fade-in-up">
-                    <div className="glass-card p-8 rounded-3xl border border-rose-500/30 max-w-2xl mx-auto space-y-6">
+                    <div className="glass-card p-4 sm:p-8 rounded-3xl border border-rose-500/30 max-w-2xl mx-auto space-y-6">
                         <h2 className="text-2xl font-display font-bold text-foreground text-center border-b border-border pb-4">مراجعة والتسعير</h2>
 
                         {/* Summary */}
