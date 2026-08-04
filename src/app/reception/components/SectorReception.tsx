@@ -884,6 +884,43 @@ export default function SectorReception({
     // The supervisor starts the service (and sets its estimated time) from ساحة الورشة.
     const handleStartWorkOrder = async () => saveWorkOrder('تم الاستلام', null, false);
 
+    /**
+     * The client row for this card, creating one only when the number is genuinely new.
+     *
+     * clients.phone is UNIQUE. This used to insert blindly whenever the customer wasn't
+     * picked from the suggestions list, so a RETURNING customer whose number the
+     * receptionist typed by hand failed the whole order with
+     * "duplicate key value violates unique constraint clients_phone_key".
+     *
+     * An existing row is reused as-is — the stored name is not overwritten, because the
+     * number is the identity here and the saved name is usually the more complete one.
+     */
+    const resolveClientId = async (): Promise<string> => {
+        if (selectedClientId) return selectedClientId;
+
+        const cleanPhone = phone.trim();
+        const cleanName = name.trim();
+
+        const { data: existing } = await supabase
+            .from('clients').select('id').eq('phone', cleanPhone).limit(1).maybeSingle();
+        if (existing) return existing.id;
+
+        const { data: nc, error: ce } = await supabase
+            .from('clients').insert({ name: cleanName, phone: cleanPhone }).select('id').single();
+
+        if (ce) {
+            // 23505 = another receptionist registered the same number between the check
+            // above and this insert. Fall back to their row instead of failing the card.
+            if (ce.code === '23505') {
+                const { data: raced } = await supabase
+                    .from('clients').select('id').eq('phone', cleanPhone).limit(1).maybeSingle();
+                if (raced) return raced.id;
+            }
+            throw ce;
+        }
+        return nc!.id;
+    };
+
     const saveWorkOrder = async (status: 'تم الاستلام' | 'قيد العمل', startTime: string | null, skipStep3 = false) => {
         setLoading(true); setError(null);
         try {
@@ -893,12 +930,7 @@ export default function SectorReception({
                 if (emp) { employeeId = emp.id; branchId = emp.branch_id; }
             }
 
-            let clientId = selectedClientId;
-            if (!clientId) {
-                const { data: nc, error: ce } = await supabase.from('clients').insert({ name, phone }).select('id').single();
-                if (ce) throw ce;
-                clientId = nc!.id;
-            }
+            const clientId = await resolveClientId();
 
             let vehicleId: string | null = null;
             const cleanedPlate = plateNumber ? plateNumber.trim() : "";

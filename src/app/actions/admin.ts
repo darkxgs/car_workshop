@@ -6,6 +6,17 @@ import { requireAdmin, requireUserManager } from "@/lib/supabase-server";
 // Roles a non-admin user-manager may neither grant nor touch.
 const PRIVILEGED_ROLES: UserRole[] = ["Owner", "Admin"];
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * "No branch" reaches here as an empty string from the "كل الفروع" option, and has
+ * been seen as the literal strings "null"/"undefined". Those are all truthy enough to
+ * slip past `|| null` and reach Postgres, which rejects them with
+ * `invalid input syntax for type uuid`. Only a real uuid is passed through.
+ */
+const cleanBranchId = (value?: string | null): string | null =>
+    value && UUID_RE.test(value.trim()) ? value.trim() : null;
+
 // Admin Server Action to securely instantiate employees with usernames and permissions
 export async function createEmployeeAccount(formData: {
     name: string;
@@ -64,7 +75,7 @@ export async function createEmployeeAccount(formData: {
                 username: cleanUsername,
                 role: formData.role,
                 phone: formData.phone,
-                branch_id: formData.branch_id || null,
+                branch_id: cleanBranchId(formData.branch_id),
                 permission_dashboard: formData.permission_dashboard ?? true,
                 permission_reception: formData.permission_reception ?? true,
                 permission_work_orders: formData.permission_work_orders ?? true,
@@ -155,7 +166,7 @@ export async function updateEmployeeAccount(
                 username: cleanUsername,
                 role: formData.role,
                 phone: formData.phone,
-                branch_id: formData.branch_id || null,
+                branch_id: cleanBranchId(formData.branch_id),
                 permission_dashboard: formData.permission_dashboard ?? true,
                 permission_reception: formData.permission_reception ?? true,
                 permission_work_orders: formData.permission_work_orders ?? true,

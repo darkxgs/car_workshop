@@ -311,8 +311,13 @@ export default function CustomersPage() {
             setName(""); setPhone(""); setEmail("");
             fetchClients();
             showSuccess("تم الإضافة", "تم إضافة العميل بنجاح.");
+        } else if (error.code === '23505') {
+            // clients.phone is UNIQUE. Say so plainly instead of a generic failure —
+            // here the user explicitly asked to ADD a customer, so silently attaching
+            // them to the existing record would be the wrong call.
+            showError("الرقم مسجّل مسبقاً", "يوجد عميل مسجّل بنفس رقم الهاتف. ابحث عنه في السجل بدلاً من إضافته من جديد.");
         } else {
-            showError("خطأ", "حدث خطأ أثناء إضافة العميل.");
+            showError("خطأ", error.message || "حدث خطأ أثناء إضافة العميل.");
         }
     };
 
