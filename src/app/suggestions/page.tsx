@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileSpreadsheet, Plus, Trash2, Save, Search, X,
     Droplets, Thermometer, Filter, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
-    Shield, Wrench, Activity
+    Shield, Wrench, Activity, UserCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { showSuccess, showError } from "@/lib/alerts";
@@ -49,6 +49,7 @@ const DEFAULT_LISTS: Record<string, string[]> = {
     windshieldFluids: [],
     technicianNames: [],
     supervisorNames: [],
+    receptionistNames: [],
     bayNumbers: []
 };
 
@@ -131,6 +132,9 @@ const STAFF_GROUP = {
     categories: [
         { key: "technicianNames", label: "أسماء الفنيين", icon: <Wrench size={16} />, color: "blue" },
         { key: "supervisorNames", label: "أسماء المشرفين", icon: <Shield size={16} />, color: "rose" },
+        // Reception staff are picked by name from this list, so a receptionist no
+        // longer needs a login account just to appear on a work order.
+        { key: "receptionistNames", label: "أسماء موظفي الاستقبال", icon: <UserCircle size={16} />, color: "amber" },
         { key: "bayNumbers", label: "أرقام الخانات", icon: <Activity size={16} />, color: "emerald" },
     ]
 };
@@ -294,7 +298,7 @@ export default function SuggestionsPage() {
 
         // Auto-calculate serial number if it's not a staff category
         let serial = "";
-        const isStaffCategory = ["technicianNames", "supervisorNames", "bayNumbers"].includes(categoryKey);
+        const isStaffCategory = ["technicianNames", "supervisorNames", "receptionistNames", "bayNumbers"].includes(categoryKey);
         if (!isStaffCategory) {
             const currentItems = lists[categoryKey] || [];
             const serialNums = currentItems
@@ -627,7 +631,7 @@ export default function SuggestionsPage() {
                         // If searching and no matches in this list, skip
                         if (searchQuery && filteredItems.length === 0) return null;
 
-                        const isStaffCategory = ["technicianNames", "supervisorNames", "bayNumbers"].includes(cat.key);
+                        const isStaffCategory = ["technicianNames", "supervisorNames", "receptionistNames", "bayNumbers"].includes(cat.key);
 
                         return (
                             <div key={cat.key} className={`bg-card border ${isExpanded ? cc.border : 'border-border'} rounded-2xl overflow-hidden transition-all shadow-sm`}>
