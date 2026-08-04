@@ -25,6 +25,9 @@ interface AuthContextType {
     setEmployeeBranchId: (id: string | null) => void;
 }
 
+/** A branch id is only usable if it is a real uuid — see the localStorage read below. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const AuthContext = createContext<AuthContextType>({
     user: null,
     session: null,
@@ -104,7 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // flips it — this was the source of the "I switch branch then find another selected" glitch.
             let branchToUse: string | null = data[0].branch_id;
             if (!branchToUse) {
-                try { branchToUse = localStorage.getItem("activeBranchId"); } catch {}
+                try {
+                    // Anything that isn't a real uuid means "no branch". An older build
+                    // could persist the literal string "null" here, and because that
+                    // string is truthy every branch-filtered query then sent
+                    // branch_id="null", which Postgres rejects with
+                    // `invalid input syntax for type uuid: "null"`.
+                    const stored = localStorage.getItem("activeBranchId");
+                    if (stored && UUID_RE.test(stored)) {
+                        branchToUse = stored;
+                    } else if (stored) {
+                        localStorage.removeItem("activeBranchId");
+                    }
+                } catch {}
             }
             setEmployeeBranchId(branchToUse);
             setEmployeeId(data[0].id);
@@ -294,9 +309,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Exposed branch setter: persists the choice so the selected branch survives navigations,
     // re-auth, and reloads (single durable source of truth for the whole app).
     const changeBranch = useCallback((id: string | null) => {
-        setEmployeeBranchId(id);
+        // Normalise anything that isn't a real branch id (empty string from the
+        // "كل الفروع" option, or a stray "null"/"undefined") to a true null, so it can
+        // never be persisted and later used as a uuid.
+        const safeId = id && UUID_RE.test(id) ? id : null;
+        setEmployeeBranchId(safeId);
         try {
-            if (id) localStorage.setItem("activeBranchId", id);
+            if (safeId) localStorage.setItem("activeBranchId", safeId);
             else localStorage.removeItem("activeBranchId");
         } catch {}
     }, []);
