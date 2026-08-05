@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
 import { INSPECTION_SECTIONS } from "@/lib/comprehensiveInspection";
+import { normalizeBookletCode } from "@/lib/booklet";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
@@ -140,7 +141,9 @@ export default function CustomersPage() {
             // Search term -> a (usually small) set of matching client ids, applied via .in().
             let searchClientIds: Set<string> | null = null;
             if (debouncedSearchTerm) {
-                const term = debouncedSearchTerm.trim();
+                // A laser scanner types the whole booklet URL; reduce it to the serial
+                // so scanning into this box still finds the customer.
+                const term = normalizeBookletCode(debouncedSearchTerm);
                 const { data: matchedClients } = await supabase
                     .from('clients')
                     .select('id')
@@ -297,7 +300,17 @@ export default function CustomersPage() {
             }
         } catch (err: any) {
             console.error("Error fetching clients:", err);
-            showError("خطأ", "حدث خطأ أثناء تحميل بيانات العملاء.");
+            // Show what actually failed. The generic message hid real causes — a
+            // statement timeout on a busy branch reads very differently from a bad
+            // filter, and neither could be told apart from the old wording.
+            const detail = err?.message || err?.hint || "";
+            const isTimeout = /timeout|canceling statement|57014/i.test(detail);
+            showError(
+                "خطأ",
+                isTimeout
+                    ? "استغرق تحميل بيانات العملاء وقتاً طويلاً. جرّب تضييق المدة الزمنية أو اختيار فرع واحد."
+                    : `حدث خطأ أثناء تحميل بيانات العملاء.${detail ? ` (${detail})` : ""}`
+            );
         } finally {
             setLoading(false);
         }
@@ -426,36 +439,41 @@ export default function CustomersPage() {
     const filteredClients = clients;
 
     const exportExcel = async () => {
-        const { data, error } = await supabase
-            .from("inspection_reports")
-            .select(`id, report_number, created_at, total_price, status, order_type, selected_services, odometer_reading, branch_id,
+        // The branch and date filters are applied by the DATABASE, and the result is
+        // paged. This used to be one unpaged query filtered in JS afterwards — but a
+        // single Supabase response is capped at 1000 rows, so the export only ever saw
+        // the newest ~1000 orders. Picking any older date range then filtered them all
+        // away and the button produced nothing at all (it also returned silently on
+        // error). Same fix already applied to the tire report below.
+        let baseQuery = () => {
+            let q = supabase
+                .from("inspection_reports")
+                .select(`id, report_number, created_at, total_price, status, order_type, selected_services, odometer_reading, branch_id,
                      receptionist:receptionist_id(name),
                      vehicles(make, model, plate_number, booklet_serial, clients(name, phone)), branches(name)`)
-            .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false });
+            const activeBranch = employeeBranchId || branchFilter;
+            if (activeBranch) q = q.eq("branch_id", activeBranch);
+            if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
+            if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59.999`);
+            return q;
+        };
 
-        if (!data || error) return;
-
-        let filteredReports = data;
-        
-        // 1. Apply employee branch restriction if set
-        if (employeeBranchId) {
-            filteredReports = filteredReports.filter((r: any) => r.branch_id === employeeBranchId);
+        let filteredReports: any[] = [];
+        const PAGE = 1000;
+        for (let from = 0; from < 100000; from += PAGE) {
+            const { data, error } = await baseQuery().range(from, from + PAGE - 1);
+            if (error) {
+                showError("تعذّر التصدير", error.message || "حدث خطأ أثناء تحميل البيانات للتصدير.");
+                return;
+            }
+            filteredReports.push(...(data || []));
+            if (!data || data.length < PAGE) break;
         }
 
-        // 2. Apply branchFilter selected in UI
-        if (branchFilter) {
-            filteredReports = filteredReports.filter((r: any) => r.branch_id === branchFilter);
-        }
-        
-        // 3. Apply dateFrom and dateTo selected in UI
-        if (dateFrom || dateTo) {
-            filteredReports = filteredReports.filter((r: any) => {
-                if (!r.created_at) return false;
-                const rDate = new Date(r.created_at).toISOString().split('T')[0];
-                if (dateFrom && rDate < dateFrom) return false;
-                if (dateTo && rDate > dateTo) return false;
-                return true;
-            });
+        if (filteredReports.length === 0) {
+            showError("لا توجد بيانات", "لا توجد سجلات ضمن الفلاتر المحددة (الفرع/التاريخ). جرّب توسيع المدة.");
+            return;
         }
 
         // 4. Apply searchTerm selected in UI

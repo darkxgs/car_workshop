@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { normalizeBookletCode } from "@/lib/booklet";
 import { digitsOnly, withCommas } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, CheckCircle2, Printer } from "lucide-react";
@@ -46,7 +47,8 @@ export default function InspectionForm({
     // Search EXISTING customers by phone or booklet serial (BK-…) — same as reception.
     useEffect(() => {
         if (selectedClientId) return;
-        const q = phone.trim();
+        // A scanner types the whole booklet URL — reduce it to the serial first.
+        const q = normalizeBookletCode(phone);
         if (q.length < 3) { setSuggestions([]); return; }
         const t = setTimeout(async () => {
             const sel = "id, name, phone, vehicles(id, make, model, engine_size, plate_number, booklet_serial)";
