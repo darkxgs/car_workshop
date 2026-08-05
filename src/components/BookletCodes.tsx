@@ -7,7 +7,14 @@ import Barcode from "react-barcode";
 /**
  * Locally-generated QR + Code128 barcode for a vehicle service booklet.
  * - QR encodes the public booklet URL (origin + /b/<serial>) — scan with a phone.
- * - Barcode (Code128) encodes the raw serial (BK-xxxxx) — scan with a laser gun.
+ * - Barcode (Code128) ALSO encodes the full URL, so a laser scanner opens the
+ *   booklet instead of just typing "BK-xxxxx". It used to carry the bare serial.
+ *
+ * A URL is ~6x longer than the serial, so Code128 needs far more bars for it. The
+ * bar width is scaled down to keep the symbol inside the 58mm sticker; readers that
+ * still receive the bare serial keep working, because the in-app lookups run the
+ * scanned text through normalizeBookletCode() first.
+ *
  * Everything renders as inline SVG (no external service, prints deterministically).
  */
 export default function BookletCodes({
@@ -34,15 +41,21 @@ export default function BookletCodes({
 
     const url = `${origin}/b/${serial}`;
 
+    // Code128 needs roughly 11 modules per character. Keep the whole symbol within the
+    // label width by shrinking the module, with a floor so the bars stay printable.
+    const maxSymbolPx = variant === "sticker" ? 200 : 300;
+    const modules = url.length * 11 + 35; // + start/stop/checksum
+    const barWidth = Math.max(0.6, Math.min(cfg.barWidth, maxSymbolPx / modules));
+
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: cfg.gap }}>
             <QRCodeSVG value={url} size={cfg.qr} level="M" marginSize={2} bgColor="#ffffff" fgColor="#000000" />
             <Barcode
-                value={serial}
+                value={url}
                 format="CODE128"
-                width={cfg.barWidth}
+                width={barWidth}
                 height={cfg.barHeight}
-                displayValue={cfg.showText}
+                displayValue={false}
                 fontSize={cfg.fontSize}
                 margin={0}
                 background="#ffffff"

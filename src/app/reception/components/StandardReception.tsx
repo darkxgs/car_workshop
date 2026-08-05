@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { normalizeBookletCode } from "@/lib/booklet";
 import {
     UserPlus, Car, Save, Phone, Hash, AlertCircle, Loader2,
     CheckCircle2, ArrowLeft, ArrowRight, FileText, Printer, Play, X
@@ -718,7 +719,8 @@ export default function StandardReception({
         if (selectedClientId) return;
         const searchClient = async () => {
             setIsSearchingClient(true);
-            const trimmed = phone.trim();
+            // A scanner types the whole booklet URL — reduce it to the serial first.
+            const trimmed = normalizeBookletCode(phone);
             if (trimmed.toUpperCase().startsWith("BK")) {
                 // Query by booklet serial number
                 const { data } = await supabase
