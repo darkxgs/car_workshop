@@ -19,9 +19,33 @@ export function normalizeBookletCode(input: string): string {
     const fromUrl = raw.match(/\/b\/([^/?#\s]+)/i);
     const candidate = fromUrl ? decodeURIComponent(fromUrl[1]) : raw;
 
-    // Only uppercase things that actually look like a serial, so ordinary search
-    // terms (a customer's name, a plate) are passed through untouched.
-    return /^bk-?\d+$/i.test(candidate)
-        ? candidate.toUpperCase().replace(/^BK(?!-)/, "BK-")
-        : candidate;
+    if (/^bk-?\d+$/i.test(candidate)) {
+        return candidate.toUpperCase().replace(/^BK(?!-)/, "BK-");
+    }
+    // Bare digits taken FROM A URL are the short barcode form (/b/10001) — the "BK-"
+    // is dropped there purely to keep the printed symbol narrow. Typed digits on their
+    // own are left alone, since those are normally a phone number being searched.
+    if (fromUrl && /^\d+$/.test(candidate)) return `BK-${candidate}`;
+
+    return candidate;
+}
+
+/**
+ * The shortest text that still resolves to this booklet, used for the printed
+ * Code128. Code128 needs ~11 modules per character and a 58mm label only fits
+ * roughly 10 characters at a readable bar width, so every character counts:
+ *
+ *   - the scheme is dropped ("https://") — browsers still resolve a bare host+path
+ *   - the "BK-" prefix is dropped; /b/ restores it
+ *   - NEXT_PUBLIC_BOOKLET_BASE_URL overrides the host, so pointing a short domain
+ *     at the site immediately shrinks the barcode with no code change
+ *
+ * The QR keeps the full https:// URL — it has capacity to spare and phone cameras
+ * are more reliable with an explicit scheme.
+ */
+export function bookletBarcodeValue(origin: string, serial: string): string {
+    const configured = process.env.NEXT_PUBLIC_BOOKLET_BASE_URL;
+    const base = (configured || origin).replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    const short = /^BK-?(\d+)$/i.test(serial) ? serial.replace(/^BK-?/i, "") : serial;
+    return `${base}/b/${short}`;
 }

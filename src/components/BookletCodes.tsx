@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import Barcode from "react-barcode";
+import { bookletBarcodeValue } from "@/lib/booklet";
 
 /**
  * Locally-generated QR + Code128 barcode for a vehicle service booklet.
@@ -40,18 +41,21 @@ export default function BookletCodes({
     if (!origin) return <div aria-hidden style={{ width: cfg.qr, height: cfg.qr }} />;
 
     const url = `${origin}/b/${serial}`;
+    // Shortest form that still resolves — see bookletBarcodeValue().
+    const barcodeValue = bookletBarcodeValue(origin, serial);
 
     // Code128 needs roughly 11 modules per character. Keep the whole symbol within the
     // label width by shrinking the module, with a floor so the bars stay printable.
+    // With a short host this stays at the full, normal bar width.
     const maxSymbolPx = variant === "sticker" ? 200 : 300;
-    const modules = url.length * 11 + 35; // + start/stop/checksum
+    const modules = barcodeValue.length * 11 + 35; // + start/stop/checksum
     const barWidth = Math.max(0.6, Math.min(cfg.barWidth, maxSymbolPx / modules));
 
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: cfg.gap }}>
             <QRCodeSVG value={url} size={cfg.qr} level="M" marginSize={2} bgColor="#ffffff" fgColor="#000000" />
             <Barcode
-                value={url}
+                value={barcodeValue}
                 format="CODE128"
                 width={barWidth}
                 height={cfg.barHeight}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { normalizeBookletCode } from "@/lib/booklet";
 import {
     Car, MapPin, User, ShieldCheck,
     AlertCircle, Wrench, Phone,
@@ -80,7 +81,11 @@ const FREE_SERVICES_MAP: Record<string, string> = {
 
 export default function PublicBookletPage() {
     const params = useParams();
-    const serial = params.serial as string;
+    // The printed barcode uses a short numeric form (/b/10001) to keep the symbol
+    // narrow; restore the stored serial. Full /b/BK-10001 links keep working.
+    const serial = normalizeBookletCode(
+        `/b/${decodeURIComponent((params.serial as string) || "")}`
+    );
 
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
     const [reports, setReports] = useState<Report[]>([]);
