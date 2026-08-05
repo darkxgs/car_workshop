@@ -17,7 +17,10 @@ export function normalizeBookletCode(input: string): string {
 
     // Pull the serial out of a booklet URL / path if that is what was scanned.
     const fromUrl = raw.match(/\/b\/([^/?#\s]+)/i);
-    const candidate = fromUrl ? decodeURIComponent(fromUrl[1]) : raw;
+    // decodeURIComponent throws on a lone "%", which must never take down the public
+    // booklet page — fall back to the raw match.
+    const decode = (v: string) => { try { return decodeURIComponent(v); } catch { return v; } };
+    const candidate = fromUrl ? decode(fromUrl[1]) : raw;
 
     if (/^bk-?\d+$/i.test(candidate)) {
         return candidate.toUpperCase().replace(/^BK(?!-)/, "BK-");

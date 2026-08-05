@@ -83,9 +83,9 @@ export default function PublicBookletPage() {
     const params = useParams();
     // The printed barcode uses a short numeric form (/b/10001) to keep the symbol
     // narrow; restore the stored serial. Full /b/BK-10001 links keep working.
-    const serial = normalizeBookletCode(
-        `/b/${decodeURIComponent((params.serial as string) || "")}`
-    );
+    // useParams() already returns a decoded value, so it is passed through as-is;
+    // normalizeBookletCode does any decoding it needs, safely.
+    const serial = normalizeBookletCode(`/b/${(params.serial as string) || ""}`);
 
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
     const [reports, setReports] = useState<Report[]>([]);
