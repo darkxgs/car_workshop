@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { reopenWorkOrder } from "@/lib/reopenOrder";
 import {
     UserPlus, Car, Loader2,
     FileText, Printer, Edit2, X, Trash2, ShoppingCart, RefreshCcw, ClipboardList
@@ -380,9 +381,9 @@ function ReceptionContainer() {
         );
         if (!confirm) return;
         try {
-            const { error } = await supabase.from('inspection_reports')
-                .update({ status: 'قيد العمل', start_time: new Date().toISOString(), completed_at: null })
-                .eq('id', orderId);
+            // Shared helper: also un-accounts an already-closed invoice so it comes
+            // back to التدقيق after the new work — see src/lib/reopenOrder.ts.
+            const { error } = await reopenWorkOrder(orderId);
             if (error) throw error;
             showSuccess("تمت إعادة الفتح", "تمت إعادة المركبة إلى قيد العمل بنجاح.");
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'قيد العمل' } : o));

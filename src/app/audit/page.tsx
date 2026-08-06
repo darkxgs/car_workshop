@@ -264,27 +264,49 @@ export default function AuditPage() {
     const setInput = (id: string, field: 'discount' | 'received', value: string) =>
         setInputs(prev => ({ ...prev, [id]: { ...(prev[id] ?? { discount: "", received: "" }), [field]: value } }));
 
-    // Read the freshest selected_services right before a write, so a stale list row (the order
-    // may have been edited elsewhere since this page fetched) can never overwrite newer data.
-    const freshServicesOf = async (o: Order): Promise<any[]> => {
-        const { data } = await supabase.from('inspection_reports').select('selected_services').eq('id', o.id).single();
+    // Read the freshest selected_services (and total_price) right before a write, so a stale
+    // list row (the order may have been edited elsewhere since this page fetched) can never
+    // overwrite newer data.
+    const freshRowOf = async (o: Order): Promise<{ services: any[]; totalPrice: number | null }> => {
+        const { data } = await supabase.from('inspection_reports').select('selected_services, total_price').eq('id', o.id).single();
         const raw = data?.selected_services ?? o.selected_services;
         const arr = [...(Array.isArray(raw) ? raw : [raw])].filter(Boolean);
         if (arr.length === 0) arr.push({ is_paper_v2_format: true, services: {} });
-        return arr;
+        return { services: arr, totalPrice: data ? num(data.total_price) : null };
     };
+    const freshServicesOf = async (o: Order): Promise<any[]> => (await freshRowOf(o)).services;
 
     const closeAccounting = async (o: Order) => {
-        const grand = num(o.total_price) || invoiceLines(o).reduce((s, l) => s + l.price, 0);
-        const inp = getInput(o);
-        const discount = num(inp.discount);
-        const received = inp.received === "" ? (grand - discount) : num(inp.received);
-        if (discount > grand) { showError("خطأ", "الخصم أكبر من المجموع الكلي."); return; }
-        if (received > (grand - discount)) { showError("خطأ", "المبلغ الواصل أكبر من الصافي المطلوب."); return; }
-        const net = grand - discount;
         setSavingId(o.id);
         try {
-            const services = await freshServicesOf(o);
+            // Base every figure on the FRESH row, not the rendered one — the list row can
+            // lag behind (silent refresh in flight, realtime throttled), and closing on a
+            // stale total wrote a grandTotal that contradicted the stored total_price.
+            const { services, totalPrice: freshTotal } = await freshRowOf(o);
+
+            // Money is only ever closed against a CONFIRMED fresh read — on a network
+            // blip the fallback inside freshRowOf is the stale row, and closing on that
+            // is exactly the hazard this path exists to remove.
+            if (freshTotal === null) {
+                showError("خطأ", "تعذّر قراءة أحدث نسخة من الفاتورة. تحقق من الاتصال وحاول مجدداً.");
+                return;
+            }
+
+            // Already closed from another device/tab? Never account twice.
+            if (services[0]?.pricing?.accounted === true) {
+                showError("مُحاسَبة مسبقاً", `الفاتورة #${o.report_number} تم إغلاقها بالفعل (ربما من جهاز آخر). حدّثت القائمة.`);
+                fetchOrders(true);
+                return;
+            }
+
+            const grand = (freshTotal ?? 0) || num(o.total_price) || invoiceLines(o).reduce((s, l) => s + l.price, 0);
+            const inp = getInput(o);
+            const discount = num(inp.discount);
+            const received = inp.received === "" ? (grand - discount) : num(inp.received);
+            if (discount > grand) { showError("خطأ", "الخصم أكبر من المجموع الكلي."); return; }
+            if (received > (grand - discount)) { showError("خطأ", "المبلغ الواصل أكبر من الصافي المطلوب."); return; }
+            const net = grand - discount;
+
             services[0] = {
                 ...services[0],
                 pricing: {
@@ -297,10 +319,21 @@ export default function AuditPage() {
                     accountedAt: new Date().toISOString(),
                 },
             };
-            const { error } = await supabase.from('inspection_reports')
+            // The not-yet-accounted condition rides ON the update itself (same filter
+            // string the pending query uses), so two devices racing to close the same
+            // invoice can't both win — the loser matches 0 rows instead of silently
+            // overwriting the first closing's figures and accountedAt.
+            const { data: updatedRows, error } = await supabase.from('inspection_reports')
                 .update({ selected_services: services, total_price: net })
-                .eq('id', o.id);
+                .eq('id', o.id)
+                .or('selected_services->0->pricing->>accounted.is.null,selected_services->0->pricing->>accounted.neq.true')
+                .select('id');
             if (error) throw error;
+            if (!updatedRows || updatedRows.length === 0) {
+                showError("مُحاسَبة مسبقاً", `الفاتورة #${o.report_number} أُغلقت للتو من جهاز آخر — لم يتم الحفظ مرتين.`);
+                fetchOrders(true);
+                return;
+            }
             showSuccess("تمت المحاسبة", `تم إغلاق الفاتورة #${o.report_number}. الصافي ${net.toLocaleString('en-US')} د.ع.`);
             // Silent: the success toast is the feedback — no need to blank the list and
             // lose the accountant's place in it.
@@ -469,12 +502,20 @@ export default function AuditPage() {
                     {list.map(o => {
                         const v = vehicleOf(o); const c = clientOf(o);
                         const lines = invoiceLines(o);
-                        const grand = num(o.total_price) || lines.reduce((s, l) => s + l.price, 0);
                         const p = pricingOf(o);
+                        const accounted = isAccounted(o);
+                        const lineSum = lines.reduce((s, l) => s + l.price, 0);
+                        // A CLOSED invoice derives every figure from the accountant's own
+                        // snapshot (grandTotal/discount) so المجموع/الخصم/الصافي always agree.
+                        // total_price alone is NOT trusted for closed rows: it is the NET, and
+                        // an edit after closing could have rewritten it — which is exactly how
+                        // cards ended up showing مجموع 95,000, خصم 0, صافي 80,000 at once.
+                        const grand = accounted
+                            ? (num(p.grandTotal) || num(o.total_price) || lineSum)
+                            : (num(o.total_price) || lineSum);
                         const inp = getInput(o);
                         const net = grand - num(inp.discount);
                         const open = expanded === o.id;
-                        const accounted = isAccounted(o);
                         return (
                             <div key={o.id} className="glass-card rounded-2xl border border-border overflow-hidden">
                                 {/* Row header */}
@@ -504,7 +545,7 @@ export default function AuditPage() {
                                     </div>
                                     <div className="text-left shrink-0">
                                         <div className="text-[10px] text-muted-foreground">المبلغ المستحق</div>
-                                        <div className="font-black text-emerald-500">{(accounted ? num(p.grandTotal ?? grand) - num(p.discount) : net).toLocaleString('en-US')} د.ع</div>
+                                        <div className="font-black text-emerald-500">{(accounted ? grand - num(p.discount) : net).toLocaleString('en-US')} د.ع</div>
                                     </div>
                                     <button onClick={() => setExpanded(open ? null : o.id)} className="px-3 py-2 rounded-xl bg-muted hover:bg-muted/70 text-sm font-bold flex items-center gap-1 border border-border">
                                         <Receipt size={15} /> تفاصيل الفاتورة {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -550,7 +591,7 @@ export default function AuditPage() {
                                                     <Row label={o.order_type === 'sale' ? 'وقت البيع' : 'وقت المحاسبة'} value={fmtDateTime(o.order_type === 'sale' ? o.created_at : (p.accountedAt || o.completed_at))} />
                                                     <Row label="الخصم" value={`${num(p.discount).toLocaleString('en-US')} د.ع`} />
                                                     <Row label="الواصل" value={`${num(p.amountReceived).toLocaleString('en-US')} د.ع`} />
-                                                    <Row label="الصافي" value={`${(num(p.grandTotal ?? grand) - num(p.discount)).toLocaleString('en-US')} د.ع`} strong />
+                                                    <Row label="الصافي" value={`${(grand - num(p.discount)).toLocaleString('en-US')} د.ع`} strong />
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
                                                         <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold"><CheckCircle2 size={16} /> تمت المحاسبة والإغلاق</div>
                                                         <button
