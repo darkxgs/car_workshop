@@ -1098,31 +1098,47 @@ export default function SectorReception({
                 const { data: freshRow } = await supabase.from('inspection_reports')
                     .select('selected_services').eq('id', editReportId).single();
                 const existing = (Array.isArray(freshRow?.selected_services) ? freshRow!.selected_services[0] : freshRow?.selected_services) || {};
+                // A CLOSED invoice's money is frozen — same rule as StandardReception.
+                // Editing an accounted order used to rewrite total_price and stomp
+                // pricing.discount/amountReceived while keeping the audit's grandTotal,
+                // leaving the invoice arithmetically impossible (مجموع/خصم/صافي from
+                // different epochs). Services may be edited; the closed amounts may not.
+                const isClosedInvoice = (existing.pricing || {}).accounted === true;
                 const mergedPayload = {
                     ...existing,
                     ...paperPayload,
-                    pricing: { ...(existing.pricing || {}), ...paperPayload.pricing },
+                    pricing: isClosedInvoice
+                        ? { ...(existing.pricing || {}) }
+                        : { ...(existing.pricing || {}), ...paperPayload.pricing },
                 };
                 const extraEntries = Array.isArray(freshRow?.selected_services) ? freshRow!.selected_services.slice(1) : [];
 
+                const editUpdate: Record<string, unknown> = {
+                    branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: resolvedReceptionistId || employeeId,
+                    odometer_reading: parseInt(odometer || "0") || 0,
+                    odometer_unit: odometerUnit,
+                    order_type: isSale ? 'sale' : 'maintenance',
+                    notes, bay_number: bayNumber,
+                    selected_services: [mergedPayload, ...extraEntries],
+                    estimated_duration: calculatedDuration,
+                };
+                // total_price on a closed invoice is the accountant's NET — leave it alone.
+                if (!isClosedInvoice) editUpdate.total_price = parseFloat(totalPrice || "0");
+
                 const { error: re } = await supabase.from('inspection_reports')
-                    .update({
-                        branch_id: finalBranchId, vehicle_id: vehicleId, receptionist_id: resolvedReceptionistId || employeeId,
-                        odometer_reading: parseInt(odometer || "0") || 0,
-                        odometer_unit: odometerUnit,
-                        order_type: isSale ? 'sale' : 'maintenance',
-                        total_price: parseFloat(totalPrice || "0"),
-                        notes, bay_number: bayNumber,
-                        selected_services: [mergedPayload, ...extraEntries],
-                        estimated_duration: calculatedDuration,
-                    })
+                    .update(editUpdate)
                     .eq('id', editReportId);
 
                 if (re) throw re;
                 syncOrderToGoogleSheets(editReportId); // fire-and-forget Google Sheets sync
 
                 if (skipStep3) {
-                    showSuccess("تم التعديل", "تم حفظ التعديلات بنجاح.");
+                    showSuccess(
+                        "تم التعديل",
+                        isClosedInvoice
+                            ? "تم حفظ التعديلات. الفاتورة محاسَبة ومغلقة، فالمبالغ (المجموع/الخصم/الواصل) لم تتغير."
+                            : "تم حفظ التعديلات بنجاح."
+                    );
                     router.push('/work-orders');
                     setLoading(false);
                     return;

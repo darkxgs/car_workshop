@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { reopenWorkOrder } from "@/lib/reopenOrder";
 import { Clock, CheckCircle2, Play, AlertTriangle, Plus, Printer, Activity, Wrench, StopCircle, ArrowRight, Loader2, Eye, X, RefreshCcw, Droplet } from "lucide-react";
 
 // حالة المحرك عند الاستلام — لون المحرك من الداخل قبل تبديل الزيت (يُسجَّل مرة واحدة لكل مركبة)
@@ -446,14 +447,9 @@ export default function WorkOrderDetailPage() {
     const handleReopen = async () => {
         if (!order) return;
         try {
-            const { error } = await supabase
-                .from('inspection_reports')
-                .update({ 
-                    status: 'قيد العمل', 
-                    start_time: new Date().toISOString(),
-                    completed_at: null
-                })
-                .eq('id', id);
+            // Shared helper: also un-accounts an already-closed invoice so it comes
+            // back to التدقيق after the new work — see src/lib/reopenOrder.ts.
+            const { error } = await reopenWorkOrder(id as string);
 
             if (error) throw error;
             showSuccess("تمت إعادة الفتح", "تم إعادة المركبة إلى قيد العمل بنجاح!");

@@ -27,6 +27,10 @@ export default function SaleForm({
     const editId = searchParams.get("edit");
 
     const [editReportId, setEditReportId] = useState<string | null>(null);
+    // The moment the sale was originally settled. Editing a sale must NOT re-stamp it —
+    // rewriting accountedAt with "now" silently moved the sale's income to a different
+    // day in the daily closing report.
+    const [originalAccountedAt, setOriginalAccountedAt] = useState<string | null>(null);
     const [customerName, setCustomerName] = useState("");
     const [customerPhone, setCustomerPhone] = useState("");
     const [products, setProducts] = useState<Product[]>([{ name: "", qty: "1", price: "" }]);
@@ -65,6 +69,7 @@ export default function SaleForm({
                 }
                 const savedDiscount = parseFloat(String(payload.pricing?.discount ?? "0")) || 0;
                 setDiscount(savedDiscount > 0 ? String(savedDiscount) : "");
+                setOriginalAccountedAt(payload.pricing?.accountedAt || null);
             }
         })();
     }, [editId, setSelectedBranchId]);
@@ -106,7 +111,8 @@ export default function SaleForm({
                     discount: String(discountValue),
                     amountReceived: String(netTotal),
                     accounted: true,
-                    accountedAt: new Date().toISOString(),
+                    // Keep the original settlement moment on edit; stamp "now" only for a new sale.
+                    accountedAt: (editReportId && originalAccountedAt) || new Date().toISOString(),
                 }
             }];
 
@@ -147,6 +153,7 @@ export default function SaleForm({
     const resetForNew = () => {
         setDone(null);
         setEditReportId(null);
+        setOriginalAccountedAt(null);
         setCustomerName("");
         setCustomerPhone("");
         setProducts([{ name: "", qty: "1", price: "" }]);

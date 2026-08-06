@@ -4,6 +4,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useAuth } from "@/lib/AuthProvider";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { reopenWorkOrder } from "@/lib/reopenOrder";
 import { 
     Users, User, Search, Download, Plus, MapPin, Phone,
     Car, FileText, ChevronLeft, ChevronRight, ShieldAlert,
@@ -405,16 +406,11 @@ export default function CustomersPage() {
             false
         );
         if (!isConfirmed) return;
-        
-        const { error } = await supabase
-            .from('inspection_reports')
-            .update({ 
-                status: 'قيد العمل', 
-                start_time: new Date().toISOString(),
-                completed_at: null
-            })
-            .eq('id', reportId);
-            
+
+        // Shared helper: also un-accounts an already-closed invoice so it comes
+        // back to التدقيق after the new work — see src/lib/reopenOrder.ts.
+        const { error } = await reopenWorkOrder(reportId);
+
         if (!error) {
             fetchClients();
             if (selectedProfile) {
