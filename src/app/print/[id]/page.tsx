@@ -38,14 +38,16 @@ export default function PrintPage() {
                 let engineColorOnReceipt =
                     (Array.isArray(reportData.selected_services) ? reportData.selected_services[0] : reportData.selected_services)?.engineColorOnReceipt || null;
                 if (!engineColorOnReceipt && (reportData as any).vehicle_id) {
-                    const { data: vReports } = await supabase
+                    // JSON-path select: pull the one string server-side instead of downloading
+                    // the full selected_services of every report for the vehicle.
+                    const { data: vReports } = await (supabase as any)
                         .from("inspection_reports")
-                        .select("selected_services")
-                        .eq("vehicle_id", (reportData as any).vehicle_id);
-                    (vReports || []).forEach((r: any) => {
-                        const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
-                        if (!engineColorOnReceipt && pay?.engineColorOnReceipt) engineColorOnReceipt = pay.engineColorOnReceipt;
-                    });
+                        .select("color:selected_services->0->>engineColorOnReceipt")
+                        .eq("vehicle_id", (reportData as any).vehicle_id)
+                        .not("selected_services->0->>engineColorOnReceipt", "is", null)
+                        .neq("selected_services->0->>engineColorOnReceipt", "")
+                        .limit(1);
+                    engineColorOnReceipt = vReports?.[0]?.color || null;
                 }
                 setReport({ ...reportData, engineColorOnReceipt });
             }

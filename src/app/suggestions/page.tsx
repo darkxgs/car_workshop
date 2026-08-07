@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
     FileSpreadsheet, Plus, Trash2, Save, Search, X,
     Droplets, Thermometer, Filter, Battery, Cog, ChevronDown, ChevronUp, Check, Loader2,
@@ -207,10 +207,15 @@ export default function SuggestionsPage() {
         fetchBranches();
     }, [employeeBranchId]);
 
+    // Guards against a slow branch fetch resolving late and clobbering
+    // whatever the user typed after switching branches.
+    const fetchRequestIdRef = useRef(0);
+
     // Fetch suggestion lists from Supabase
     useEffect(() => {
         if (!selectedBranchId) return;
 
+        const requestId = ++fetchRequestIdRef.current;
         const fetchSuggestions = async () => {
             setLoading(true);
             try {
@@ -219,6 +224,7 @@ export default function SuggestionsPage() {
                     .select('key, items')
                     .eq('branch_id', selectedBranchId);
 
+                if (requestId !== fetchRequestIdRef.current) return; // stale response — ignore
                 if (error) throw error;
 
                 // Create a temporary object with default values
@@ -250,10 +256,13 @@ export default function SuggestionsPage() {
                 }
 
                 setLists(loadedLists);
+                setHasChanges(false); // fresh branch data — nothing unsaved
             } catch (err) {
                 console.error("Error loading suggestion lists from Supabase:", err);
             } finally {
-                setLoading(false);
+                if (requestId === fetchRequestIdRef.current) {
+                    setLoading(false);
+                }
             }
         };
 
@@ -428,19 +437,18 @@ export default function SuggestionsPage() {
 
                 const replaceAll = result.isDenied;
 
+                // Merge outside the state updater — React may run updaters 0/1/2
+                // times, so counting inside one gave a wrong/random addedCount.
+                const currentList: SuggestionItem[] = replaceAll ? [] : [...(lists[categoryKey] || [])];
                 let addedCount = 0;
-                setLists(prev => {
-                    const currentList = replaceAll ? [] : [...(prev[categoryKey] || [])];
-                    
-                    newItems.forEach(newItem => {
-                        if (!currentList.some(item => item.name === newItem.name)) {
-                            currentList.push(newItem);
-                            addedCount++;
-                        }
-                    });
-
-                    return { ...prev, [categoryKey]: currentList };
+                newItems.forEach(newItem => {
+                    if (!currentList.some(item => item.name === newItem.name)) {
+                        currentList.push(newItem);
+                        addedCount++;
+                    }
                 });
+
+                setLists(prev => ({ ...prev, [categoryKey]: currentList }));
 
                 if (addedCount > 0 || replaceAll) {
                     setHasChanges(true);
@@ -623,10 +631,13 @@ export default function SuggestionsPage() {
                         const items = lists[cat.key] || [];
                         const cc = colorClasses[cat.color] || colorClasses.emerald;
                         const isExpanded = expandedCategory === cat.key || searchQuery;
-                        
+
+                        // Carry each item's real index through the filter, so edit/delete
+                        // hit the right row even when names are duplicated.
+                        const indexedItems = items.map((item, originalIdx) => ({ item, originalIdx }));
                         const filteredItems = searchQuery
-                            ? items.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                            : items;
+                            ? indexedItems.filter(({ item }) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                            : indexedItems;
 
                         // If searching and no matches in this list, skip
                         if (searchQuery && filteredItems.length === 0) return null;
@@ -705,8 +716,7 @@ export default function SuggestionsPage() {
 
                                         {/* Items Grid */}
                                         <div className="flex flex-col gap-2.5">
-                                            {filteredItems.map((item, idx) => {
-                                                const originalIdx = items.findIndex(original => original.name === item.name);
+                                            {filteredItems.map(({ item, originalIdx }, idx) => {
                                                 const isEditing = editingItem && editingItem.categoryKey === cat.key && editingItem.index === originalIdx;
 
                                                 if (isEditing) {

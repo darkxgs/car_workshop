@@ -16,9 +16,9 @@ import SectorReception from "./components/SectorReception";
 import SaleForm from "./components/SaleForm";
 import InspectionForm from "./components/InspectionForm";
 
-const ORDER_SELECT = `id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`;
+const ORDER_SELECT = `id, report_number, status, order_type, branch_id, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`;
 // Inner-join variant so filters on the embedded vehicle/client actually narrow the rows.
-const ORDER_SELECT_INNER = `id, report_number, status, order_type, created_at, total_price, selected_services, vehicles!inner (make, model, plate_number, clients!inner (name, phone))`;
+const ORDER_SELECT_INNER = `id, report_number, status, order_type, branch_id, created_at, total_price, selected_services, vehicles!inner (make, model, plate_number, clients!inner (name, phone))`;
 
 const isAccounted = (o: any) => {
     if (o.order_type === 'sale') return true;
@@ -93,6 +93,8 @@ function ReceptionContainer() {
     const [searchTerm, setSearchTerm] = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
+    // Latest-wins: two in-flight searches can resolve out of order; only the newest may set state.
+    const searchToken = useRef(0);
     const isSearching = searchTerm.trim().length > 0;
     const filteredOrders = isSearching ? searchResults : orders;
 
@@ -228,7 +230,7 @@ function ReceptionContainer() {
         if (targetPage === 1) setLoading(true);
         let query = supabase
             .from('inspection_reports')
-            .select(`id, report_number, status, order_type, created_at, total_price, selected_services, vehicles (make, model, plate_number, clients (name, phone))`)
+            .select(ORDER_SELECT)
             .order('created_at', { ascending: false })
             .order('report_number', { ascending: false }) // tiebreaker: newest order number first when dates tie
             .range((targetPage - 1) * 50, targetPage * 50 - 1);
@@ -275,14 +277,20 @@ function ReceptionContainer() {
     }, [page]);
 
     useEffect(() => {
+        // Trailing debounce: bursts of realtime events collapse into one silent refresh.
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('reception_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
                 // Silent: any order changing anywhere in the workshop used to wipe the
                 // table to a spinner and reset it to the first 50 rows mid-read.
-                refreshLoadedOrders();
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => refreshLoadedOrders(), 500);
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            if (timer) clearTimeout(timer);
+            supabase.removeChannel(channel);
+        };
     }, [employeeBranchId, selectedBranchId]);
 
     // Server-side search (debounced): an order number / name / phone / plate now matches even if
@@ -292,6 +300,7 @@ function ReceptionContainer() {
         if (!term) { setSearchResults([]); setSearching(false); return; }
         setSearching(true);
         const handle = setTimeout(async () => {
+            const token = ++searchToken.current;
             const branchId = selectedBranchId || employeeBranchId || null;
             const applyBranch = (q: any) => branchId ? q.eq('branch_id', branchId) : q;
             const digits = term.replace(/\D/g, "");
@@ -316,6 +325,7 @@ function ReceptionContainer() {
                     .order('created_at', { ascending: false }).limit(50)
             ).then((r: any) => r.data || []).catch(() => []));
             const lists = await Promise.all(runs);
+            if (token !== searchToken.current) return; // a newer search superseded this one
             const seen = new Set<string>();
             const merged: any[] = [];
             lists.flat().forEach((o: any) => { if (o && !seen.has(o.id)) { seen.add(o.id); merged.push(o); } });

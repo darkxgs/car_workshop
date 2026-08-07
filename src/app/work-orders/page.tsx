@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { Wrench, ShieldAlert, Shield, ArrowLeft, Car, Activity, Loader2, Gauge, Search } from "lucide-react";
@@ -32,6 +32,8 @@ export default function WorkOrdersListPage() {
     const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    // Debounce timer for the realtime refetch — bursts of events collapse into one silent refresh.
+    const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Hooks must run unconditionally (Rules of Hooks). Access guards early-return
     // below, after every hook/handler is declared.
@@ -71,11 +73,16 @@ export default function WorkOrdersListPage() {
 
         const channel = supabase.channel('work_orders_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchOrders();
+                // Trailing debounce: refetch once, ~500ms after the last event (silent — no spinner).
+                if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+                realtimeTimer.current = setTimeout(() => fetchOrders(), 500);
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
+            supabase.removeChannel(channel);
+        };
     }, [employeeBranchId, employeeRole, selectedBranchId, authLoading, isAuthorized]);
 
 
@@ -86,7 +93,8 @@ export default function WorkOrdersListPage() {
             .select(`id, report_number, status, created_at, estimated_duration, is_delayed, odometer_reading, odometer_unit, bay_number, start_time, elapsed_time, vehicles (make, model, plate_number, clients (name)), selected_services`)
             .neq('status', 'تم الانتهاء')
             .neq('status', 'ملغى')
-            .neq('order_type', 'sale')
+            // NULL-safe: `<>` is false for NULL, so a plain .neq dropped legacy rows with no order_type.
+            .or('order_type.is.null,order_type.neq.sale')
             .order('created_at', { ascending: false });
 
         if (selectedBranchId) {

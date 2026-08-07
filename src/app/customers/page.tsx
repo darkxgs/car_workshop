@@ -64,6 +64,12 @@ export default function CustomersPage() {
     // Marks the next fetch as a background one (realtime), so the list refreshes in
     // place instead of blanking to "جاري تحميل البيانات..." while the user is reading.
     const silentRefresh = useRef(false);
+    // Stale-response guard: each fetch gets an incrementing id; a slow older
+    // response is ignored so it can't overwrite the results of a newer filter.
+    const fetchIdRef = useRef(0);
+    // Cache for the visitor-type filter's qualified client ids — computing them
+    // downloads ALL vehicles + reports, so don't redo it on every page click.
+    const visitFilterCache = useRef<{ key: string; ids: string[]; counts: Record<string, number> } | null>(null);
     const PAGE_SIZE = 25;
 
     // Modals & Tabbed Profile
@@ -132,6 +138,8 @@ export default function CustomersPage() {
     };
 
     const fetchClients = async () => {
+        const reqId = ++fetchIdRef.current;
+        const stale = () => reqId !== fetchIdRef.current;
         const silent = silentRefresh.current;
         silentRefresh.current = false;
         if (!silent) setLoading(true);
@@ -143,16 +151,24 @@ export default function CustomersPage() {
             let searchClientIds: Set<string> | null = null;
             if (debouncedSearchTerm) {
                 // A laser scanner types the whole booklet URL; reduce it to the serial
-                // so scanning into this box still finds the customer.
-                const term = normalizeBookletCode(debouncedSearchTerm);
+                // so scanning into this box still finds the customer. Strip characters
+                // that are part of the PostgREST .or() filter grammar — a comma or
+                // parenthesis in the raw term corrupts the whole filter expression.
+                const term = normalizeBookletCode(debouncedSearchTerm).replace(/[,()]/g, "");
+                // .limit(500): a 1-char term can match thousands of rows, and every id
+                // ends up in the .in('id', ...) below — past ~500 the URL gets too long.
                 const { data: matchedClients } = await supabase
                     .from('clients')
                     .select('id')
-                    .or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
+                    .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+                    .limit(500);
                 const { data: matchedVehicles } = await supabase
                     .from('vehicles')
                     .select('client_id')
-                    .or(`plate_number.ilike.%${term}%,make.ilike.%${term}%,booklet_serial.ilike.%${term}%`);
+                    .or(`plate_number.ilike.%${term}%,make.ilike.%${term}%,booklet_serial.ilike.%${term}%`)
+                    .limit(500);
+
+                if (stale()) return;
 
                 searchClientIds = new Set<string>();
                 matchedClients?.forEach(c => searchClientIds!.add(c.id));
@@ -195,31 +211,45 @@ export default function CustomersPage() {
             // ثم يُقسَّم لصفحات محلياً حتى لا يطول رابط الطلب. الترتيب: الأكثر زيارات أولاً.
             let filterCount: number | null = null;
             if (visitFilter) {
-                const PAGE = 1000;
-                const vehToClient = new Map<string, string>();
-                for (let from = 0; from < 100000; from += PAGE) {
-                    const { data: vs } = await supabase.from('vehicles').select('id, client_id').range(from, from + PAGE - 1);
-                    (vs || []).forEach((v: any) => { if (v.client_id) vehToClient.set(v.id, v.client_id); });
-                    if (!vs || vs.length < PAGE) break;
+                // The full vehicles+reports scan below is expensive, so its result is
+                // cached and reused for page clicks — the key only changes when the
+                // filter itself or a realtime refresh invalidates it.
+                const cacheKey = JSON.stringify({ visitFilter, refreshTrigger });
+                let qualified: string[];
+                if (visitFilterCache.current?.key === cacheKey) {
+                    qualified = visitFilterCache.current.ids;
+                } else {
+                    const PAGE = 1000;
+                    const vehToClient = new Map<string, string>();
+                    for (let from = 0; from < 100000; from += PAGE) {
+                        const { data: vs } = await supabase.from('vehicles').select('id, client_id').range(from, from + PAGE - 1);
+                        (vs || []).forEach((v: any) => { if (v.client_id) vehToClient.set(v.id, v.client_id); });
+                        if (!vs || vs.length < PAGE) break;
+                    }
+                    const visitsByClient = new Map<string, number>();
+                    const branchesByClient = new Map<string, Set<string>>();
+                    for (let from = 0; from < 200000; from += PAGE) {
+                        const { data: rs } = await supabase.from('inspection_reports').select('vehicle_id, branch_id').range(from, from + PAGE - 1);
+                        (rs || []).forEach((r: any) => {
+                            const cid = r.vehicle_id ? vehToClient.get(r.vehicle_id) : null;
+                            if (!cid) return;
+                            visitsByClient.set(cid, (visitsByClient.get(cid) || 0) + 1);
+                            if (r.branch_id) {
+                                if (!branchesByClient.has(cid)) branchesByClient.set(cid, new Set());
+                                branchesByClient.get(cid)!.add(r.branch_id);
+                            }
+                        });
+                        if (!rs || rs.length < PAGE) break;
+                    }
+                    if (stale()) return;
+                    qualified = visitFilter === 'repeat'
+                        ? [...visitsByClient.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).map(([id]) => id)
+                        : [...branchesByClient.entries()].filter(([, s]) => s.size > 1).sort((a, b) => b[1].size - a[1].size).map(([id]) => id);
+                    const counts: Record<string, number> = {};
+                    if (visitFilter === 'repeat') visitsByClient.forEach((n, id) => { counts[id] = n; });
+                    else branchesByClient.forEach((s, id) => { counts[id] = s.size; });
+                    visitFilterCache.current = { key: cacheKey, ids: qualified, counts };
                 }
-                const visitsByClient = new Map<string, number>();
-                const branchesByClient = new Map<string, Set<string>>();
-                for (let from = 0; from < 200000; from += PAGE) {
-                    const { data: rs } = await supabase.from('inspection_reports').select('vehicle_id, branch_id').range(from, from + PAGE - 1);
-                    (rs || []).forEach((r: any) => {
-                        const cid = r.vehicle_id ? vehToClient.get(r.vehicle_id) : null;
-                        if (!cid) return;
-                        visitsByClient.set(cid, (visitsByClient.get(cid) || 0) + 1);
-                        if (r.branch_id) {
-                            if (!branchesByClient.has(cid)) branchesByClient.set(cid, new Set());
-                            branchesByClient.get(cid)!.add(r.branch_id);
-                        }
-                    });
-                    if (!rs || rs.length < PAGE) break;
-                }
-                let qualified = visitFilter === 'repeat'
-                    ? [...visitsByClient.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).map(([id]) => id)
-                    : [...branchesByClient.entries()].filter(([, s]) => s.size > 1).sort((a, b) => b[1].size - a[1].size).map(([id]) => id);
                 if (searchClientIds) qualified = qualified.filter(id => searchClientIds!.has(id));
                 filterCount = qualified.length;
                 const pageIds = qualified.slice(offset, offset + PAGE_SIZE);
@@ -235,6 +265,7 @@ export default function CustomersPage() {
             let finalQuery = query.order('created_at', { ascending: false });
             if (!visitFilter) finalQuery = finalQuery.range(offset, offset + PAGE_SIZE - 1);
             const { data, count, error } = await finalQuery;
+            if (stale()) return;
 
             if (error) throw error;
 
@@ -301,6 +332,7 @@ export default function CustomersPage() {
             }
         } catch (err: any) {
             console.error("Error fetching clients:", err);
+            if (stale()) return;
             // Show what actually failed. The generic message hid real causes — a
             // statement timeout on a busy branch reads very differently from a bad
             // filter, and neither could be told apart from the old wording.
@@ -313,7 +345,7 @@ export default function CustomersPage() {
                     : `حدث خطأ أثناء تحميل بيانات العملاء.${detail ? ` (${detail})` : ""}`
             );
         } finally {
-            setLoading(false);
+            if (!stale()) setLoading(false);
         }
     };
 
@@ -392,6 +424,14 @@ export default function CustomersPage() {
                     allReports: selectedProfile.allReports.filter((r: any) => r.id !== reportId)
                 });
             }
+            // Drop the per-visit cache entry and leave its tab, otherwise the open
+            // VisitDetailsView keeps rendering the deleted invoice.
+            setLoadedReports(prev => {
+                const next = { ...prev };
+                delete next[reportId];
+                return next;
+            });
+            setActiveProfileTab(prev => prev === reportId ? "summary" : prev);
             showSuccess("تم الحذف", "تم حذف الفاتورة بنجاح.");
         } else {
             showError("خطأ", `خطأ أثناء الحذف: ${error.message}`);
@@ -416,13 +456,18 @@ export default function CustomersPage() {
             if (selectedProfile) {
                 setSelectedProfile({
                     ...selectedProfile,
-                    allReports: selectedProfile.allReports.map((r: any) => 
-                        r.id === reportId 
-                            ? { ...r, status: 'قيد العمل' } 
+                    allReports: selectedProfile.allReports.map((r: any) =>
+                        r.id === reportId
+                            ? { ...r, status: 'قيد العمل' }
                             : r
                     )
                 });
             }
+            // Patch the per-visit cache too — the open VisitDetailsView renders from
+            // loadedReports, so without this it kept showing "تم الانتهاء".
+            setLoadedReports(prev => prev[reportId]
+                ? { ...prev, [reportId]: { ...prev[reportId], status: 'قيد العمل' } }
+                : prev);
             showSuccess("تمت إعادة الفتح", "تمت إعادة المركبة إلى قيد العمل بنجاح.");
         } else {
             showError("خطأ", `حدث خطأ: ${error.message}`);
@@ -709,31 +754,32 @@ export default function CustomersPage() {
     // export (per Abbas: a تقرير خاص للإطارات, temporary, to prepare a tire order).
     // Columns: اسم الزبون · نوع السيارة · الموديل · حجم الإطار.
     const exportTireReport = async () => {
-        // Page through ALL reports — a single query is capped at 1000 rows (~last
-        // couple weeks), which made date-filtered/older exports come back empty.
-        let rows: any[] = [];
-        const PAGE = 1000;
-        for (let from = 0; from < 100000; from += PAGE) {
-            const { data, error } = await supabase
+        // Branch/date filters are applied by the DATABASE (same as exportExcel) and
+        // the result is paged — a single query is capped at 1000 rows (~last couple
+        // weeks), and filtering in JS afterwards made older exports come back empty.
+        const baseQuery = () => {
+            let q = supabase
                 .from("inspection_reports")
                 .select(`id, created_at, order_type, branch_id, selected_services,
                          vehicles(make, model, clients(name))`)
-                .order("created_at", { ascending: false })
-                .range(from, from + PAGE - 1);
-            if (error) return;
+                .order("created_at", { ascending: false });
+            const activeBranch = employeeBranchId || branchFilter;
+            if (activeBranch) q = q.eq("branch_id", activeBranch);
+            if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
+            if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59.999`);
+            return q;
+        };
+
+        const rows: any[] = [];
+        const PAGE = 1000;
+        for (let from = 0; from < 100000; from += PAGE) {
+            const { data, error } = await baseQuery().range(from, from + PAGE - 1);
+            if (error) {
+                showError("تعذّر التصدير", error.message || "حدث خطأ أثناء تحميل البيانات للتصدير.");
+                return;
+            }
             rows.push(...(data || []));
             if (!data || data.length < PAGE) break;
-        }
-        if (employeeBranchId) rows = rows.filter(r => r.branch_id === employeeBranchId);
-        if (branchFilter) rows = rows.filter(r => r.branch_id === branchFilter);
-        if (dateFrom || dateTo) {
-            rows = rows.filter(r => {
-                if (!r.created_at) return false;
-                const d = new Date(r.created_at).toISOString().split('T')[0];
-                if (dateFrom && d < dateFrom) return false;
-                if (dateTo && d > dateTo) return false;
-                return true;
-            });
         }
 
         const tireRows = rows.map(r => {
@@ -797,7 +843,7 @@ export default function CustomersPage() {
                 const { data, error } = await supabase
                     .from('inspection_reports')
                     .select(`
-                        id, report_number, status, total_price, selected_services, odometer_reading, created_at,
+                        id, report_number, status, order_type, total_price, selected_services, odometer_reading, created_at,
                         branches (name),
                         receptionist:receptionist_id (name)
                     `)
@@ -824,24 +870,39 @@ export default function CustomersPage() {
         setBackingUp(true);
         try {
             showSuccess("جاري التحضير", "بدأت عملية النسخ الاحتياطي للبيانات. يرجى الانتظار...");
-            
-            const [clientsRes, vehiclesRes, reportsRes, branchesRes, employeesRes] = await Promise.all([
-                supabase.from('clients').select('*'),
-                supabase.from('vehicles').select('*'),
-                supabase.from('inspection_reports').select('*'),
-                supabase.from('branches').select('id, name, address, created_at'),
-                supabase.from('employees').select('id, name, username, role, branch_id, phone, created_at')
+
+            // Page through every table — a single select('*') is capped at 1000 rows,
+            // so the old backup silently truncated the big tables (and ignored fetch
+            // errors), producing a "successful" but incomplete backup file.
+            const fetchAllRows = async (table: 'clients' | 'vehicles' | 'inspection_reports' | 'branches' | 'employees', select: string) => {
+                const rows: any[] = [];
+                const PAGE = 1000;
+                for (let from = 0; from < 1000000; from += PAGE) {
+                    const { data, error } = await supabase.from(table).select(select).range(from, from + PAGE - 1);
+                    if (error) throw new Error(`فشل تحميل جدول ${table}: ${error.message}`);
+                    rows.push(...(data || []));
+                    if (!data || data.length < PAGE) break;
+                }
+                return rows;
+            };
+
+            const [clientsRows, vehiclesRows, reportsRows, branchesRows, employeesRows] = await Promise.all([
+                fetchAllRows('clients', '*'),
+                fetchAllRows('vehicles', '*'),
+                fetchAllRows('inspection_reports', '*'),
+                fetchAllRows('branches', 'id, name, address, created_at'),
+                fetchAllRows('employees', 'id, name, username, role, branch_id, phone, created_at')
             ]);
 
             const backupObj = {
                 backup_version: "1.0",
                 backup_date: new Date().toISOString(),
                 data: {
-                    clients: clientsRes.data || [],
-                    vehicles: vehiclesRes.data || [],
-                    inspection_reports: reportsRes.data || [],
-                    branches: branchesRes.data || [],
-                    employees: employeesRes.data || []
+                    clients: clientsRows,
+                    vehicles: vehiclesRows,
+                    inspection_reports: reportsRows,
+                    branches: branchesRows,
+                    employees: employeesRows
                 }
             };
 
@@ -859,7 +920,7 @@ export default function CustomersPage() {
             showSuccess("مكتمل", "تم تحميل نسخة احتياطية كاملة من البيانات بنجاح!");
         } catch (err: any) {
             console.error("Backup error:", err);
-            showError("خطأ", "فشلت عملية النسخ الاحتياطي للبيانات.");
+            showError("خطأ", err?.message || "فشلت عملية النسخ الاحتياطي للبيانات.");
         } finally {
             setBackingUp(false);
         }
@@ -1064,7 +1125,8 @@ export default function CustomersPage() {
                                         <td className="p-4 align-top">
                                             <div className="flex flex-col gap-2">
                                                 <span className={`inline-flex w-fit px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                                                    client.latestStatus === "مكتمل" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                                    client.latestStatus === "تم الانتهاء" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                                    client.latestStatus === "في انتظار المحاسبة" ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" :
                                                     client.latestStatus === "قيد العمل" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
                                                     "bg-muted text-muted-foreground border-border"
                                                 }`}>
@@ -1113,7 +1175,8 @@ export default function CustomersPage() {
                                         </div>
                                     </div>
                                     <span className={`inline-flex shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                                        client.latestStatus === "مكتمل" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                        client.latestStatus === "تم الانتهاء" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                        client.latestStatus === "في انتظار المحاسبة" ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" :
                                         client.latestStatus === "قيد العمل" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
                                         "bg-muted text-muted-foreground border-border"
                                     }`}>

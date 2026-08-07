@@ -56,26 +56,23 @@ export default function SettingsPage() {
 
     const fetchAllData = async () => {
         try {
-            const { data: empData, error: empErr } = await supabase
-                .from('employees')
-                .select('*')
-                .order('created_at', { ascending: false });
-                
+            // The three queries are independent — run them in parallel.
+            const [
+                { data: empData, error: empErr },
+                { data: bData, error: bErr },
+                { data: settingsData }
+            ] = await Promise.all([
+                supabase.from('employees').select('*').order('created_at', { ascending: false }),
+                supabase.from('branches').select('*').order('created_at', { ascending: true }),
+                supabase.from('workshop_settings').select('*')
+            ]);
+
             if (!empErr && empData) {
                 setEmployees(empData);
             }
-            
-            // Fetch Branches
-            const { data: bData, error: bErr } = await supabase
-                .from('branches')
-                .select('*')
-                .order('created_at', { ascending: true });
+
             if (!bErr && bData) setBranches(bData);
 
-            // Fetch Google Sheets settings
-            const { data: settingsData } = await supabase
-                .from('workshop_settings')
-                .select('*');
             if (settingsData) {
                 const urlVal = settingsData.find(s => s.setting_key === 'google_sheets_webhook_url')?.setting_value || "";
                 const enabledVal = settingsData.find(s => s.setting_key === 'google_sheets_sync_enabled')?.setting_value === 'true';
@@ -91,28 +88,28 @@ export default function SettingsPage() {
     };
 
     useEffect(() => {
-        if (employeeRole === null) return; 
+        // Wait for auth to settle, then either fetch or show the unauthorized
+        // panel — an auth user with no employees row must not spin forever.
+        if (authLoading) return;
         if (employeeRole === "Owner" || permissionEmployees) {
             fetchAllData();
         } else {
             setLoadingEnv(false);
         }
-    }, [employeeRole, permissionEmployees]);
+    }, [authLoading, employeeRole, permissionEmployees]);
 
     const handleSaveGoogleSettings = async () => {
         setIsSavingGoogle(true);
         try {
-            // Upsert webhook URL
-            const { error: err1 } = await supabase
+            // Upsert both settings in one round-trip
+            const { error } = await supabase
                 .from('workshop_settings')
-                .upsert({ setting_key: 'google_sheets_webhook_url', setting_value: webhookUrl }, { onConflict: 'setting_key' });
-            
-            // Upsert enabled toggle
-            const { error: err2 } = await supabase
-                .from('workshop_settings')
-                .upsert({ setting_key: 'google_sheets_sync_enabled', setting_value: String(syncEnabled) }, { onConflict: 'setting_key' });
-                
-            if (err1 || err2) throw err1 || err2;
+                .upsert([
+                    { setting_key: 'google_sheets_webhook_url', setting_value: webhookUrl },
+                    { setting_key: 'google_sheets_sync_enabled', setting_value: String(syncEnabled) }
+                ], { onConflict: 'setting_key' });
+
+            if (error) throw error;
             showSuccess("تم الحفظ", "تم حفظ إعدادات مزامنة Google Sheets بنجاح!");
         } catch (err: any) {
             console.error(err);

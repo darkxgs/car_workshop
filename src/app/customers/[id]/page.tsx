@@ -50,6 +50,11 @@ const isAccounted = (o: any) => {
     return p?.accounted === true;
 };
 
+// The DB stores both Arabic and English status strings; normalize once here so
+// the stats and the badges agree on what "completed" / "in progress" means.
+const isCompletedStatus = (s: string | null | undefined) => s === "تم الانتهاء" || s === "completed";
+const isInProgressStatus = (s: string | null | undefined) => s === "قيد العمل" || s === "in_progress";
+
 export default function CustomerProfilePage() {
     const params = useParams();
     const router = useRouter();
@@ -58,23 +63,32 @@ export default function CustomerProfilePage() {
     const [client, setClient] = useState<ClientProfile | null>(null);
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    // Lifetime totals for the stat tiles — the visits list below is capped at 50
+    // rows, so these are computed separately over ALL of the client's reports.
+    const [lifetimeStats, setLifetimeStats] = useState<{ visits: number; spent: number; completed: number } | null>(null);
 
     useEffect(() => {
+        // Silent, debounced refresh: any report change workshop-wide used to refetch
+        // with setLoading(true), blanking the whole page while it was being read.
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel(`customer_profile_realtime_${id}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                setRefreshTrigger(t => t + 1);
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => {
+                    timer = null;
+                    fetchProfile(true);
+                }, 500);
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
     }, [id]);
 
     useEffect(() => {
         if (id) fetchProfile();
-    }, [id, refreshTrigger]);
+    }, [id]);
 
-    const fetchProfile = async () => {
-        setLoading(true);
+    const fetchProfile = async (silent = false) => {
+        if (!silent) setLoading(true);
 
         // Fetch client with vehicles
         const { data: clientData, error: clientErr } = await supabase
@@ -100,6 +114,34 @@ export default function CustomerProfilePage() {
                 .limit(50);
 
             if (reportsData) setReports(reportsData as any);
+
+            // The list above is capped at 50 rows, but the stat tiles claim lifetime
+            // totals — get the true visit count, and page through a slim projection
+            // of ALL rows for the payments/completed totals.
+            const { count: visitCount } = await supabase
+                .from("inspection_reports")
+                .select("id", { count: "exact", head: true })
+                .in("vehicle_id", vehicleIds);
+
+            const allRows: any[] = [];
+            const PAGE = 1000;
+            for (let from = 0; from < 100000; from += PAGE) {
+                const { data: page, error } = await supabase
+                    .from("inspection_reports")
+                    .select("total_price, status, order_type, selected_services->0->pricing")
+                    .in("vehicle_id", vehicleIds)
+                    .range(from, from + PAGE - 1);
+                if (error) break;
+                allRows.push(...(page || []));
+                if (!page || page.length < PAGE) break;
+            }
+            setLifetimeStats({
+                visits: visitCount ?? allRows.length,
+                spent: allRows.reduce((s, r) => s + (r.total_price || 0), 0),
+                completed: allRows.filter(r => isCompletedStatus(r.status)).length,
+            });
+        } else {
+            setLifetimeStats({ visits: 0, spent: 0, completed: 0 });
         }
 
         setLoading(false);
@@ -131,10 +173,11 @@ export default function CustomerProfilePage() {
         );
     }
 
-    // — Computed stats —
-    const totalVisits = reports.length;
-    const totalSpent = reports.reduce((s, r) => s + (r.total_price || 0), 0);
-    const completedReports = reports.filter(r => r.status === "تم الانتهاء").length;
+    // — Computed stats — lifetime totals from the dedicated queries, falling back
+    // to the (max 50) loaded rows only while those queries haven't resolved yet.
+    const totalVisits = lifetimeStats?.visits ?? reports.length;
+    const totalSpent = lifetimeStats?.spent ?? reports.reduce((s, r) => s + (r.total_price || 0), 0);
+    const completedReports = lifetimeStats?.completed ?? reports.filter(r => isCompletedStatus(r.status)).length;
     const lastVisit = reports[0]?.created_at ?? null;
     const daysSinceLastVisit = lastVisit
         ? Math.floor((Date.now() - new Date(lastVisit).getTime()) / 86400000)
@@ -277,12 +320,12 @@ export default function CustomerProfilePage() {
                             {reports.length > 0 ? (
                                 reports.map((report) => {
                                     const accounted = isAccounted(report);
-                                    const st = report.status === "تم الانتهاء"
-                                         ? (accounted 
+                                    const st = isCompletedStatus(report.status)
+                                         ? (accounted
                                              ? { label: "تم الانتهاء", cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 whitespace-nowrap" }
                                              : { label: "في انتظار المحاسبة", cls: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20 whitespace-nowrap" }
                                            )
-                                         : report.status === "قيد العمل"
+                                         : isInProgressStatus(report.status)
                                              ? { label: "قيد العمل", cls: "bg-amber-500/10 text-amber-500 border-amber-500/20 whitespace-nowrap" }
                                              : { label: "انتظار", cls: "bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap" };
                                     return (
