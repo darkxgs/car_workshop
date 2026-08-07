@@ -25,6 +25,24 @@ function saleProductsText(svc: any): string {
         .join(' | ');
 }
 
+// The business day is Iraq time (UTC+3). Naked 'Z' boundaries shifted late-evening
+// invoices onto the wrong report day (an order at 01:30 Iraq time is 22:30 UTC yesterday).
+const iraqDayStart = (d: string) => new Date(d + 'T00:00:00+03:00').toISOString();
+const iraqDayEnd = (d: string) => new Date(d + 'T23:59:59.999+03:00').toISOString();
+
+// Supabase caps a response at 1000 rows; without paging, totals silently undercount.
+async function fetchAllPages(buildQuery: (from: number, to: number) => any): Promise<any[]> {
+    const PAGE = 1000, MAX_ROWS = 200000;
+    const rows: any[] = [];
+    for (let from = 0; from < MAX_ROWS; from += PAGE) {
+        const { data, error } = await buildQuery(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < PAGE) break;
+    }
+    return rows;
+}
+
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<ReportType>('revenue');
     const [loading, setLoading] = useState(false);
@@ -47,66 +65,76 @@ export default function ReportsPage() {
 
         try {
             if (activeTab === 'revenue') {
-                // Fetch from Work Orders
-                let q1 = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, order_type, selected_services, vehicles(make, model, clients(name))').eq('status', 'تم الانتهاء');
-                
-                // Fetch from POS
-                let q2 = supabase.from('pos_sales').select('id, payment_method, total_amount, created_at');
+                // Revenue = what the accountant actually closed (same rule as صفحة التدقيق):
+                // accounted invoices only (total_price is then net-after-discount), recognized
+                // on the day they were accounted, with deleted-from-accounting rows excluded.
+                const ACC = 'selected_services->0->pricing->>accounted';
+                const ACC_AT = 'selected_services->0->pricing->>accountedAt';
+                const EXCL = 'selected_services->0->pricing->>auditExcluded';
 
-                if (!fetchWithoutDates) {
-                    if (dateRange.start) {
-                        q1 = q1.gte('created_at', dateRange.start + 'T00:00:00Z');
-                        q2 = q2.gte('created_at', dateRange.start + 'T00:00:00Z');
+                const buildQ1 = (from: number, to: number) => {
+                    let q = (supabase as any).from('inspection_reports')
+                        .select('report_number, status, total_price, created_at, order_type, selected_services, vehicles(make, model, clients(name))')
+                        .eq('status', 'تم الانتهاء')
+                        .eq(ACC, 'true')
+                        .or(`${EXCL}.is.null,${EXCL}.neq.true`);
+                    if (!fetchWithoutDates) {
+                        if (dateRange.start) q = q.gte(ACC_AT, iraqDayStart(dateRange.start));
+                        if (dateRange.end) q = q.lte(ACC_AT, iraqDayEnd(dateRange.end));
                     }
-                    if (dateRange.end) {
-                        q1 = q1.lte('created_at', dateRange.end + 'T23:59:59Z');
-                        q2 = q2.lte('created_at', dateRange.end + 'T23:59:59Z');
-                    }
-                }
+                    return q.order('created_at', { ascending: false }).range(from, to);
+                };
 
-                const [res1, res2] = await Promise.all([q1, q2]);
-                
+                const buildQ2 = (from: number, to: number) => {
+                    let q: any = supabase.from('pos_sales').select('id, payment_method, total_amount, created_at');
+                    if (!fetchWithoutDates) {
+                        if (dateRange.start) q = q.gte('created_at', iraqDayStart(dateRange.start));
+                        if (dateRange.end) q = q.lte('created_at', iraqDayEnd(dateRange.end));
+                    }
+                    return q.order('created_at', { ascending: false }).range(from, to);
+                };
+
+                const [rows1, rows2] = await Promise.all([fetchAllPages(buildQ1), fetchAllPages(buildQ2)]);
+
                 const mergedRevenue = [];
-                if (res1.data) {
-                    mergedRevenue.push(...res1.data.map((r: any) => {
-                        const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
-                        const sale = isSaleReport(r, svc);
-                        return {
-                            id: r.report_number,
-                            type: sale ? 'بيع منتج' : 'ورشة (صيانة)',
-                            client: sale ? (svc?.customerName || 'عميل نقدي') : (r.vehicles?.clients?.name || 'عميل مجهول'),
-                            details: sale ? saleProductsText(svc) : `${r.vehicles?.make || ''} ${r.vehicles?.model || ''}`.trim(),
-                            status: r.status,
-                            total_price: Number(r.total_price || 0),
-                            created_at: r.created_at
-                        };
-                    }));
-                }
-                if (res2.data) {
-                    mergedRevenue.push(...res2.data.map((r: any) => ({
-                        id: 'POS-' + r.id,
-                        type: 'مبيعات مباشرة (POS)',
-                        client: 'مبيعات شباك',
-                        details: `دفع: ${r.payment_method}`,
-                        status: 'مكتمل',
-                        total_price: Number(r.total_amount || 0),
-                        created_at: r.created_at
-                    })));
-                }
+                mergedRevenue.push(...rows1.map((r: any) => {
+                    const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
+                    const sale = isSaleReport(r, svc);
+                    return {
+                        id: r.report_number,
+                        type: sale ? 'بيع منتج' : 'ورشة (صيانة)',
+                        client: sale ? (svc?.customerName || 'عميل نقدي') : (r.vehicles?.clients?.name || 'عميل مجهول'),
+                        details: sale ? saleProductsText(svc) : `${r.vehicles?.make || ''} ${r.vehicles?.model || ''}`.trim(),
+                        status: r.status,
+                        total_price: Number(r.total_price || 0),
+                        created_at: svc?.pricing?.accountedAt || r.created_at
+                    };
+                }));
+                mergedRevenue.push(...rows2.map((r: any) => ({
+                    id: 'POS-' + r.id,
+                    type: 'مبيعات مباشرة (POS)',
+                    client: 'مبيعات شباك',
+                    details: `دفع: ${r.payment_method}`,
+                    status: 'مكتمل',
+                    total_price: Number(r.total_amount || 0),
+                    created_at: r.created_at
+                })));
 
                 // Sort merged by newest
                 mergedRevenue.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 setReportData(mergedRevenue);
 
             } else if (activeTab === 'work-orders') {
-                let query = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, odometer_reading, order_type, selected_services, vehicles(make, model, plate_number, clients(name))');
-                
-                if (!fetchWithoutDates) {
-                    if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
-                    if (dateRange.end) query = query.lte('created_at', dateRange.end + 'T23:59:59Z');
-                }
+                const buildQuery = (from: number, to: number) => {
+                    let q = supabase.from('inspection_reports').select('report_number, status, total_price, created_at, odometer_reading, order_type, selected_services, vehicles(make, model, plate_number, clients(name))');
+                    if (!fetchWithoutDates) {
+                        if (dateRange.start) q = q.gte('created_at', iraqDayStart(dateRange.start));
+                        if (dateRange.end) q = q.lte('created_at', iraqDayEnd(dateRange.end));
+                    }
+                    return q.order('created_at', { ascending: false }).range(from, to);
+                };
 
-                const { data } = await query.order('created_at', { ascending: false });
+                const data = await fetchAllPages(buildQuery);
                 if (data) {
                     const SERVICE_LABELS: Record<string, string> = {
                         engineOil: 'زيت المحرك', oilFilter: 'فلتر زيت المحرك',
@@ -173,17 +201,20 @@ export default function ReportsPage() {
                     }));
                 }
             } else if (activeTab === 'inventory') {
-                const { data } = await supabase.from('inventory').select('item_code, name, category, quantity, purchase_price, sell_price');
+                const data = await fetchAllPages((from, to) =>
+                    supabase.from('inventory').select('item_code, name, category, quantity, purchase_price, sell_price').order('name').range(from, to));
                 setReportData(data || []);
             } else if (activeTab === 'analytics') {
-                let query = supabase.from('inspection_reports').select('created_at, selected_services');
-                
-                if (!fetchWithoutDates) {
-                    if (dateRange.start) query = query.gte('created_at', dateRange.start + 'T00:00:00Z');
-                    if (dateRange.end) query = query.lte('created_at', dateRange.end + 'T23:59:59Z');
-                }
+                const buildQuery = (from: number, to: number) => {
+                    let q = supabase.from('inspection_reports').select('created_at, selected_services');
+                    if (!fetchWithoutDates) {
+                        if (dateRange.start) q = q.gte('created_at', iraqDayStart(dateRange.start));
+                        if (dateRange.end) q = q.lte('created_at', iraqDayEnd(dateRange.end));
+                    }
+                    return q.order('created_at', { ascending: true }).range(from, to);
+                };
 
-                const { data } = await query;
+                const data = await fetchAllPages(buildQuery);
                 if (data) {
                     const totalVisits = data.length;
                     let bookletCount = 0;
@@ -209,9 +240,9 @@ export default function ReportsPage() {
                     };
 
                     data.forEach(r => {
-                        // Track daily visits
+                        // Track daily visits — keyed with the year so multi-year ranges don't merge days.
                         const dateObj = new Date(r.created_at);
-                        const dateStr = dateObj.toLocaleDateString('en-GB', { month: '2-digit', day: '2-digit' });
+                        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
                         visitsMap[dateStr] = (visitsMap[dateStr] || 0) + 1;
 
                         const svc = Array.isArray(r.selected_services) ? r.selected_services[0] : null;
@@ -245,11 +276,10 @@ export default function ReportsPage() {
                         Object.entries(servicesBreakdown).sort(([,a], [,b]) => b - a)
                     );
 
-                    // Format Daily Visits for chart (maintain chronological order if possible, but they are from map so we sort by actual date by recreating or just taking as is since we don't have year in key. For simplicity, since data is already sorted by created_at desc from supabase if we ordered it, but we didn't order. Let's order by the original r.created_at chronological)
-                    // We'll just build it from sorted data
-                    const dailyVisitsArr = Object.entries(visitsMap).map(([date, count]) => ({ date, count }));
-                    // simple reverse since data was likely ordered desc
-                    dailyVisitsArr.reverse();
+                    // Chronological chart order via the sortable YYYY-MM-DD keys; label stays DD/MM.
+                    const dailyVisitsArr = Object.entries(visitsMap)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([date, count]) => ({ date: `${date.slice(8, 10)}/${date.slice(5, 7)}`, count }));
 
                     setAnalyticsData({ totalVisits, bookletCount, servicesBreakdown: sortedBreakdown, dailyVisits: dailyVisitsArr });
                 }

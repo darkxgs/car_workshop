@@ -58,43 +58,66 @@ export default function Home() {
     useEffect(() => {
         fetchDashboardData();
 
+        // Debounced: a burst of saves used to trigger one full refetch per event.
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('dashboard_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchDashboardData();
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchDashboardData(), 500);
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            supabase.removeChannel(channel);
+        };
     }, [employeeBranchId, employeeRole]);
 
     const fetchDashboardData = async () => {
         try {
-            const todayStr = new Date().toISOString().split('T')[0];
+            // Everything on this dashboard covers the last 7 days plus the currently
+            // open orders — fetching the whole history was megabytes per realtime tick
+            // and silently wrong past Supabase's 1000-row cap.
+            const since = new Date();
+            since.setDate(since.getDate() - 7);
+            since.setHours(0, 0, 0, 0);
+            const sinceIso = since.toISOString();
 
-            // Fetch reports (acts as work orders)
-            let query = supabase
-                .from('inspection_reports')
-                .select(`
-                    id, report_number, status, total_price, created_at,
+            const SELECT = `
+                    id, report_number, status, total_price, created_at, completed_at,
                     estimated_duration, elapsed_time, start_time, is_delayed,
                     vehicles (make, model, plate_number, clients(name, phone))
-                `)
-                .order('created_at', { ascending: false });
+                `;
+
+            let recentQuery = supabase
+                .from('inspection_reports')
+                .select(SELECT)
+                .or(`created_at.gte.${sinceIso},completed_at.gte.${sinceIso}`)
+                .order('created_at', { ascending: false })
+                .limit(2000);
+
+            // Open orders can be older than 7 days and must still count.
+            let openQuery = supabase
+                .from('inspection_reports')
+                .select(SELECT)
+                .in('status', ['تم الاستلام', 'قيد العمل', 'متأخر'])
+                .order('created_at', { ascending: false })
+                .limit(1000);
 
             if (employeeBranchId) {
-                query = query.eq('branch_id', employeeBranchId);
+                recentQuery = recentQuery.eq('branch_id', employeeBranchId);
+                openQuery = openQuery.eq('branch_id', employeeBranchId);
             }
 
-            const { data: allReports } = await query;
+            const [{ data: recentReports }, { data: openReports }] = await Promise.all([recentQuery, openQuery]);
+            const allReports = recentReports as any[] | null;
 
-            // Inventory fetch removed
+            if (allReports && openReports) {
+                const mappedOrders = openReports as any as WorkOrder[];
+                setLiveOrders(mappedOrders.slice(0, 6));
 
-            if (allReports) {
-                // Map to Work Orders (first 6 active)
-                const mappedOrders = allReports as any as WorkOrder[];
-                setLiveOrders(mappedOrders.filter(o => o.status !== 'تم الانتهاء' && o.status !== 'ملغى').slice(0, 6));
-
-                const isToday = (dateStr: string) => {
+                const isToday = (dateStr: string | null) => {
+                    if (!dateStr) return false;
                     const d = new Date(dateStr);
                     const today = new Date();
                     return d.getDate() === today.getDate() &&
@@ -103,14 +126,18 @@ export default function Home() {
                 };
 
                 const todayCount = allReports.filter(r => isToday(r.created_at)).length;
-                const inProgress = allReports.filter(r => r.status === 'قيد العمل').length;
-                const waiting = allReports.filter(r => r.status === 'تم الاستلام' || r.status === 'متأخر').length;
-                const completed = allReports.filter(r => r.status === 'تم الانتهاء' && isToday(r.created_at)).length;
+                const inProgress = openReports.filter(r => r.status === 'قيد العمل').length;
+                const waiting = openReports.filter(r => r.status === 'تم الاستلام' || r.status === 'متأخر').length;
+                // A car received yesterday but finished today belongs to today's numbers —
+                // key completion stats on completed_at (fall back to created_at for old rows).
+                const completedToday = (r: any) => r.status === 'تم الانتهاء' && isToday(r.completed_at || r.created_at);
+                const completed = allReports.filter(completedToday).length;
                 const revenue = allReports
-                    .filter(r => r.status === 'تم الانتهاء' && isToday(r.created_at))
+                    .filter(completedToday)
                     .reduce((sum, r) => sum + Number(r.total_price || 0), 0);
 
                 // 1. Chart Data (Fixing missing days)
+                const dayKey = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
                 const last7Days = Array.from({length: 7}).map((_, i) => {
                     const d = new Date();
                     d.setDate(d.getDate() - i);
@@ -118,9 +145,10 @@ export default function Home() {
                 }).reverse();
 
                 const chartArr = last7Days.map(dateStr => {
-                    const dayReports = allReports.filter(r => new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) === dateStr);
-                    const orders = dayReports.length;
-                    const revenue = dayReports.filter(r => r.status === 'تم الانتهاء').reduce((sum, r) => sum + Number(r.total_price || 0), 0);
+                    const orders = allReports.filter(r => dayKey(r.created_at) === dateStr).length;
+                    const revenue = allReports
+                        .filter(r => r.status === 'تم الانتهاء' && dayKey(r.completed_at || r.created_at) === dateStr)
+                        .reduce((sum, r) => sum + Number(r.total_price || 0), 0);
                     return { name: dateStr, orders, revenue };
                 });
 
@@ -129,7 +157,7 @@ export default function Home() {
                 // Pie Chart Data (Status Breakdown)
                 const statuses = ['تم الاستلام', 'قيد العمل', 'متأخر'];
                 const statusCounts = statuses.map(s => {
-                    const count = allReports.filter(r => r.status === s || (s === 'متأخر' && r.is_delayed)).length;
+                    const count = openReports.filter(r => r.status === s || (s === 'متأخر' && r.is_delayed)).length;
                     return { name: s, value: count };
                 }).filter(s => s.value > 0);
 
@@ -137,7 +165,9 @@ export default function Home() {
 
                 // 2. Alerts
                 const generatedAlerts = [];
-                const delayedOrders = allReports.filter(r => r.is_delayed || r.status === 'متأخر').length;
+                // Only currently-open delayed cars are actionable — a finished order that ran
+                // late last week shouldn't keep the "عاجل" alert on forever.
+                const delayedOrders = openReports.filter(r => r.is_delayed || r.status === 'متأخر').length;
                 if (delayedOrders > 0) {
                     generatedAlerts.push({
                         icon: Activity, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/50",

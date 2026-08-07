@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { showSuccess, showError, showConfirm } from "@/lib/alerts";
@@ -75,6 +75,9 @@ export default function AuditPage() {
     const [inputs, setInputs] = useState<Record<string, { discount: string; received: string }>>({});
     const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+    // Monotonic fetch token: a fetch for the OLD date/branch that resolves late must not
+    // overwrite the state written by a newer fetch (latest-wins).
+    const fetchToken = useRef(0);
 
     useEffect(() => {
         const fetchBranches = async () => {
@@ -89,6 +92,7 @@ export default function AuditPage() {
     // blanked the whole page to a spinner — collapsing the invoice the accountant had
     // open and throwing them back to the top of the list mid-audit.
     const fetchOrders = async (silent = false) => {
+        const token = ++fetchToken.current;
         if (!silent) setLoading(true);
         try {
             // 1. Fetch pending orders (status = 'تم الانتهاء', order_type !== 'sale', and accounted is not true)
@@ -146,6 +150,10 @@ export default function AuditPage() {
 
             const [resPending, resClosed, resSales] = await Promise.all([qPending, qClosed, qSales]);
 
+            // Stale response: a newer fetch (different date/branch) started after this one — bail
+            // out before any setState so the wrong day's data can never land on screen.
+            if (token !== fetchToken.current) return;
+
             if (resPending.error) throw resPending.error;
             if (resClosed.error) throw resClosed.error;
             if (resSales.error) throw resSales.error;
@@ -162,10 +170,11 @@ export default function AuditPage() {
             // Daily income = accounted maintenance invoices + product sales for the day.
             setClosedOrders(dedupe([...(resClosed.data || []), ...(resSales.data || [])]));
         } catch (err: any) {
+            if (token !== fetchToken.current) return; // stale fetch — a newer one owns the UI now
             console.error("Error fetching orders:", err);
             showError("خطأ", err.message || "تعذر جلب البيانات.");
         } finally {
-            setLoading(false);
+            if (token === fetchToken.current) setLoading(false);
         }
     };
 
@@ -173,13 +182,19 @@ export default function AuditPage() {
         if (authLoading) return;
         fetchOrders();
 
+        // Trailing debounce: bursts of realtime events collapse into one silent refresh.
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('audit_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchOrders(true);
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => fetchOrders(true), 500);
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            if (timer) clearTimeout(timer);
+            supabase.removeChannel(channel);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authLoading, employeeBranchId, selectedDate, selectedBranchId]);
 
