@@ -145,6 +145,7 @@ export default function WorkOrderDetailPage() {
     const [existingEngineColor, setExistingEngineColor] = useState<string | null>(null);
     const [savingEngineColor, setSavingEngineColor] = useState(false);
     const engineColorLoadedRef = useRef(false);
+    const suggestionsLoadedRef = useRef(false);
 
     // Diagnostic Modal States
     const [isDiagnosing, setIsDiagnosing] = useState(false);
@@ -247,6 +248,7 @@ export default function WorkOrderDetailPage() {
         // Reset per-vehicle engine-color state so navigating between work orders without a
         // remount doesn't carry the previous vehicle's recorded color into this one.
         engineColorLoadedRef.current = false;
+        suggestionsLoadedRef.current = false;
         setEngineColor("");
         setExistingEngineColor(null);
         fetchOrder();
@@ -267,15 +269,16 @@ export default function WorkOrderDetailPage() {
         if (!vid || engineColorLoadedRef.current) return;
         engineColorLoadedRef.current = true;
         (async () => {
-            const { data } = await supabase
+            // One scalar via a JSON-path select — the old query downloaded every visit's
+            // full selected_services payload just to find this string.
+            const { data } = await (supabase as any)
                 .from('inspection_reports')
-                .select('selected_services')
-                .eq('vehicle_id', vid);
-            let found: string | null = null;
-            (data || []).forEach((r: any) => {
-                const pay = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
-                if (!found && pay?.engineColorOnReceipt) found = pay.engineColorOnReceipt;
-            });
+                .select('color:selected_services->0->>engineColorOnReceipt')
+                .eq('vehicle_id', vid)
+                .not('selected_services->0->>engineColorOnReceipt', 'is', null)
+                .neq('selected_services->0->>engineColorOnReceipt', '')
+                .limit(1);
+            const found = (data?.[0] as any)?.color || null;
             if (found) { setExistingEngineColor(found); setEngineColor(found); }
         })();
     }, [order]);
@@ -322,7 +325,9 @@ export default function WorkOrderDetailPage() {
                 setMaintNotes(data.notes || "");
             }
 
-            // Fetch suggestions for this order's branch
+            // Fetch suggestions for this order's branch (static lists — once, not on every realtime tick)
+            if (!suggestionsLoadedRef.current) {
+                suggestionsLoadedRef.current = true;
             (supabase as any).from('suggestion_lists').select('key, items')
                 .in('key', ['technicianNames', 'supervisorNames', 'bayNumbers'])
                 .eq('branch_id', data.branch_id)
@@ -333,6 +338,7 @@ export default function WorkOrderDetailPage() {
                         setSuggLists(prev => ({ ...prev, ...m }));
                     }
                 });
+            }
             
             let currentLiveSeconds = (data.elapsed_time || 0) * 60;
             if (data.status === 'قيد العمل' && data.start_time) {
@@ -420,7 +426,9 @@ export default function WorkOrderDetailPage() {
         try {
             const updatedServices = withTechnicians(await freshSelectedServices());
 
-            const { error } = await supabase
+            // Conditional on the current status so a second device with a stale
+            // "بدء الخدمة" button can't reset start_time and wipe the elapsed timer.
+            const { data: started, error } = await supabase
                 .from('inspection_reports')
                 .update({
                     status: 'قيد العمل',
@@ -432,9 +440,17 @@ export default function WorkOrderDetailPage() {
                     odometer_unit: odometerUnit,
                     selected_services: updatedServices
                 })
-                .eq('id', id);
+                .eq('id', id)
+                .eq('status', 'تم الاستلام')
+                .select('id');
 
             if (error) throw error;
+            if (!started || started.length === 0) {
+                setShowStartModal(false);
+                showError("تنبيه", "تم بدء العمل من جهاز آخر بالفعل.");
+                fetchOrder();
+                return;
+            }
             setShowStartModal(false);
             showSuccess("تم البدء", "تم بدء الخدمة والعداد يعمل الآن!");
             fetchOrder();
@@ -522,10 +538,21 @@ export default function WorkOrderDetailPage() {
         if (!order) return;
         // Read the freshest row right before merging so a stale `order` (after a realtime refetch,
         // or a concurrent edit elsewhere) can't overwrite/lose existing services.
-        const { data: fresh } = await supabase.from('inspection_reports')
+        const { data: fresh, error: freshErr } = await supabase.from('inspection_reports')
             .select('selected_services, estimated_duration, total_price')
             .eq('id', id).single();
+        if (freshErr) {
+            showError("خطأ", "تعذّر قراءة بيانات الفاتورة الحالية — لم تُضف الخدمة. حاول مجدداً.");
+            return;
+        }
         const baseServices = (fresh?.selected_services as any[]) || order.selected_services || [];
+        // Money freeze: an accounted (closed) invoice must never be modified from here.
+        // The only path back is «إرجاع للعمل», which un-accounts it properly.
+        if ((baseServices[0] as any)?.pricing?.accounted === true) {
+            showError("الفاتورة محاسَبة ومغلقة", "لا يمكن إضافة خدمة لفاتورة تمت محاسبتها. اضغط «إرجاع للعمل» أولاً ثم أضف الخدمة.");
+            setIsAddingSvc(false);
+            return;
+        }
         const baseEstimated = (fresh?.estimated_duration ?? order.estimated_duration) || 0;
         const baseTotal = (fresh?.total_price ?? order.total_price) || 0;
         let updatedServices = [...(baseServices || [])];
@@ -591,9 +618,19 @@ export default function WorkOrderDetailPage() {
                 Object.keys(svcDetails).forEach(k => svcDetails[k] === undefined && delete svcDetails[k]);
                 svcPriceVal = svcPrice || "0";
 
-                const qVal = parseFloat(svcQty || svcLiters || "1") || 1;
+                // engineOil has a liters field instead of a qty field; svcQty defaults to "1"
+                // (truthy), so without this the liters count never multiplied the unit price.
+                const qVal = parseFloat((svcKey === 'engineOil' ? svcLiters : svcQty) || "1") || 1;
                 priceToAdd = (parseFloat(svcPriceVal) || 0) * qVal;
                 durationToAdd = 30;
+            }
+
+            // Overwriting an already-priced entry would keep its old price baked into
+            // total_price while the line itself vanishes. Refuse instead of corrupting the total.
+            const prevEntry = (payload.services as any)[svcKey];
+            if (prevEntry && (parseFloat(prevEntry.price) || 0) > 0) {
+                showError("الخدمة موجودة مسبقاً", "هذه الخدمة مسجلة بسعر في الفاتورة. أضفها كـ«خدمة مخصصة» لتظهر كسطر إضافي مستقل.");
+                return;
             }
 
             payload.services[svcKey] = {
@@ -1397,7 +1434,7 @@ export default function WorkOrderDetailPage() {
                                         let total = 0;
                                         if (selectedSvcKey === "wipers") total = wipersList.reduce((s, w) => s + (parseFloat(w.price) || 0) * (parseFloat(w.qty) || 1), 0);
                                         else if (selectedSvcKey === "additives") total = additivesList.reduce((s, a) => s + (parseFloat(a.price) || 0) * (parseFloat(a.qty) || 1), 0);
-                                        else total = (parseFloat(svcPrice) || 0) * (parseFloat(svcQty || svcLiters || "1") || 1);
+                                        else total = (parseFloat(svcPrice) || 0) * (parseFloat((selectedSvcKey === 'engineOil' ? svcLiters : svcQty) || "1") || 1);
                                         return (
                                             <div className="flex items-center justify-between px-1 mt-2 py-2 border-t border-border/60 text-sm">
                                                 <span className="font-bold text-muted-foreground">الإجمالي (العدد × السعر المفرد):</span>

@@ -54,7 +54,7 @@ type JoinedReport = {
             name: string;
             phone: string;
         };
-    };
+    } | null;
     receptionist?: { name: string };
 };
 
@@ -126,7 +126,7 @@ export default function ReportsPage() {
                         start_time,
                         selected_services,
                         notes,
-                        vehicles!inner(
+                        vehicles(
                             make,
                             model,
                             plate_number,
@@ -194,18 +194,23 @@ export default function ReportsPage() {
         const fetchDetails = async () => {
             setLoadingDetails(true);
             try {
-                const { data, error } = await supabase
-                    .from('report_services')
-                    .select('*')
-                    .eq('report_id', selectedReportId);
+                // Independent queries — fetch both in parallel.
+                const [
+                    { data, error },
+                    { data: partsData, error: partsErr }
+                ] = await Promise.all([
+                    supabase
+                        .from('report_services')
+                        .select('*')
+                        .eq('report_id', selectedReportId),
+                    supabase
+                        .from('used_parts')
+                        .select('id, quantity, unit_price, total_price, inventory(name, item_code)')
+                        .eq('report_id', selectedReportId)
+                ]);
 
                 if (error) throw error;
                 if (data) setReportServices(data);
-
-                const { data: partsData, error: partsErr } = await supabase
-                    .from('used_parts')
-                    .select('id, quantity, unit_price, total_price, inventory(name, item_code)')
-                    .eq('report_id', selectedReportId);
 
                 if (partsErr) throw partsErr;
                 if (partsData) setUsedParts(partsData as unknown as UsedPartResult[]);
@@ -320,12 +325,12 @@ export default function ReportsPage() {
                                         <div className="flex items-center gap-2 mt-1 pr-2">
                                             <User size={16} className="text-rose-400 shrink-0" />
                                             <span className="font-bold text-foreground text-sm truncate">
-                                                {(Array.isArray(report.vehicles.clients) ? report.vehicles.clients[0]?.name : report.vehicles.clients?.name) || 'عميل نقدي'}
+                                                {(Array.isArray(report.vehicles?.clients) ? report.vehicles?.clients[0]?.name : report.vehicles?.clients?.name) || 'عميل نقدي'}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 pr-2 text-xs text-muted-foreground">
                                             <Car size={14} className="shrink-0" />
-                                            <span className="truncate">{report.vehicles.make} - {report.vehicles.plate_number}</span>
+                                            <span className="truncate">{report.vehicles ? `${report.vehicles.make} - ${report.vehicles.plate_number}` : 'بيع مباشر (بدون مركبة)'}</span>
                                         </div>
                                         <div className="flex justify-between items-center w-full mt-2 border-t border-border pt-2 text-xs text-muted-foreground pr-2">
                                             <span className="flex items-center gap-1 truncate"><Calendar size={12}/> {fmtDate(report.created_at)}</span>
