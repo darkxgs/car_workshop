@@ -155,19 +155,29 @@ export default function TechnicianReportPage() {
             const monthStart = new Date(y, m - 1, 1);
             const monthEnd = new Date(y, m, 1);
 
-            let query = supabase
-                .from("inspection_reports")
-                .select("id, report_number, status, created_at, technician_rating, technician_rating_notes, selected_services, vehicles (make, model, plate_number)")
-                .neq("order_type", "sale")
-                .gte("created_at", monthStart.toISOString())
-                .lt("created_at", monthEnd.toISOString())
-                .order("created_at", { ascending: false });
+            // Page through the month in 1000-row chunks — Supabase silently caps a single
+            // query at 1000 rows, which truncated busy months and skewed the totals.
+            const PAGE_SIZE = 1000;
+            const MAX_ROWS = 100000;
+            const all: ReportRow[] = [];
+            for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
+                let query = supabase
+                    .from("inspection_reports")
+                    .select("id, report_number, status, created_at, technician_rating, technician_rating_notes, selected_services, vehicles (make, model, plate_number)")
+                    .neq("order_type", "sale")
+                    .gte("created_at", monthStart.toISOString())
+                    .lt("created_at", monthEnd.toISOString())
+                    .order("created_at", { ascending: false })
+                    .range(from, from + PAGE_SIZE - 1);
 
-            if (selectedBranchId) query = query.eq("branch_id", selectedBranchId);
-            else if (employeeBranchId) query = query.eq("branch_id", employeeBranchId);
+                if (selectedBranchId) query = query.eq("branch_id", selectedBranchId);
+                else if (employeeBranchId) query = query.eq("branch_id", employeeBranchId);
 
-            const { data } = await query;
-            setRows((data as any) || []);
+                const { data } = await query;
+                if (data && data.length) all.push(...(data as any));
+                if (!data || data.length < PAGE_SIZE) break;
+            }
+            setRows(all);
             setLoading(false);
         };
         fetchRows();

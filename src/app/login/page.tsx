@@ -27,7 +27,12 @@ export default function LoginPage() {
         });
 
         if (error) {
-            setError("اسم المستخدم أو كلمة المرور غير صحيحة");
+            // Only credential failures should blame the credentials — anything else
+            // (network down, server unreachable) gets its own message.
+            const isBadCredentials = error.message?.includes('Invalid login credentials') || error.status === 400;
+            setError(isBadCredentials
+                ? "اسم المستخدم أو كلمة المرور غير صحيحة"
+                : "تعذر الاتصال بالخادم — تحقق من الإنترنت وحاول مجدداً");
             setLoading(false);
         } else {
             router.push("/");
