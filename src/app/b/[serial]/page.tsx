@@ -168,6 +168,8 @@ export default function PublicBookletPage() {
     const maskPhone = (phone?: string) => {
         if (!phone) return "—";
         const cleaned = phone.trim();
+        // Already masked server-side (get_public_booklet) — don't mask twice.
+        if (cleaned.includes("*")) return cleaned;
         if (cleaned.length <= 6) return cleaned;
         if (cleaned.startsWith("07")) {
             return `${cleaned.slice(0, 3)}****${cleaned.slice(-4)}`;
