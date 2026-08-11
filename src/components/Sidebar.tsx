@@ -21,6 +21,7 @@ import {
     ClipboardList,
     FileSpreadsheet,
     ClipboardCheck,
+    UserCircle,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
@@ -81,6 +82,12 @@ export function Sidebar() {
             title: "العملاء والمركبات (CRM)",
             items: [
                 { href: "/customers", label: "سجل العملاء والمركبات", icon: <Users size={20} /> },
+            ]
+        },
+        {
+            title: "الموارد البشرية (HR)",
+            items: [
+                { href: "/hr/employees", label: "الموظفون", icon: <UserCircle size={20} />, roles: ["Owner", "Admin"] },
             ]
         },
         {
