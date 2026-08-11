@@ -120,8 +120,11 @@ function namesAreClose(a: string, b: string): boolean {
 }
 
 export default function TechnicianReportPage() {
-    const { employeeRole, employeeBranchId, permissionReports, loading: authLoading } = useAuth();
-    const isAuthorized = employeeRole === "Owner" || employeeRole === "Admin" || employeeRole === "Supervisor" || !!permissionReports;
+    const { employeeRole, employeeBranchId, allowedPages, loading: authLoading } = useAuth();
+    // تقرير الفنيين محجوب عن الموظفين افتراضياً: المالك والمدير دائماً، وغيرهم فقط
+    // إذا مُنحوا تبويب «تقرير الفنيين اليومي» من الإعدادات → صلاحيات التبويبات.
+    const isAuthorized = employeeRole === "Owner" || employeeRole === "Admin"
+        || (Array.isArray(allowedPages) && allowedPages.includes("technician-report"));
 
     const [month, setMonth] = useState<string>(monthStr());
     const [rows, setRows] = useState<ReportRow[]>([]);

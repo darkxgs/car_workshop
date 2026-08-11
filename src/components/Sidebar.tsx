@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
+import { PAGE_KEY_BY_HREF } from "@/lib/pages";
 
 const LOGO_BG = "bg-gradient-to-br from-rose-500 via-red-500 to-rose-700";
 const ACCENT_BTN = "bg-rose-600 hover:bg-rose-500 text-white";
@@ -41,7 +42,8 @@ export function Sidebar() {
         permissionWorkOrders,
         permissionCustomers,
         permissionReports,
-        permissionEmployees
+        permissionEmployees,
+        allowedPages
     } = useAuth();
     const { t } = useLanguage();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -136,19 +138,28 @@ export function Sidebar() {
     const authorizedCategories = navCategories.map(category => ({
         ...category,
         items: category.items.filter(item => {
-            // Owner bypasses all tab permission checks
-            if (employeeRole === 'Owner') return true;
+            // Owner and Admin always see every tab.
+            if (employeeRole === 'Owner' || employeeRole === 'Admin') return true;
 
-            // Map path to appropriate permission flag
+            // Per-tab permissions (الإعدادات → صلاحيات التبويبات): when configured,
+            // the allowed_pages list is the single source of truth for this employee.
+            const key = PAGE_KEY_BY_HREF[item.href];
+            if (Array.isArray(allowedPages)) {
+                return key ? allowedPages.includes(key) : false;
+            }
+
+            // Legacy fallback for accounts saved before per-tab permissions existed.
             if (item.href === '/') return !!permissionDashboard;
-            if (item.href === '/assistant') return employeeRole === 'Admin';
+            if (item.href === '/assistant') return false;
             if (item.href === '/reception') return !!permissionReception;
             if (item.href === '/work-orders') return !!permissionWorkOrders;
-            if (item.href === '/audit') return employeeRole === 'Admin' || employeeRole === 'Supervisor' || !!permissionWorkOrders || !!permissionReception;
+            if (item.href === '/audit') return employeeRole === 'Supervisor' || !!permissionWorkOrders || !!permissionReception;
             if (item.href === '/customers') return !!permissionCustomers;
             if (item.href === '/reports') return !!permissionReports;
-            if (item.href === '/technician-report') return employeeRole === 'Admin' || employeeRole === 'Supervisor' || !!permissionReports;
-            if (item.href === '/financial-reports') return employeeRole === 'Admin';
+            // تقرير الفنيين: مخفي عن الموظفين افتراضياً — يظهر فقط لمن يُمنح التبويب صراحةً.
+            if (item.href === '/technician-report') return false;
+            if (item.href === '/financial-reports') return false;
+            if (item.href === '/hr/employees') return false;
             if (item.href === '/settings') return !!permissionEmployees;
 
             return true;

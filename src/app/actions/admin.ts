@@ -2,6 +2,7 @@
 
 import { UserRole } from "@/lib/types";
 import { requireAdmin, requireUserManager } from "@/lib/supabase-server";
+import { sanitizePageKeys } from "@/lib/pages";
 
 // Roles a non-admin user-manager may neither grant nor touch.
 const PRIVILEGED_ROLES: UserRole[] = ["Owner", "Admin"];
@@ -31,6 +32,7 @@ export async function createEmployeeAccount(formData: {
     permission_customers?: boolean;
     permission_reports?: boolean;
     permission_employees?: boolean;
+    allowed_pages?: string[];
 }) {
     // SECURITY: server actions are public POST endpoints — verify the caller may
     // manage users before touching the service-role client (which bypasses RLS).
@@ -81,7 +83,8 @@ export async function createEmployeeAccount(formData: {
                 permission_work_orders: formData.permission_work_orders ?? true,
                 permission_customers: formData.permission_customers ?? true,
                 permission_reports: formData.permission_reports ?? true,
-                permission_employees: formData.permission_employees ?? false
+                permission_employees: formData.permission_employees ?? false,
+                allowed_pages: formData.allowed_pages ? sanitizePageKeys(formData.allowed_pages) : null
             });
 
         if (dbError) {
@@ -115,6 +118,7 @@ export async function updateEmployeeAccount(
         permission_customers?: boolean;
         permission_reports?: boolean;
         permission_employees?: boolean;
+        allowed_pages?: string[];
     }
 ) {
     const guard = await requireUserManager();
@@ -172,7 +176,8 @@ export async function updateEmployeeAccount(
                 permission_work_orders: formData.permission_work_orders ?? true,
                 permission_customers: formData.permission_customers ?? true,
                 permission_reports: formData.permission_reports ?? true,
-                permission_employees: formData.permission_employees ?? false
+                permission_employees: formData.permission_employees ?? false,
+                allowed_pages: formData.allowed_pages ? sanitizePageKeys(formData.allowed_pages) : null
             })
             .eq('auth_id', authId);
 
