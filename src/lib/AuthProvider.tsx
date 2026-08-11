@@ -20,6 +20,8 @@ interface AuthContextType {
     permissionCustomers: boolean | null;
     permissionReports: boolean | null;
     permissionEmployees: boolean | null;
+    /** Per-tab permissions (sidebar keys). null = not configured → legacy flags apply. */
+    allowedPages: string[] | null;
     loading: boolean;
     signOut: () => Promise<void>;
     setEmployeeBranchId: (id: string | null) => void;
@@ -41,6 +43,7 @@ const AuthContext = createContext<AuthContextType>({
     permissionCustomers: null,
     permissionReports: null,
     permissionEmployees: null,
+    allowedPages: null,
     loading: true,
     signOut: async () => {},
     setEmployeeBranchId: () => {},
@@ -59,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [permissionCustomers, setPermissionCustomers] = useState<boolean | null>(null);
     const [permissionReports, setPermissionReports] = useState<boolean | null>(null);
     const [permissionEmployees, setPermissionEmployees] = useState<boolean | null>(null);
+    const [allowedPages, setAllowedPages] = useState<string[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [timedOut, setTimedOut] = useState(false);
     const [debugMsg, setDebugMsg] = useState("بدأ التحقق...");
@@ -77,9 +81,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-            const { data, error } = await supabase
+            // (supabase as any): allowed_pages is newer than the generated DB types.
+            const { data, error } = await (supabase as any)
                 .from("employees")
-                .select("id, role, name, branch_id, permission_dashboard, permission_reception, permission_work_orders, permission_customers, permission_reports, permission_employees")
+                .select("id, role, name, branch_id, permission_dashboard, permission_reception, permission_work_orders, permission_customers, permission_reports, permission_employees, allowed_pages")
                 .eq("auth_id", userId)
                 .limit(1)
                 .abortSignal(controller.signal);
@@ -130,6 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPermissionCustomers(data[0].permission_customers);
             setPermissionReports(data[0].permission_reports);
             setPermissionEmployees(data[0].permission_employees);
+            const rawPages = (data[0] as any).allowed_pages;
+            setAllowedPages(Array.isArray(rawPages) ? rawPages.filter((k: any) => typeof k === "string") : null);
 
             return data[0].role as UserRole;
         } catch (e: any) {
@@ -251,6 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setPermissionCustomers(null);
                     setPermissionReports(null);
                     setPermissionEmployees(null);
+                    setAllowedPages(null);
                     setLoading(false);
                     redirect(null);
                 }
@@ -405,6 +413,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user, session, employeeRole, employeeName, employeeBranchId, employeeId,
             permissionDashboard, permissionReception, permissionWorkOrders,
             permissionCustomers, permissionReports, permissionEmployees,
+            allowedPages,
             loading, signOut, setEmployeeBranchId: changeBranch
         }}>
             {children}

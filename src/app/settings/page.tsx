@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { createEmployeeAccount, updateEmployeeAccount, deleteEmployeeAccount } from "@/app/actions/admin";
 import { UserRole } from "@/lib/types";
 import { showConfirm, showError, showSuccess } from "@/lib/alerts";
+import { APP_PAGES, legacyAllowedPages, DEFAULT_NEW_EMPLOYEE_PAGES } from "@/lib/pages";
 
 export default function SettingsPage() {
     const { t } = useLanguage();
@@ -46,7 +47,8 @@ export default function SettingsPage() {
         permission_work_orders: true,
         permission_customers: true,
         permission_reports: true,
-        permission_employees: false
+        permission_employees: false,
+        allowed_pages: [...DEFAULT_NEW_EMPLOYEE_PAGES]
     });
 
     const [branchData, setBranchData] = useState({
@@ -149,6 +151,19 @@ export default function SettingsPage() {
         }
     };
 
+    // The old boolean flags stay in sync with the tab list so anything still
+    // reading them (legacy fallbacks, requireUserManager's permission_employees)
+    // keeps working.
+    const withSyncedFlags = (fd: typeof formData) => ({
+        ...fd,
+        permission_dashboard: fd.allowed_pages.includes('dashboard'),
+        permission_reception: fd.allowed_pages.includes('reception'),
+        permission_work_orders: fd.allowed_pages.includes('work-orders'),
+        permission_customers: fd.allowed_pages.includes('customers'),
+        permission_reports: fd.allowed_pages.includes('reports'),
+        permission_employees: fd.allowed_pages.includes('settings'),
+    });
+
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || !formData.role || !formData.username) {
@@ -158,7 +173,7 @@ export default function SettingsPage() {
         setIsSubmitting(true);
         setFormError(null);
 
-        const res = await createEmployeeAccount(formData);
+        const res = await createEmployeeAccount(withSyncedFlags(formData));
         
         if (res.success) {
             setIsAddModalOpen(false);
@@ -174,7 +189,8 @@ export default function SettingsPage() {
                 permission_work_orders: true,
                 permission_customers: true,
                 permission_reports: true,
-                permission_employees: false
+                permission_employees: false,
+                allowed_pages: [...DEFAULT_NEW_EMPLOYEE_PAGES]
             });
             await fetchAllData();
         } else {
@@ -210,7 +226,11 @@ export default function SettingsPage() {
             permission_work_orders: emp.permission_work_orders ?? true,
             permission_customers: emp.permission_customers ?? true,
             permission_reports: emp.permission_reports ?? true,
-            permission_employees: emp.permission_employees ?? false
+            permission_employees: emp.permission_employees ?? false,
+            // Accounts saved before per-tab permissions get their old effective set prefilled.
+            allowed_pages: Array.isArray(emp.allowed_pages)
+                ? emp.allowed_pages
+                : legacyAllowedPages(emp.role, emp)
         });
         setIsEditModalOpen(true);
     };
@@ -221,7 +241,7 @@ export default function SettingsPage() {
         setIsSubmitting(true);
         setFormError(null);
 
-        const res = await updateEmployeeAccount(editingEmployeeId, formData);
+        const res = await updateEmployeeAccount(editingEmployeeId, withSyncedFlags(formData));
         
         if (res.success) {
             showSuccess("تم التحديث", "تم تحديث بيانات المستخدم بنجاح");
@@ -238,7 +258,8 @@ export default function SettingsPage() {
                 permission_work_orders: true,
                 permission_customers: true,
                 permission_reports: true,
-                permission_employees: false
+                permission_employees: false,
+                allowed_pages: [...DEFAULT_NEW_EMPLOYEE_PAGES]
             });
             setEditingEmployeeId(null);
             await fetchAllData();
@@ -628,31 +649,22 @@ export default function SettingsPage() {
 
                             <div className="space-y-3 border-t border-border pt-4 mt-4">
                                 <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
+                                <p className="text-[11px] text-muted-foreground">حدد التبويبات التي تظهر لهذا الموظف. المالك والمدير العام يشاهدون كل التبويبات دائماً.</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_reception} onChange={e => setFormData({...formData, permission_reception: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">الاستقبال وأوامر العمل</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_work_orders} onChange={e => setFormData({...formData, permission_work_orders: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">ساحة الورشة (العمل الحي)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_customers} onChange={e => setFormData({...formData, permission_customers: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">سجل العملاء CRM</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_reports} onChange={e => setFormData({...formData, permission_reports: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">الفواتير والتقارير المالية</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_employees} onChange={e => setFormData({...formData, permission_employees: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">إدارة الموظفين والصلاحيات</span>
-                                    </label>
+                                    {APP_PAGES.map(p => (
+                                        <label key={p.key} className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                            <input type="checkbox"
+                                                checked={formData.allowed_pages.includes(p.key)}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    allowed_pages: e.target.checked
+                                                        ? [...formData.allowed_pages, p.key]
+                                                        : formData.allowed_pages.filter(k => k !== p.key)
+                                                })}
+                                                className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                            <span className="text-foreground font-medium">{p.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -690,7 +702,8 @@ export default function SettingsPage() {
                                     permission_work_orders: true,
                                     permission_customers: true,
                                     permission_reports: true,
-                                    permission_employees: false
+                                    permission_employees: false,
+                                    allowed_pages: [...DEFAULT_NEW_EMPLOYEE_PAGES]
                                 });
                             }} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-lg border border-border">
                                 <X size={20} />
@@ -751,31 +764,22 @@ export default function SettingsPage() {
 
                             <div className="space-y-3 border-t border-border pt-4 mt-4">
                                 <h3 className="text-sm font-bold text-cyan-400">تحديد صلاحيات التبويبات والموديولات:</h3>
+                                <p className="text-[11px] text-muted-foreground">حدد التبويبات التي تظهر لهذا الموظف. المالك والمدير العام يشاهدون كل التبويبات دائماً.</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_dashboard} onChange={e => setFormData({...formData, permission_dashboard: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">لوحة التحكم الرئيسية</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_reception} onChange={e => setFormData({...formData, permission_reception: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">الاستقبال وأوامر العمل</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_work_orders} onChange={e => setFormData({...formData, permission_work_orders: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">ساحة الورشة (العمل الحي)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_customers} onChange={e => setFormData({...formData, permission_customers: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">سجل العملاء CRM</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_reports} onChange={e => setFormData({...formData, permission_reports: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">الفواتير والتقارير المالية</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
-                                        <input type="checkbox" checked={formData.permission_employees} onChange={e => setFormData({...formData, permission_employees: e.target.checked})} className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
-                                        <span className="text-foreground font-medium">إدارة الموظفين والصلاحيات</span>
-                                    </label>
+                                    {APP_PAGES.map(p => (
+                                        <label key={p.key} className="flex items-center gap-2 cursor-pointer bg-card/40 p-2.5 rounded-xl border border-border/50 hover:border-cyan-500/20 transition-colors">
+                                            <input type="checkbox"
+                                                checked={formData.allowed_pages.includes(p.key)}
+                                                onChange={e => setFormData({
+                                                    ...formData,
+                                                    allowed_pages: e.target.checked
+                                                        ? [...formData.allowed_pages, p.key]
+                                                        : formData.allowed_pages.filter(k => k !== p.key)
+                                                })}
+                                                className="accent-cyan-500 w-4 h-4 rounded cursor-pointer" />
+                                            <span className="text-foreground font-medium">{p.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -796,7 +800,8 @@ export default function SettingsPage() {
                                     permission_work_orders: true,
                                     permission_customers: true,
                                     permission_reports: true,
-                                    permission_employees: false
+                                    permission_employees: false,
+                                    allowed_pages: [...DEFAULT_NEW_EMPLOYEE_PAGES]
                                 });
                             }} className="px-5 py-2.5 rounded-xl text-muted-foreground hover:bg-muted border border-transparent hover:border-border transition-colors font-medium">إلغاء الأمر</button>
                             <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.2)] disabled:opacity-50">
