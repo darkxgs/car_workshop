@@ -11,13 +11,15 @@ import {
     HrEmployee, HrAttendance, ATTENDANCE_STATUSES, NO_HOURS_STATUSES,
     EMP_STATUS_LABEL, EMP_STATUS_STYLE, WAGE_TYPE_LABEL, ATT_STATUS_STYLE,
     computeHours, totalHours, workedDays, salaryFor, attendancePct, pctColor, pctBarColor,
-    currentMonthKey, monthRange, weekStartOf, weekDays, localDateStr,
+    currentMonthKey, monthRange, weekStartOf, weekDays, localDateStr, dateRangeDays,
+    parsePastedAttendanceTable, ParsedPastedRow, DAY_NAMES_AR,
 } from "@/lib/hr";
 import EmployeeFormModal from "../EmployeeFormModal";
 import Avatar from "../Avatar";
 import {
     ArrowRight, Lock, Phone, Building2, CalendarDays, BadgeCheck, Edit2, Trash2,
     Wallet, Timer, CalendarClock, QrCode, Loader2, ChevronRight, ChevronLeft, Save,
+    ClipboardPaste, Calendar, Sparkles, CheckCircle2, RotateCcw, X, FileSpreadsheet,
 } from "lucide-react";
 
 type TabKey = "overview" | "attendance" | "salary" | "leaves" | "documents";
@@ -30,7 +32,14 @@ const TABS: { key: TabKey; label: string }[] = [
     { key: "documents", label: "المستندات" },
 ];
 
-type WeekRow = { date: string; dayName: string; check_in: string; check_out: string; status: string; note: string };
+type AttendanceRow = {
+    date: string;
+    dayName: string;
+    check_in: string;
+    check_out: string;
+    status: string;
+    note: string;
+};
 
 export default function HrEmployeeProfilePage() {
     const params = useParams();
@@ -47,17 +56,26 @@ export default function HrEmployeeProfilePage() {
     const [activeTab, setActiveTab] = useState<TabKey>("attendance");
     const [monthKey, setMonthKey] = useState(currentMonthKey());
 
-    // Weekly editor state
-    const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date()));
-    const [weekRows, setWeekRows] = useState<WeekRow[]>([]);
-    const [savingWeek, setSavingWeek] = useState(false);
+    // ── Flexible Period / Range Editor State ──
+    const [rangeStart, setRangeStart] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    });
+    const [rangeEnd, setRangeEnd] = useState(() => localDateStr(new Date()));
+    const [periodRows, setPeriodRows] = useState<AttendanceRow[]>([]);
+    const [savingPeriod, setSavingPeriod] = useState(false);
+
+    // ── Paste Modal State ──
+    const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+    const [pasteRawText, setPasteRawText] = useState("");
+    const [pasteAutoExpand, setPasteAutoExpand] = useState(true);
 
     const fetchData = async () => {
         setLoading(true);
         try {
             const [empRes, attRes, brRes] = await Promise.all([
                 (supabase as any).from("hr_employees").select("*").eq("id", id).maybeSingle(),
-                (supabase as any).from("hr_attendance").select("*").eq("employee_id", id).order("date", { ascending: false }).limit(1000),
+                (supabase as any).from("hr_attendance").select("*").eq("employee_id", id).order("date", { ascending: false }).limit(1500),
                 supabase.from("branches").select("id, name").order("name"),
             ]);
             if (empRes.error) throw empRes.error;
@@ -73,10 +91,11 @@ export default function HrEmployeeProfilePage() {
 
     useEffect(() => { if (isAdmin && id) fetchData(); }, [isAdmin, id]);
 
-    // Prefill the weekly editor from existing records whenever the week or data changes.
+    // Rebuild period rows whenever range or stored records change
     useEffect(() => {
-        const days = weekDays(weekStart);
-        setWeekRows(days.map(d => {
+        if (!rangeStart || !rangeEnd) return;
+        const days = dateRangeDays(rangeStart, rangeEnd);
+        setPeriodRows(days.map(d => {
             const existing = records.find(r => r.date === d.date);
             return {
                 date: d.date,
@@ -87,7 +106,7 @@ export default function HrEmployeeProfilePage() {
                 note: existing?.note || "",
             };
         }));
-    }, [weekStart, records]);
+    }, [rangeStart, rangeEnd, records]);
 
     const { start: mStart, end: mEnd } = monthRange(monthKey);
     const monthRecords = useMemo(() => records.filter(r => r.date >= mStart && r.date <= mEnd), [records, mStart, mEnd]);
@@ -102,6 +121,24 @@ export default function HrEmployeeProfilePage() {
             lastDate: monthRecords.length ? monthRecords[0].date : null,
         };
     }, [emp, monthRecords]);
+
+    // Period summary stats (for current displayed editor table)
+    const periodStats = useMemo(() => {
+        const rowsWithEffectiveHours = periodRows.map(r => ({
+            calculated_hours: NO_HOURS_STATUSES.has(r.status) ? 0 : computeHours(r.check_in, r.check_out),
+            attendance_status: r.status,
+        }));
+        return {
+            totalHours: totalHours(rowsWithEffectiveHours),
+            workedDays: workedDays(rowsWithEffectiveHours),
+            filledDays: periodRows.filter(r => r.check_in || r.check_out || r.status !== "حاضر" || r.note).length,
+        };
+    }, [periodRows]);
+
+    // Parsed pasted rows preview
+    const parsedPastedRows = useMemo(() => {
+        return parsePastedAttendanceTable(pasteRawText);
+    }, [pasteRawText]);
 
     // الرواتب tab: every month that has records, newest first.
     const monthlySalaries = useMemo(() => {
@@ -122,21 +159,157 @@ export default function HrEmployeeProfilePage() {
     const branchName = (bid: string | null) => branches.find(b => b.id === bid)?.name || "بدون فرع";
     const fmt = (n: number) => new Intl.NumberFormat("en-US").format(n || 0);
 
-    const setRow = (i: number, key: keyof WeekRow, value: string) =>
-        setWeekRows(rows => rows.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+    const setRow = (i: number, key: keyof AttendanceRow, value: string) =>
+        setPeriodRows(rows => rows.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
 
-    const saveWeek = async () => {
+    // Quick range presets
+    const applyPreset = (type: "month-to-date" | "full-month" | "this-week" | "last-7" | "last-15" | "prev-month") => {
+        const today = new Date();
+        const todayStr = localDateStr(today);
+        if (type === "month-to-date") {
+            const startStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+            setRangeStart(startStr);
+            setRangeEnd(todayStr);
+        } else if (type === "full-month") {
+            const rng = monthRange(currentMonthKey());
+            setRangeStart(rng.start);
+            setRangeEnd(rng.end);
+        } else if (type === "this-week") {
+            const wStart = weekStartOf(today);
+            const wDays = weekDays(wStart);
+            setRangeStart(wDays[0].date);
+            setRangeEnd(wDays[6].date);
+        } else if (type === "last-7") {
+            const past7 = new Date(today);
+            past7.setDate(past7.getDate() - 6);
+            setRangeStart(localDateStr(past7));
+            setRangeEnd(todayStr);
+        } else if (type === "last-15") {
+            const past15 = new Date(today);
+            past15.setDate(past15.getDate() - 14);
+            setRangeStart(localDateStr(past15));
+            setRangeEnd(todayStr);
+        } else if (type === "prev-month") {
+            const prevM = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const ym = `${prevM.getFullYear()}-${String(prevM.getMonth() + 1).padStart(2, "0")}`;
+            const rng = monthRange(ym);
+            setRangeStart(rng.start);
+            setRangeEnd(rng.end);
+        }
+    };
+
+    // Quick fill actions
+    const fillDefaultTimes = () => {
+        setPeriodRows(rows => rows.map(r => {
+            if (NO_HOURS_STATUSES.has(r.status)) return r;
+            return {
+                ...r,
+                check_in: r.check_in || "08:30",
+                check_out: r.check_out || "17:00",
+                status: "حاضر",
+            };
+        }));
+    };
+
+    const markAllPresent = () => {
+        setPeriodRows(rows => rows.map(r => ({ ...r, status: "حاضر" })));
+    };
+
+    const clearPeriodInputs = () => {
+        const days = dateRangeDays(rangeStart, rangeEnd);
+        setPeriodRows(days.map(d => {
+            const existing = records.find(r => r.date === d.date);
+            return {
+                date: d.date,
+                dayName: d.dayName,
+                check_in: existing?.check_in ? existing.check_in.slice(0, 5) : "",
+                check_out: existing?.check_out ? existing.check_out.slice(0, 5) : "",
+                status: existing?.attendance_status || "حاضر",
+                note: existing?.note || "",
+            };
+        }));
+    };
+
+    // Apply pasted rows from modal or clipboard
+    const applyPastedRows = () => {
+        if (parsedPastedRows.length === 0) {
+            showError("تنبيه", "لم يتم التعرف على أي صفوف دوام من النص الملصق.");
+            return;
+        }
+
+        // Determine if pasted rows contain specific dates
+        const rowsWithDates = parsedPastedRows.filter(r => r.date);
+        let newStart = rangeStart;
+        let newEnd = rangeEnd;
+
+        if (rowsWithDates.length > 0 && pasteAutoExpand) {
+            const allDates = rowsWithDates.map(r => r.date!).sort();
+            const minDate = allDates[0];
+            const maxDate = allDates[allDates.length - 1];
+            if (minDate < newStart) newStart = minDate;
+            if (maxDate > newEnd) newEnd = maxDate;
+            setRangeStart(newStart);
+            setRangeEnd(newEnd);
+        }
+
+        // Generate full period array for the target range
+        const days = dateRangeDays(newStart, newEnd);
+        const mapByDate = new Map<string, ParsedPastedRow>();
+        parsedPastedRows.forEach(r => {
+            if (r.date) mapByDate.set(r.date, r);
+        });
+
+        const hasExplicitDates = mapByDate.size > 0;
+
+        setPeriodRows(days.map((d, index) => {
+            const existingDb = records.find(r => r.date === d.date);
+            let pastedMatch: ParsedPastedRow | undefined;
+
+            if (hasExplicitDates) {
+                pastedMatch = mapByDate.get(d.date);
+            } else if (index < parsedPastedRows.length) {
+                // If no dates were in the text, match sequentially
+                pastedMatch = parsedPastedRows[index];
+            }
+
+            if (pastedMatch) {
+                return {
+                    date: d.date,
+                    dayName: d.dayName,
+                    check_in: pastedMatch.check_in ?? (existingDb?.check_in ? existingDb.check_in.slice(0, 5) : ""),
+                    check_out: pastedMatch.check_out ?? (existingDb?.check_out ? existingDb.check_out.slice(0, 5) : ""),
+                    status: pastedMatch.status || existingDb?.attendance_status || "حاضر",
+                    note: pastedMatch.note ?? (existingDb?.note || ""),
+                };
+            }
+
+            return {
+                date: d.date,
+                dayName: d.dayName,
+                check_in: existingDb?.check_in ? existingDb.check_in.slice(0, 5) : "",
+                check_out: existingDb?.check_out ? existingDb.check_out.slice(0, 5) : "",
+                status: existingDb?.attendance_status || "حاضر",
+                note: existingDb?.note || "",
+            };
+        }));
+
+        setIsPasteModalOpen(false);
+        setPasteRawText("");
+        showSuccess("تم لصق الجدول", `تم استيراد ${parsedPastedRows.length} سجل بنجاح إلى جدول الفترة.`);
+    };
+
+    // Save period changes
+    const savePeriod = async () => {
         if (!emp) return;
-        setSavingWeek(true);
+        setSavingPeriod(true);
         try {
-            // Only save rows the user actually filled: a time, a note, a non-default
-            // status, or a day that already has a stored record (so it can be corrected).
-            const toSave = weekRows.filter(r =>
-                r.check_in || r.check_out || r.note || r.status !== "حاضر" || records.some(x => x.date === r.date));
+            const toSave = periodRows.filter(r =>
+                r.check_in || r.check_out || r.note || r.status !== "حاضر" || records.some(x => x.date === r.date)
+            );
 
             if (toSave.length === 0) {
                 showError("تنبيه", "لا توجد بيانات لحفظها — أدخل أوقات الحضور أو غيّر الحالة.");
-                setSavingWeek(false);
+                setSavingPeriod(false);
                 return;
             }
 
@@ -156,12 +329,12 @@ export default function HrEmployeeProfilePage() {
                 .upsert(rows, { onConflict: "employee_id,date" });
             if (error) throw error;
 
-            showSuccess("تم الحفظ", `تم تحديث دوام ${rows.length} يوم — الساعات والنسبة تحدّثت مباشرة.`);
+            showSuccess("تم الحفظ بنجاح", `تم تحديث دوام ${rows.length} يوم — الساعات والنسبة والرواتب تحدّثت مباشرة.`);
             fetchData();
         } catch (err: any) {
-            showError("خطأ", err.message || "تعذر حفظ التحديث الأسبوعي.");
+            showError("خطأ", err.message || "تعذر حفظ سجلات الدوام.");
         } finally {
-            setSavingWeek(false);
+            setSavingPeriod(false);
         }
     };
 
@@ -171,10 +344,6 @@ export default function HrEmployeeProfilePage() {
         const { error } = await (supabase as any).from("hr_attendance").delete().eq("id", rec.id);
         if (error) showError("خطأ", error.message);
         else fetchData();
-    };
-
-    const shiftWeek = (dir: number) => {
-        setWeekStart(s => new Date(s.getFullYear(), s.getMonth(), s.getDate() + dir * 7));
     };
 
     const shiftMonth = (dir: number) => {
@@ -237,7 +406,6 @@ export default function HrEmployeeProfilePage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            {/* QR — structure ready for future scanning use */}
                             <div className="bg-white p-2 rounded-xl border border-border shrink-0" title="رمز الموظف">
                                 <QRCodeSVG value={`HR-EMP:${emp.employee_code}`} size={72} />
                             </div>
@@ -267,7 +435,6 @@ export default function HrEmployeeProfilePage() {
                     <SummaryCard icon={<Wallet size={18} />} color="text-emerald-500 bg-emerald-500/10" title="الراتب المستحق"
                         value={`${fmt(monthStats.salary)} د.ع`}
                         sub={emp.wage_type === "daily" ? `${monthStats.days} يوم × ${fmt(emp.wage_rate)}` : `${fmt(monthStats.hours)} س × ${fmt(emp.wage_rate)}`} />
-                    {/* Circular attendance progress */}
                     <div className="glass-card p-4 rounded-2xl border border-border flex items-center gap-4">
                         <CircularProgress pct={monthStats.pct} />
                         <div>
@@ -288,26 +455,109 @@ export default function HrEmployeeProfilePage() {
                     ))}
                 </div>
 
-                {/* ── Tab: الحضور والانصراف ── */}
+                {/* ── Tab: الحضور والانصراف (مع لصق الجدول واختيار الفترة المخصصة) ── */}
                 {activeTab === "attendance" && (
                     <div className="space-y-6">
-                        {/* Weekly bulk editor */}
-                        <div className="glass-card rounded-2xl border border-border overflow-hidden">
-                            <div className="p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div>
-                                    <h3 className="text-lg font-bold text-foreground">تحديث الدوام الأسبوعي</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">أدخل أيام الأسبوع دفعة واحدة ثم اضغط حفظ — الساعات تُحسب أوتوماتيكياً من وقتي الحضور والانصراف.</p>
+
+                        {/* Bulk & Period Editor */}
+                        <div className="glass-card rounded-3xl border border-border overflow-hidden shadow-xl shadow-black/5">
+                            {/* Editor Header & Date Range Controls */}
+                            <div className="p-5 border-b border-border bg-card/60 space-y-4">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                    <div>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                                                <Calendar size={18} />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-foreground">تحديث سجل الدوام (فترة مخصصة)</h3>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1 mr-10.5">
+                                            حدد أي فترة زمنية تريدها، أو الصق جدول دوام كامل من Excel أو البصمة دفعة واحدة.
+                                        </p>
+                                    </div>
+
+                                    {/* Action Buttons: Paste from Excel + Quick Tools */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                            onClick={() => setIsPasteModalOpen(true)}
+                                            className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/20"
+                                        >
+                                            <ClipboardPaste size={16} /> لصق جدول (Excel / بصمة)
+                                        </button>
+                                        <button
+                                            onClick={fillDefaultTimes}
+                                            className="px-3 py-2 bg-muted hover:bg-muted/80 border border-border text-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+                                            title="تعبئة وقت افتراضي (08:30 إلى 17:00) للأيام الفارغة"
+                                        >
+                                            <Sparkles size={14} className="text-amber-500" /> تعبئة أوقات افتراضية
+                                        </button>
+                                        <button
+                                            onClick={markAllPresent}
+                                            className="px-3 py-2 bg-muted hover:bg-muted/80 border border-border text-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+                                        >
+                                            <CheckCircle2 size={14} className="text-emerald-500" /> الكل حاضر
+                                        </button>
+                                        <button
+                                            onClick={clearPeriodInputs}
+                                            className="p-2 bg-muted hover:bg-rose-500/10 hover:text-rose-500 border border-border text-muted-foreground rounded-xl transition-colors"
+                                            title="إعادة تعيين للمحفوظ سابقاً"
+                                        >
+                                            <RotateCcw size={15} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => shiftWeek(-1)} className="p-2 bg-muted border border-border rounded-lg text-muted-foreground hover:text-foreground"><ChevronRight size={16} /></button>
-                                    <span className="text-sm font-mono font-bold text-foreground px-1" dir="ltr">{localDateStr(weekStart)}</span>
-                                    <button onClick={() => shiftWeek(1)} className="p-2 bg-muted border border-border rounded-lg text-muted-foreground hover:text-foreground"><ChevronLeft size={16} /></button>
+
+                                {/* Date Range Picker & Quick Presets */}
+                                <div className="pt-2 border-t border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                        <span className="font-bold text-muted-foreground">الفترة:</span>
+                                        <div className="flex items-center gap-1.5 bg-muted/80 border border-border rounded-xl px-2.5 py-1.5">
+                                            <span className="text-muted-foreground text-[11px]">من</span>
+                                            <input
+                                                type="date"
+                                                value={rangeStart}
+                                                onChange={e => setRangeStart(e.target.value)}
+                                                className="bg-transparent text-foreground font-mono text-xs focus:outline-none cursor-pointer"
+                                            />
+                                            <span className="text-muted-foreground text-[11px] mr-1">إلى</span>
+                                            <input
+                                                type="date"
+                                                value={rangeEnd}
+                                                onChange={e => setRangeEnd(e.target.value)}
+                                                className="bg-transparent text-foreground font-mono text-xs focus:outline-none cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Preset Buttons */}
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <button onClick={() => applyPreset("month-to-date")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">هذا الشهر (حتى اليوم)</button>
+                                        <button onClick={() => applyPreset("full-month")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">الشهر بالكامل</button>
+                                        <button onClick={() => applyPreset("this-week")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">هذا الأسبوع</button>
+                                        <button onClick={() => applyPreset("last-7")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">آخر 7 أيام</button>
+                                        <button onClick={() => applyPreset("last-15")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">آخر 15 يوم</button>
+                                        <button onClick={() => applyPreset("prev-month")} className="px-2.5 py-1 bg-muted/60 hover:bg-rose-500/10 hover:text-rose-500 border border-border/80 rounded-lg text-[11px] font-bold text-muted-foreground transition-colors">الشهر السابق</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="overflow-x-auto custom-scrollbar">
+
+                            {/* Stats Ribbon for Current View */}
+                            <div className="px-5 py-2.5 bg-muted/40 border-b border-border text-xs flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex items-center gap-4 text-muted-foreground">
+                                    <span>عدد الأيام المعروضة: <strong className="text-foreground font-mono">{periodRows.length}</strong></span>
+                                    <span>الأيام المعبأة: <strong className="text-foreground font-mono">{periodStats.filledDays}</strong></span>
+                                    <span>مجموع الساعات بالفترة: <strong className="text-emerald-500 font-mono font-bold">{periodStats.totalHours} س</strong></span>
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    💡 يمكنك نسخ صفوف من Excel والضغط على زر <strong className="text-emerald-400">لصق جدول</strong> لتعبئة كل شيء تلقائياً.
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <div className="overflow-x-auto custom-scrollbar max-h-[500px]">
                                 <table className="w-full text-right text-sm min-w-[760px]">
-                                    <thead>
-                                        <tr className="bg-muted/60 text-muted-foreground">
+                                    <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                                        <tr className="border-b border-border text-muted-foreground">
                                             <th className="py-3 px-4 font-bold">اليوم</th>
                                             <th className="py-3 px-4 font-bold">التاريخ</th>
                                             <th className="py-3 px-4 font-bold">الحضور</th>
@@ -318,53 +568,90 @@ export default function HrEmployeeProfilePage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
-                                        {weekRows.map((r, i) => {
-                                            const hours = NO_HOURS_STATUSES.has(r.status) ? 0 : computeHours(r.check_in, r.check_out);
-                                            const isToday = r.date === localDateStr(new Date());
-                                            return (
-                                                <tr key={r.date} className={isToday ? "bg-rose-500/5" : undefined}>
-                                                    <td className="py-2.5 px-4 font-bold text-foreground">{r.dayName}{isToday && <span className="text-[10px] text-rose-500 mr-1.5">اليوم</span>}</td>
-                                                    <td className="py-2.5 px-4 font-mono text-muted-foreground" dir="ltr">{r.date}</td>
-                                                    <td className="py-2.5 px-4">
-                                                        <input type="time" value={r.check_in} onChange={e => setRow(i, "check_in", e.target.value)}
-                                                            className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs font-mono focus:border-rose-500 focus:outline-none" />
-                                                    </td>
-                                                    <td className="py-2.5 px-4">
-                                                        <input type="time" value={r.check_out} onChange={e => setRow(i, "check_out", e.target.value)}
-                                                            className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs font-mono focus:border-rose-500 focus:outline-none" />
-                                                    </td>
-                                                    <td className="py-2.5 px-4 font-mono font-bold text-foreground" dir="ltr">{hours || "—"}</td>
-                                                    <td className="py-2.5 px-4">
-                                                        <select value={r.status} onChange={e => setRow(i, "status", e.target.value)}
-                                                            className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs focus:border-rose-500 focus:outline-none appearance-none cursor-pointer">
-                                                            {ATTENDANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                                                        </select>
-                                                    </td>
-                                                    <td className="py-2.5 px-4">
-                                                        <input type="text" value={r.note} onChange={e => setRow(i, "note", e.target.value)} placeholder="—"
-                                                            className="w-full min-w-[110px] bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs focus:border-rose-500 focus:outline-none" />
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                        {periodRows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="py-8 text-center text-muted-foreground">اختر فترة زمنية صحيحة لعرض الأيام.</td>
+                                            </tr>
+                                        ) : (
+                                            periodRows.map((r, i) => {
+                                                const hours = NO_HOURS_STATUSES.has(r.status) ? 0 : computeHours(r.check_in, r.check_out);
+                                                const isToday = r.date === localDateStr(new Date());
+                                                const isFriday = r.dayName === "الجمعة";
+                                                return (
+                                                    <tr key={r.date} className={`${isToday ? "bg-rose-500/5 font-semibold" : isFriday ? "bg-muted/20 text-muted-foreground" : "hover:bg-muted/30"} transition-colors`}>
+                                                        <td className="py-2.5 px-4 font-bold text-foreground">
+                                                            {r.dayName}
+                                                            {isToday && <span className="text-[10px] bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded-full mr-1.5">اليوم</span>}
+                                                        </td>
+                                                        <td className="py-2.5 px-4 font-mono text-muted-foreground" dir="ltr">{r.date}</td>
+                                                        <td className="py-2.5 px-4">
+                                                            <input
+                                                                type="time"
+                                                                value={r.check_in}
+                                                                onChange={e => setRow(i, "check_in", e.target.value)}
+                                                                className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs font-mono focus:border-rose-500 focus:outline-none"
+                                                            />
+                                                        </td>
+                                                        <td className="py-2.5 px-4">
+                                                            <input
+                                                                type="time"
+                                                                value={r.check_out}
+                                                                onChange={e => setRow(i, "check_out", e.target.value)}
+                                                                className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs font-mono focus:border-rose-500 focus:outline-none"
+                                                            />
+                                                        </td>
+                                                        <td className="py-2.5 px-4 font-mono font-bold text-foreground" dir="ltr">
+                                                            {hours ? `${hours} س` : "—"}
+                                                        </td>
+                                                        <td className="py-2.5 px-4">
+                                                            <select
+                                                                value={r.status}
+                                                                onChange={e => setRow(i, "status", e.target.value)}
+                                                                className="bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs focus:border-rose-500 focus:outline-none cursor-pointer"
+                                                            >
+                                                                {ATTENDANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                                            </select>
+                                                        </td>
+                                                        <td className="py-2.5 px-4">
+                                                            <input
+                                                                type="text"
+                                                                value={r.note}
+                                                                onChange={e => setRow(i, "note", e.target.value)}
+                                                                placeholder="—"
+                                                                className="w-full min-w-[110px] bg-muted border border-border rounded-lg p-1.5 text-foreground text-xs focus:border-rose-500 focus:outline-none"
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
-                            <div className="p-4 border-t border-border flex justify-end">
-                                <button onClick={saveWeek} disabled={savingWeek}
-                                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white font-bold rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-rose-500/20">
-                                    {savingWeek ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />} حفظ التغييرات
+
+                            {/* Save Footer */}
+                            <div className="p-4 border-t border-border bg-card/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <span className="text-xs text-muted-foreground">
+                                    يتم حفظ جميع الأيام التي أدخلت فيها أوقات أو غيرت حالتها في الفترة المحددة ({rangeStart} إلى {rangeEnd}).
+                                </span>
+                                <button
+                                    onClick={savePeriod}
+                                    disabled={savingPeriod}
+                                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20"
+                                >
+                                    {savingPeriod ? <Loader2 className="animate-spin" size={17} /> : <Save size={17} />} حفظ التغييرات
                                 </button>
                             </div>
                         </div>
 
-                        {/* Month records */}
+                        {/* Month records archive */}
                         <div className="glass-card rounded-2xl border border-border overflow-hidden">
-                            <div className="p-5 border-b border-border">
-                                <h3 className="text-lg font-bold text-foreground">سجل الحضور — شهر {monthKey}</h3>
+                            <div className="p-5 border-b border-border flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-foreground">سجل الحضور المحفوظ — شهر {monthKey}</h3>
+                                <span className="text-xs text-muted-foreground font-mono">{monthRecords.length} سجل</span>
                             </div>
                             {monthRecords.length === 0 ? (
-                                <p className="p-8 text-center text-muted-foreground text-sm">لا توجد سجلات دوام لهذا الشهر.</p>
+                                <p className="p-8 text-center text-muted-foreground text-sm">لا توجد سجلات دوام محفوظة لهذا الشهر.</p>
                             ) : (
                                 <div className="overflow-x-auto custom-scrollbar">
                                     <table className="w-full text-right text-sm min-w-[700px]">
@@ -391,7 +678,7 @@ export default function HrEmployeeProfilePage() {
                                                     </td>
                                                     <td className="py-2.5 px-4 text-muted-foreground text-xs max-w-[180px] truncate">{r.note || "—"}</td>
                                                     <td className="py-2.5 px-4">
-                                                        <button onClick={() => deleteRecord(r)} className="p-1.5 text-muted-foreground hover:text-rose-500 transition-colors"><Trash2 size={15} /></button>
+                                                        <button onClick={() => deleteRecord(r)} className="p-1.5 text-muted-foreground hover:text-rose-500 transition-colors" title="حذف السجل"><Trash2 size={15} /></button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -482,6 +769,133 @@ export default function HrEmployeeProfilePage() {
                     </div>
                 )}
             </div>
+
+            {/* ── Paste Table Modal (لصق جدول Excel / بصمة) ── */}
+            {isPasteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" dir="rtl">
+                    <div className="bg-card border border-border rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                        {/* Modal Header */}
+                        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                                    <FileSpreadsheet size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-foreground">لصق جدول الدوام (Excel / جهاز البصمة)</h3>
+                                    <p className="text-xs text-muted-foreground">انسخ الأعمدة من Excel أو تقرير البصمة والصقها مباشرة هنا.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => { setIsPasteModalOpen(false); setPasteRawText(""); }}
+                                className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-foreground mb-1.5">
+                                    ألصق البيانات المنسوخة (Ctrl + V):
+                                </label>
+                                <textarea
+                                    value={pasteRawText}
+                                    onChange={e => setPasteRawText(e.target.value)}
+                                    placeholder={`مثال لصق مع تواريخ:\n2026-08-01\t08:30\t17:00\tحاضر\n2026-08-02\t08:30\t17:00\tحاضر\n2026-08-03\t09:00\t18:00\tحاضر\n\nأو بدون تواريخ (تعبئة بالتسلسل):\n08:30\t17:00\n08:30\t17:00`}
+                                    rows={6}
+                                    className="w-full bg-muted border border-border rounded-2xl p-3.5 text-foreground text-xs font-mono focus:border-emerald-500 focus:outline-none resize-y"
+                                    dir="ltr"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* Options */}
+                            <div className="flex flex-wrap items-center gap-4 text-xs">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={pasteAutoExpand}
+                                        onChange={e => setPasteAutoExpand(e.target.checked)}
+                                        className="rounded border-border text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <span className="text-foreground">توسيع نطاق الفترة تلقائياً لتشمل تواريخ الجدول المنسوخ</span>
+                                </label>
+                            </div>
+
+                            {/* Live Parsed Preview */}
+                            {pasteRawText.trim() && (
+                                <div className="border border-border rounded-2xl p-4 bg-muted/20 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                            <CheckCircle2 size={15} className="text-emerald-500" />
+                                            معاينة البيانات المكتشفة ({parsedPastedRows.length} صف):
+                                        </h4>
+                                        <span className="text-[11px] text-muted-foreground">
+                                            {parsedPastedRows.filter(r => r.date).length} صف يحمل تاريخاً محدداً
+                                        </span>
+                                    </div>
+
+                                    {parsedPastedRows.length === 0 ? (
+                                        <p className="text-xs text-amber-500 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                                            لم يتم التعرف على أوقات أو تواريخ صالحة. تأكد من نسخ أوقات مثل (08:30 أو 8:30 AM/PM).
+                                        </p>
+                                    ) : (
+                                        <div className="overflow-x-auto max-h-48 custom-scrollbar border border-border rounded-xl">
+                                            <table className="w-full text-right text-xs">
+                                                <thead className="bg-muted/80 sticky top-0 text-muted-foreground">
+                                                    <tr>
+                                                        <th className="py-2 px-3">#</th>
+                                                        <th className="py-2 px-3">التاريخ</th>
+                                                        <th className="py-2 px-3">الحضور</th>
+                                                        <th className="py-2 px-3">الانصراف</th>
+                                                        <th className="py-2 px-3">الساعات</th>
+                                                        <th className="py-2 px-3">الحالة</th>
+                                                        <th className="py-2 px-3">ملاحظة</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border">
+                                                    {parsedPastedRows.slice(0, 50).map((r, idx) => {
+                                                        const h = computeHours(r.check_in, r.check_out);
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-muted/30">
+                                                                <td className="py-1.5 px-3 font-mono text-muted-foreground">{idx + 1}</td>
+                                                                <td className="py-1.5 px-3 font-mono" dir="ltr">{r.date || `— (صف ${idx + 1})`}</td>
+                                                                <td className="py-1.5 px-3 font-mono" dir="ltr">{r.check_in || "—"}</td>
+                                                                <td className="py-1.5 px-3 font-mono" dir="ltr">{r.check_out || "—"}</td>
+                                                                <td className="py-1.5 px-3 font-mono font-bold">{h ? `${h} س` : "—"}</td>
+                                                                <td className="py-1.5 px-3"><span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold">{r.status || "حاضر"}</span></td>
+                                                                <td className="py-1.5 px-3 text-muted-foreground text-[11px] truncate max-w-[120px]">{r.note || "—"}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-end gap-2">
+                            <button
+                                onClick={() => { setIsPasteModalOpen(false); setPasteRawText(""); }}
+                                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-bold rounded-xl text-xs transition-colors"
+                            >
+                                إلغاء
+                            </button>
+                            <button
+                                onClick={applyPastedRows}
+                                disabled={parsedPastedRows.length === 0}
+                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-lg shadow-emerald-600/20"
+                            >
+                                <CheckCircle2 size={16} /> تطبيق على الجدول ({parsedPastedRows.length} صف)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isEditOpen && (
                 <EmployeeFormModal
