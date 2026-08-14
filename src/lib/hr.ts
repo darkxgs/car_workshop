@@ -162,6 +162,182 @@ export function weekDays(start: Date): { date: string; dayName: string }[] {
     });
 }
 
+/** All consecutive days from startDate to endDate inclusive (max 120 days). */
+export function dateRangeDays(startDateStr: string, endDateStr: string): { date: string; dayName: string }[] {
+    if (!startDateStr || !endDateStr) return [];
+    let startD = new Date(startDateStr + 'T00:00:00');
+    let endD = new Date(endDateStr + 'T00:00:00');
+    if (isNaN(startD.getTime()) || isNaN(endD.getTime())) return [];
+    if (startD > endD) {
+        const tmp = startD;
+        startD = endD;
+        endD = tmp;
+    }
+    const days: { date: string; dayName: string }[] = [];
+    const cur = new Date(startD);
+    let count = 0;
+    while (cur <= endD && count < 120) {
+        days.push({ date: localDateStr(cur), dayName: DAY_NAMES_AR[cur.getDay()] });
+        cur.setDate(cur.getDate() + 1);
+        count++;
+    }
+    return days;
+}
+
+/** Convert Arabic-Indic numerals (٠-٩) to western digits (0-9). */
+export function normalizeArabicDigits(str: string): string {
+    return (str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+}
+
+/** Parse any time representation into standard "HH:MM" (24-hour). Supports AM/PM, ص/م, and seconds. */
+export function parseTimeString(raw: string): string | null {
+    if (!raw) return null;
+    const clean = normalizeArabicDigits(raw).trim();
+    // Matches e.g. "11:45", "08:30:00", "11:45 AM", "1:15pm", "8:30 ص", "5:30 م"
+    const m = clean.match(/^(\d{1,2})[:.](\d{1,2})(?:[:.]\d{1,2})?\s*(am|pm|ص|م|صباحا|صباحاً|مساء|مساءً)?$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const suffix = (m[3] || '').toLowerCase();
+    if (min < 0 || min > 59) return null;
+
+    if (suffix === 'pm' || suffix === 'م' || suffix === 'مساء' || suffix === 'مساءً') {
+        if (h < 12) h += 12;
+    } else if (suffix === 'am' || suffix === 'ص' || suffix === 'صباحا' || suffix === 'صباحاً') {
+        if (h === 12) h = 0;
+    }
+    if (h < 0 || h > 23) return null;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+/** Parse various date formats (YYYY-MM-DD, DD/MM/YYYY, etc.) into "YYYY-MM-DD". */
+export function parseDateString(raw: string): string | null {
+    if (!raw) return null;
+    const clean = normalizeArabicDigits(raw).trim();
+    // YYYY-MM-DD or YYYY/MM/DD
+    let m = clean.match(/^(\d{4})[-/. ](\d{1,2})[-/. ](\d{1,2})$/);
+    if (m) {
+        const y = parseInt(m[1], 10);
+        const mon = parseInt(m[2], 10);
+        const day = parseInt(m[3], 10);
+        if (y >= 2000 && y <= 2099 && mon >= 1 && mon <= 12 && day >= 1 && day <= 31) {
+            return `${y}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+    }
+    // DD-MM-YYYY or DD/MM/YYYY
+    m = clean.match(/^(\d{1,2})[-/. ](\d{1,2})[-/. ](\d{4})$/);
+    if (m) {
+        const day = parseInt(m[1], 10);
+        const mon = parseInt(m[2], 10);
+        const y = parseInt(m[3], 10);
+        if (y >= 2000 && y <= 2099 && mon >= 1 && mon <= 12 && day >= 1 && day <= 31) {
+            return `${y}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+    }
+    return null;
+}
+
+/** Normalize attendance status token. */
+export function normalizeAttendanceStatus(raw: string): string | null {
+    if (!raw) return null;
+    const t = raw.trim().toLowerCase();
+    if (['حاضر', 'حضور', 'present', 'p', 'v', '1'].includes(t)) return 'حاضر';
+    if (['غائب', 'غياب', 'غايب', 'absent', 'a', 'x', '0'].includes(t)) return 'غائب';
+    if (['إجازة', 'اجازة', 'اجازه', 'إجازة', 'leave', 'vacation', 'l'].includes(t)) return 'إجازة';
+    if (['مأذونية', 'ماذونية', 'استئذان', 'permission'].includes(t)) return 'مأذونية';
+    if (['نصف دوام', 'نص دوام', 'نصف', 'half', 'half day', 'h'].includes(t)) return 'نصف دوام';
+    if (['عطلة', 'عطله', 'جمعة', 'جمعه', 'off', 'holiday', 'weekend'].includes(t)) return 'عطلة';
+    return null;
+}
+
+export type ParsedPastedRow = {
+    date?: string;
+    check_in?: string;
+    check_out?: string;
+    status?: string;
+    note?: string;
+    rawText: string;
+};
+
+/** Parse pasted clipboard / Excel / CSV text into structured attendance entries. */
+export function parsePastedAttendanceTable(text: string): ParsedPastedRow[] {
+    if (!text) return [];
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const results: ParsedPastedRow[] = [];
+
+    for (const line of lines) {
+        // Skip obvious header rows
+        const lower = line.toLowerCase();
+        if (lower.includes('حضور') && lower.includes('انصراف')) continue;
+        if (lower.includes('check in') || lower.includes('check out') || lower.includes('check_in')) continue;
+        if (lower.includes('التاريخ') && (lower.includes('الوقت') || lower.includes('الحالة') || lower.includes('اليوم'))) continue;
+
+        // Split by tabs, commas, semicolons, or 2+ consecutive spaces
+        const tokens = line.split(/\t|,|;|\s{2,}/).map(t => t.trim()).filter(Boolean);
+        if (tokens.length === 0) continue;
+
+        let foundDate: string | undefined;
+        let foundIn: string | undefined;
+        let foundOut: string | undefined;
+        let foundStatus: string | undefined;
+        const leftoverNotes: string[] = [];
+
+        for (const token of tokens) {
+            // Check for date
+            if (!foundDate) {
+                const d = parseDateString(token);
+                if (d) {
+                    foundDate = d;
+                    continue;
+                }
+            }
+
+            // Check for time
+            const t = parseTimeString(token);
+            if (t) {
+                if (!foundIn) {
+                    foundIn = t;
+                    continue;
+                } else if (!foundOut) {
+                    foundOut = t;
+                    continue;
+                }
+            }
+
+            // Check for status
+            if (!foundStatus) {
+                const s = normalizeAttendanceStatus(token);
+                if (s) {
+                    foundStatus = s;
+                    continue;
+                }
+            }
+
+            // Ignore day names like "السبت", "الأحد", etc.
+            if (DAY_NAMES_AR.includes(token) || ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(token.toLowerCase())) {
+                continue;
+            }
+
+            // Otherwise, keep as note
+            leftoverNotes.push(token);
+        }
+
+        // If we found any relevant field
+        if (foundDate || foundIn || foundOut || foundStatus) {
+            results.push({
+                date: foundDate,
+                check_in: foundIn,
+                check_out: foundOut,
+                status: foundStatus || (foundIn || foundOut ? 'حاضر' : undefined),
+                note: leftoverNotes.join(' - ') || undefined,
+                rawText: line,
+            });
+        }
+    }
+
+    return results;
+}
+
 /** Downscale a picked image file to a small square JPEG data-URL (~15-30KB)
  *  so employee photos live inline in the row — no storage bucket needed. */
 export function fileToAvatarDataUrl(file: File, size = 256): Promise<string> {
