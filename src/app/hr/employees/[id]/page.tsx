@@ -346,6 +346,24 @@ export default function HrEmployeeProfilePage() {
         else fetchData();
     };
 
+    const deleteEmployee = async () => {
+        if (!emp) return;
+        const ok = await showConfirm(
+            "حذف الموظف",
+            `حذف "${emp.full_name}" نهائياً؟ سيتم حذف كل سجلات الحضور والانصراف الخاصة به أيضاً.`,
+            "نعم، احذف",
+            true
+        );
+        if (!ok) return;
+        const { error } = await (supabase as any).from("hr_employees").delete().eq("id", emp.id);
+        if (error) {
+            showError("خطأ", error.message);
+            return;
+        }
+        showSuccess("تم الحذف", `تم حذف "${emp.full_name}" وكل سجلاته.`);
+        router.push("/hr/employees");
+    };
+
     const shiftMonth = (dir: number) => {
         const [y, m] = monthKey.split("-").map(n => parseInt(n, 10));
         const d = new Date(y, m - 1 + dir, 1);
@@ -412,6 +430,11 @@ export default function HrEmployeeProfilePage() {
                             <button onClick={() => setIsEditOpen(true)}
                                 className="px-4 py-2.5 bg-muted hover:bg-rose-600 hover:text-white border border-border text-foreground rounded-xl font-bold text-sm transition-colors flex items-center gap-2">
                                 <Edit2 size={16} /> تعديل البيانات
+                            </button>
+                            <button onClick={deleteEmployee}
+                                className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-500 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                                title="حذف الموظف نهائياً">
+                                <Trash2 size={16} /> حذف
                             </button>
                         </div>
                     </div>
