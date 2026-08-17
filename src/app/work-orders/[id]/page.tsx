@@ -784,6 +784,12 @@ export default function WorkOrderDetailPage() {
                         </h1>
                     </div>
                     <p className="text-muted-foreground font-bold text-sm bg-muted inline-block px-3 py-1 rounded-lg border border-border">{order.vehicles?.clients?.name} - {order.vehicles?.make} {order.vehicles?.model}</p>
+                    {(order.selected_services?.[0] as any)?.driverName && (
+                        <p className="mt-2 text-muted-foreground font-bold text-sm bg-muted inline-block px-3 py-1 rounded-lg border border-border">
+                            السائق: {(order.selected_services?.[0] as any)?.driverName}
+                            {(order.selected_services?.[0] as any)?.driverRoute ? ` — خط: ${(order.selected_services?.[0] as any)?.driverRoute}` : ""}
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-3">
