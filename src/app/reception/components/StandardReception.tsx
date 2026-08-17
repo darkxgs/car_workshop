@@ -452,6 +452,9 @@ export default function StandardReception({
         setFutureOdometer(String(base + inc));
     };
     const [plateNumber, setPlateNumber] = useState("");
+    // Driver info (فرع الكراج) — intercity drivers, e.g. خط بصرة - بغداد - ناصرية.
+    const [driverName, setDriverName] = useState("");
+    const [driverRoute, setDriverRoute] = useState("");
 
     // ---------- STEP 2: Services ----------
     const [freeServices, setFreeServices] = useState<Record<string, boolean>>({
@@ -480,6 +483,7 @@ export default function StandardReception({
 
     const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
     const isIndustrialBranch = ['الصناعية', 'فرع الصناعية', 'الكراج', 'فرع الكراج'].includes(branches.find(b => b.id === selectedBranchId)?.name || '');
+    const isGarageBranch = ['الكراج', 'فرع الكراج'].includes(branches.find(b => b.id === selectedBranchId)?.name || '');
 
     const activeServicesList = useMemo(() => {
         return MAIN_SERVICES.map(svc => {
@@ -601,6 +605,8 @@ export default function StandardReception({
                 const payload = Array.isArray(data.selected_services) ? data.selected_services[0] : data.selected_services;
                 if (payload) {
                     setFutureOdometer(payload.futureOdometer || "");
+                    setDriverName(payload.driverName || "");
+                    setDriverRoute(payload.driverRoute || "");
                     if (payload.tireSize) {
                         const t = payload.tireSize;
                         setTireSize([t.width, t.aspect, t.diameter].filter(Boolean).join(" / "));
@@ -1118,6 +1124,8 @@ export default function StandardReception({
                 receptionistName: receptionistNameToSave,
                 futureOdometer: futureOdometer || "",
                 tireSize: parseTireSize(tireSize),
+                driverName: driverName.trim(),
+                driverRoute: driverRoute.trim(),
             };
 
             const finalBranchId = selectedBranchId || branchId;
@@ -1298,6 +1306,18 @@ export default function StandardReception({
                                 <label className="text-sm font-medium text-muted-foreground">اسم العميل <span className="text-rose-500">*</span></label>
                                 <input type="text" placeholder="مثال: أحمد محمد" className="input-field" value={name} onChange={e => setName(e.target.value)} />
                             </div>
+                            {isGarageBranch && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-muted-foreground">اسم السائق</label>
+                                        <input type="text" placeholder="اسم السائق..." className="input-field" value={driverName} onChange={e => setDriverName(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-muted-foreground">خط السائق</label>
+                                        <input type="text" placeholder="مثال: بصرة - بغداد - ناصرية" className="input-field" value={driverRoute} onChange={e => setDriverRoute(e.target.value)} />
+                                    </div>
+                                </div>
+                            )}
                             {branches.length > 0 && (employeeRole === 'Owner' || employeeRole === 'Admin' || !employeeBranchId) && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">الفرع <span className="text-rose-500">*</span></label>
@@ -1305,7 +1325,7 @@ export default function StandardReception({
                                         value={selectedBranchId}
                                         onChange={(e) => {
                                             const newBranchId = e.target.value;
-                                            const hasData = name.trim() !== "" || phone.trim() !== "" || make.trim() !== "" || model.trim() !== "" || odometer.trim() !== "" || plateNumber.trim() !== "" ||
+                                            const hasData = name.trim() !== "" || phone.trim() !== "" || make.trim() !== "" || model.trim() !== "" || odometer.trim() !== "" || plateNumber.trim() !== "" || driverName.trim() !== "" || driverRoute.trim() !== "" ||
                                                 Object.values(freeServices).some(v => v) ||
                                                 Object.values(services).some(s => s.status !== "") ||
                                                 customServices.length > 0;
@@ -1992,6 +2012,9 @@ export default function StandardReception({
                             <h3 className="text-muted-foreground text-sm font-bold">ملخص</h3>
                             <div className="flex justify-between text-sm"><span className="text-muted-foreground">العميل</span><span className="font-bold">{name}</span></div>
                             <div className="flex justify-between text-sm"><span className="text-muted-foreground">السيارة</span><span className="font-bold">{make} {model} ({plateNumber})</span></div>
+                            {driverName.trim() !== "" && (
+                                <div className="flex justify-between text-sm"><span className="text-muted-foreground">السائق</span><span className="font-bold">{driverName}{driverRoute.trim() !== "" ? ` — ${driverRoute}` : ""}</span></div>
+                            )}
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">الخدمات المحتاجة للتغيير</span>
                                 <span className="font-bold text-rose-400">

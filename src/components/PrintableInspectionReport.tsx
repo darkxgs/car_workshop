@@ -392,6 +392,8 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
                             {/* ↑ 11px → 12px */}
                             <div>الاسم: <Val v={client.name} w={130} /></div>
                             <div>رقم الهاتف: <Val v={client.phone} w={115} /></div>
+                            {data?.driverName ? <div>اسم السائق: <Val v={data.driverName} w={130} /></div> : null}
+                            {data?.driverRoute ? <div>خط السائق: <Val v={data.driverRoute} w={130} /></div> : null}
                         </div>
                     </div>
                     <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '5px 9px' }}>
