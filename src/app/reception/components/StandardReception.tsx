@@ -479,7 +479,7 @@ export default function StandardReception({
     const [reportNumber, setReportNumber] = useState<number | null>(null);
 
     const isSectorBranch = branches.find(b => b.id === selectedBranchId)?.name === 'القطاع' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع القطاع';
-    const isIndustrialBranch = branches.find(b => b.id === selectedBranchId)?.name === 'الصناعية' || branches.find(b => b.id === selectedBranchId)?.name === 'فرع الصناعية';
+    const isIndustrialBranch = ['الصناعية', 'فرع الصناعية', 'الكراج', 'فرع الكراج'].includes(branches.find(b => b.id === selectedBranchId)?.name || '');
 
     const activeServicesList = useMemo(() => {
         return MAIN_SERVICES.map(svc => {

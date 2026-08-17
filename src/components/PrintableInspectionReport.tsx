@@ -160,7 +160,7 @@ export const PrintableInspectionReport = forwardRef<HTMLDivElement, PrintableIns
     };
 
     const isSectorBranch = report?.branches?.name === 'القطاع' || report?.branches?.name === 'فرع القطاع';
-    const isIndustrialBranch = report?.branches?.name === 'الصناعية' || report?.branches?.name === 'فرع الصناعية';
+    const isIndustrialBranch = ['الصناعية', 'فرع الصناعية', 'الكراج', 'فرع الكراج'].includes(report?.branches?.name || '');
 
     const flatSectorServices = [
         { key: 'engineFlash', label: 'فلاش محرك', fields: [{ key: 'type', label: 'النوع / الماركة' }, { key: 'qty', label: 'الكمية' }] },
