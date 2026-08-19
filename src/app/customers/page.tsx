@@ -29,6 +29,7 @@ type ClientWithVehicles = {
     branchIds: string[];
     branchNames: string[];
     allReports: any[];
+    driverRoute: string;
 };
 
 const isAccounted = (o: any) => {
@@ -55,6 +56,9 @@ export default function CustomersPage() {
     const [dateTo, setDateTo] = useState("");
     // فلتر الزائر: متكرر (أكثر من زيارة) / زار أكثر من فرع — يُحسب على كل قاعدة البيانات.
     const [visitFilter, setVisitFilter] = useState<"" | "repeat" | "multibranch">("");
+    // فلتر سواق الخطوط (فرع الكراج): "" = الكل، "__any__" = كل السواق، أو خط محدد.
+    const [routeFilter, setRouteFilter] = useState("");
+    const [driverRoutes, setDriverRoutes] = useState<string[]>([]);
     const [branches, setBranches] = useState<{id:string, name:string}[]>([]);
 
     // Pagination
@@ -70,7 +74,32 @@ export default function CustomersPage() {
     // Cache for the visitor-type filter's qualified client ids — computing them
     // downloads ALL vehicles + reports, so don't redo it on every page click.
     const visitFilterCache = useRef<{ key: string; ids: string[]; counts: Record<string, number> } | null>(null);
+    // (vehicle_id → خط السائق) pairs from فرع الكراج orders. driverRoute is only ever
+    // saved on garage-branch orders, so "has a route" = "line driver". Cached per
+    // refreshTrigger so page clicks don't re-scan.
+    const routePairsCache = useRef<{ key: number; pairs: { vehicle_id: string; route: string }[] } | null>(null);
     const PAGE_SIZE = 25;
+
+    const getRoutePairs = async () => {
+        if (routePairsCache.current?.key === refreshTrigger) return routePairsCache.current.pairs;
+        const pairs: { vehicle_id: string; route: string }[] = [];
+        const PAGE = 1000;
+        for (let from = 0; from < 100000; from += PAGE) {
+            const { data } = await supabase
+                .from('inspection_reports')
+                .select('vehicle_id, route:selected_services->0->>driverRoute')
+                .not('selected_services->0->>driverRoute', 'is', null)
+                .neq('selected_services->0->>driverRoute', '')
+                .range(from, from + PAGE - 1);
+            (data || []).forEach((r: any) => {
+                const route = String(r.route || '').trim();
+                if (r.vehicle_id && route) pairs.push({ vehicle_id: r.vehicle_id, route });
+            });
+            if (!data || data.length < PAGE) break;
+        }
+        routePairsCache.current = { key: refreshTrigger, pairs };
+        return pairs;
+    };
 
     // Modals & Tabbed Profile
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -97,6 +126,14 @@ export default function CustomersPage() {
         fetchBranches();
     }, []);
 
+    // Populate the سواق الخطوط dropdown with the distinct routes seen on garage orders.
+    useEffect(() => {
+        (async () => {
+            const pairs = await getRoutePairs();
+            setDriverRoutes([...new Set(pairs.map(p => p.route))].sort((a, b) => a.localeCompare(b, 'ar')));
+        })();
+    }, [refreshTrigger]);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearchTerm(searchTerm);
@@ -107,7 +144,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [branchFilter, dateFrom, dateTo, visitFilter]);
+    }, [branchFilter, dateFrom, dateTo, visitFilter, routeFilter]);
 
     useEffect(() => {
         // Throttle realtime refreshes: the customer list is heavy (25 clients + all their
@@ -130,7 +167,7 @@ export default function CustomersPage() {
     useEffect(() => {
         if (authLoading || !isAuthorized) return;
         fetchClients();
-    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, visitFilter, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized, refreshTrigger]);
+    }, [debouncedSearchTerm, branchFilter, dateFrom, dateTo, visitFilter, routeFilter, currentPage, employeeBranchId, employeeRole, authLoading, isAuthorized, refreshTrigger]);
 
     const fetchBranches = async () => {
         const { data } = await supabase.from('branches').select('id, name');
@@ -182,6 +219,31 @@ export default function CustomersPage() {
                 }
             }
 
+            // فلتر سواق الخطوط: خط السائق محفوظ داخل payload طلبات الكراج، فلا يمكن
+            // فلترته بالـ join المباشر — نحوّل (خط ← مركبات ← عملاء) إلى مجموعة ids.
+            let routeClientIds: Set<string> | null = null;
+            if (routeFilter) {
+                const pairs = await getRoutePairs();
+                const wanted = routeFilter === '__any__' ? pairs : pairs.filter(p => p.route === routeFilter);
+                const vehicleIds = [...new Set(wanted.map(p => p.vehicle_id))];
+                routeClientIds = new Set<string>();
+                // Chunked .in() — a long id list would blow past PostgREST's URL limit.
+                for (let i = 0; i < vehicleIds.length; i += 200) {
+                    const { data: vs } = await supabase
+                        .from('vehicles')
+                        .select('id, client_id')
+                        .in('id', vehicleIds.slice(i, i + 200));
+                    (vs || []).forEach((v: any) => { if (v.client_id) routeClientIds!.add(v.client_id); });
+                }
+                if (stale()) return;
+                if (routeClientIds.size === 0) {
+                    setClients([]);
+                    setTotalCount(0);
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const offset = (currentPage - 1) * PAGE_SIZE;
 
             // Branch/date filtering is done DB-side via an inner join on the client's
@@ -206,6 +268,7 @@ export default function CustomersPage() {
             if (dateFrom) query = query.gte('vehicles.inspection_reports.created_at', `${dateFrom}T00:00:00`);
             if (dateTo) query = query.lte('vehicles.inspection_reports.created_at', `${dateTo}T23:59:59`);
             if (searchClientIds) query = query.in('id', Array.from(searchClientIds));
+            if (routeClientIds) query = query.in('id', Array.from(routeClientIds));
 
             // فلتر الزائر المتكرر / متعدد الفروع — يُحسب على كل قاعدة البيانات (كل الفروع)،
             // ثم يُقسَّم لصفحات محلياً حتى لا يطول رابط الطلب. الترتيب: الأكثر زيارات أولاً.
@@ -251,6 +314,7 @@ export default function CustomersPage() {
                     visitFilterCache.current = { key: cacheKey, ids: qualified, counts };
                 }
                 if (searchClientIds) qualified = qualified.filter(id => searchClientIds!.has(id));
+                if (routeClientIds) qualified = qualified.filter(id => routeClientIds!.has(id));
                 filterCount = qualified.length;
                 const pageIds = qualified.slice(offset, offset + PAGE_SIZE);
                 if (pageIds.length === 0) {
@@ -285,7 +349,13 @@ export default function CustomersPage() {
                     });
 
                     allReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                    
+
+                    // خط السائق (فرع الكراج): أحدث خط مسجّل على أي من طلبات هذا العميل.
+                    const driverRoute = allReports.map((r: any) => {
+                        const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                        return String(p?.driverRoute || '').trim();
+                    }).find(Boolean) || '';
+
                     let latestStatus = 'لا توجد طلبات';
                     if (allReports.length > 0) {
                         const r = allReports[0];
@@ -324,7 +394,8 @@ export default function CustomersPage() {
                         latestStatus,
                         branchIds: Array.from(branchIdSet),
                         branchNames: Array.from(branchNameSet),
-                        allReports
+                        allReports,
+                        driverRoute
                     };
                 });
 
@@ -1029,6 +1100,18 @@ export default function CustomersPage() {
                         </select>
                     </div>
                     <div className="w-full sm:w-auto">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5">سواق الخطوط (فرع الكراج)</label>
+                        <select
+                            value={routeFilter}
+                            onChange={(e) => setRouteFilter(e.target.value)}
+                            className="bg-background border border-border rounded-xl py-2.5 px-4 min-w-[170px] text-foreground text-sm focus:outline-none focus:border-rose-500/50"
+                        >
+                            <option value="">الكل</option>
+                            <option value="__any__">كل سواق الخطوط</option>
+                            {driverRoutes.map(r => <option key={r} value={r}>خط: {r}</option>)}
+                        </select>
+                    </div>
+                    <div className="w-full sm:w-auto">
                         <label className="block text-xs font-bold text-muted-foreground mb-1.5">من تاريخ</label>
                         <div className="relative">
                             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
@@ -1132,6 +1215,11 @@ export default function CustomersPage() {
                                                 }`}>
                                                     {client.latestStatus}
                                                 </span>
+                                                {client.driverRoute && (
+                                                    <span className="inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-sky-500/10 text-sky-500 border-sky-500/20">
+                                                        <MapPin size={11} /> خط: {client.driverRoute}
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="p-4 align-top text-left">
@@ -1194,6 +1282,12 @@ export default function CustomersPage() {
                                             </div>
                                         ))}
                                     </div>
+                                )}
+
+                                {client.driverRoute && (
+                                    <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-sky-500/10 text-sky-500 border-sky-500/20">
+                                        <MapPin size={11} /> خط: {client.driverRoute}
+                                    </span>
                                 )}
 
                                 <div className="mt-3 flex items-center gap-1.5 text-rose-400 text-xs font-bold">
@@ -1402,6 +1496,19 @@ export default function CustomersPage() {
                                                         <p className="text-[10px] text-muted-foreground mb-1">البريد الإلكتروني</p>
                                                         <p className="font-bold text-xs">{selectedProfile.email || "—"}</p>
                                                     </div>
+                                                    {(() => {
+                                                        // خط السائق (فرع الكراج): أحدث خط من طلبات العميل المعاد جلبها في openProfile.
+                                                        const route = selectedProfile.allReports.map((r: any) => {
+                                                            const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+                                                            return String(p?.driverRoute || '').trim();
+                                                        }).find(Boolean) || selectedProfile.driverRoute;
+                                                        return route ? (
+                                                            <div className="bg-sky-500/5 border border-sky-500/20 p-3 rounded-xl">
+                                                                <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><MapPin size={11} className="text-sky-500" /> خط السائق (فرع الكراج)</p>
+                                                                <p className="font-bold text-xs text-sky-500">{route}</p>
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>

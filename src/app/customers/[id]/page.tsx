@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import {
     Phone, Car, ArrowRight, Calendar, Clock,
     Wrench, Hash, AlertTriangle, CheckCircle2, ClipboardList,
-    TrendingUp, Activity, FileText
+    TrendingUp, Activity, FileText, MapPin
 } from "lucide-react";
 import Link from "next/link";
 
@@ -182,6 +182,11 @@ export default function CustomerProfilePage() {
     const daysSinceLastVisit = lastVisit
         ? Math.floor((Date.now() - new Date(lastVisit).getTime()) / 86400000)
         : null;
+    // خط السائق (فرع الكراج): أحدث خط مسجّل على طلبات العميل — يظهر فقط لسواق الخطوط.
+    const driverRoute = reports.map((r: any) => {
+        const p = Array.isArray(r.selected_services) ? r.selected_services[0] : r.selected_services;
+        return String(p?.driverRoute || '').trim();
+    }).find(Boolean) || '';
 
     return (
         <div className="min-h-screen p-4 md:p-8 font-ibm" dir="rtl">
@@ -223,6 +228,13 @@ export default function CustomerProfilePage() {
                                     <Calendar size={14} className="text-emerald-400" />
                                     <span>عميل منذ: {new Date(client.created_at).toLocaleDateString("en-GB")}</span>
                                 </div>
+
+                                {driverRoute && (
+                                    <div className="flex items-center gap-2 text-sm font-bold text-sky-500 bg-sky-500/10 border border-sky-500/20 rounded-full px-3 py-1">
+                                        <MapPin size={14} />
+                                        <span>خط السائق: {driverRoute}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
