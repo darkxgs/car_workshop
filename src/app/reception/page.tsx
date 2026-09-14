@@ -81,7 +81,34 @@ function ReceptionContainer() {
 
     // ---------- Branches ----------
     const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+    // "" is a real choice here — it means كل الفروع for the list below.
     const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+    // A new work order always needs one concrete branch, so remember the last real one
+    // the user was on. Without it, opening the wizard from the كل الفروع view would
+    // have no branch to file the order under (and no way to pick the right form variant).
+    const [lastRealBranchId, setLastRealBranchId] = useState<string>("");
+    // Guards the one-time initialisation below, so a late-resolving role/branch can't
+    // clobber a branch the user has already picked on this screen.
+    const branchInitDone = useRef(false);
+    // Last branch seen from the sidebar switcher, so we can tell a genuine switch there
+    // apart from this effect merely re-running.
+    const sidebarBranchRef = useRef<string | null>(null);
+    // Owner/Admin drive the branch from this page's own dropdown (which offers كل الفروع).
+    // Everyone else stays locked to the branch on their employee record.
+    const isBranchAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
+    const isBranchPinned = !!employeeBranchId && !isBranchAdmin;
+    // null = كل الفروع → no branch predicate on the list queries.
+    const listBranchId = isBranchPinned ? employeeBranchId : (selectedBranchId || null);
+    // The wizard can never run on "كل الفروع" — fall back to the last concrete branch.
+    const wizardBranchId = selectedBranchId || lastRealBranchId || branches[0]?.id || "";
+
+    // Branch picked from inside the wizard: narrow the list to it too, so coming back
+    // out lands on the branch the order was just filed under rather than كل الفروع.
+    const setWizardBranch = (id: string) => {
+        setSelectedBranchId(id);
+        if (id) setLastRealBranchId(id);
+        try { localStorage.setItem("receptionBranchId", id); } catch {}
+    };
 
     // ---------- Print Preview States ----------
     const [previewReportId, setPreviewReportId] = useState<string | null>(null);
@@ -132,27 +159,52 @@ function ReceptionContainer() {
 
     // Fetch branches on mount
     useEffect(() => {
+        const isAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
         let branchQuery = supabase.from('branches').select('id, name');
-        if (employeeBranchId) {
+        // Branch-pinned staff only ever load their own branch. Owner/Admin load the whole
+        // list even when the sidebar has a single branch active, so the كل الفروع option
+        // below has something to widen back out to.
+        if (employeeBranchId && !isAdmin) {
             branchQuery = branchQuery.eq('id', employeeBranchId);
         }
         branchQuery.then(({ data, error }) => {
-            if (!error && data) {
-                setBranches(data);
-                // Pre-select branch if only one is available or employeeBranchId is set
-                if (data.length === 1 || employeeBranchId) {
-                    setSelectedBranchId(employeeBranchId || data[0].id);
-                } else if (data.length > 0 && !selectedBranchId) {
-                    // Owner/Admin (not pinned): restore the branch they last chose here so it
-                    // survives navigation/reload, instead of silently defaulting to the first branch.
-                    let restored: string | null = null;
-                    try { restored = localStorage.getItem("receptionBranchId"); } catch {}
-                    const valid = restored && data.some(b => b.id === restored) ? restored : data[0].id;
-                    setSelectedBranchId(valid);
-                }
+            if (error || !data || data.length === 0) return;
+            setBranches(data);
+            if (branchInitDone.current) return;
+            branchInitDone.current = true;
+            sidebarBranchRef.current = employeeBranchId;
+
+            // Pinned employee, or a single-branch install: no choice to make.
+            if ((employeeBranchId && !isAdmin) || data.length === 1) {
+                const only = employeeBranchId || data[0].id;
+                setSelectedBranchId(only);
+                setLastRealBranchId(only);
+                return;
             }
+
+            // Owner/Admin: restore the branch they last chose here so it survives
+            // navigation/reload. A stored empty string means they chose كل الفروع.
+            let restored: string | null = null;
+            try { restored = localStorage.getItem("receptionBranchId"); } catch {}
+            const storedBranch = restored && data.some(b => b.id === restored) ? restored : null;
+            // Only Owner/Admin start wide; anyone else keeps opening on a single branch.
+            const wantsAll = isAdmin && (restored === "" || (restored === null && !employeeBranchId));
+            const concrete = storedBranch || employeeBranchId || data[0].id;
+            setSelectedBranchId(wantsAll ? "" : concrete);
+            setLastRealBranchId(concrete);
         });
+    }, [employeeBranchId, employeeRole]);
+
+    // Switching branch in the sidebar re-points this list too. Only a real change there
+    // moves it, so the branch the user picks in the dropdown below is never clobbered.
+    useEffect(() => {
+        if (!branchInitDone.current) return;
+        if (sidebarBranchRef.current === employeeBranchId) return;
+        sidebarBranchRef.current = employeeBranchId;
+        setSelectedBranchId(employeeBranchId || "");
+        if (employeeBranchId) setLastRealBranchId(employeeBranchId);
     }, [employeeBranchId]);
+
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     // Read inside async callbacks (realtime, wizard-close) where `page` would be stale.
@@ -207,10 +259,8 @@ function ReceptionContainer() {
             .order('report_number', { ascending: false })
             .range(0, count - 1);
 
-        if (selectedBranchId) {
-            query = query.eq('branch_id', selectedBranchId);
-        } else if (employeeBranchId) {
-            query = query.eq('branch_id', employeeBranchId);
+        if (listBranchId) {
+            query = query.eq('branch_id', listBranchId);
         }
 
         const { data } = await query;
@@ -235,10 +285,8 @@ function ReceptionContainer() {
             .order('report_number', { ascending: false }) // tiebreaker: newest order number first when dates tie
             .range((targetPage - 1) * 50, targetPage * 50 - 1);
         
-        if (selectedBranchId) {
-            query = query.eq('branch_id', selectedBranchId);
-        } else if (employeeBranchId) {
-            query = query.eq('branch_id', employeeBranchId);
+        if (listBranchId) {
+            query = query.eq('branch_id', listBranchId);
         }
         
         const { data } = await query;
@@ -268,7 +316,7 @@ function ReceptionContainer() {
         } else {
             fetchOrders(true);
         }
-    }, [isWizardOpen, employeeBranchId, selectedBranchId]);
+    }, [isWizardOpen, employeeBranchId, selectedBranchId, listBranchId]);
 
     useEffect(() => {
         if (page > 1) {
@@ -291,7 +339,7 @@ function ReceptionContainer() {
             if (timer) clearTimeout(timer);
             supabase.removeChannel(channel);
         };
-    }, [employeeBranchId, selectedBranchId]);
+    }, [employeeBranchId, selectedBranchId, listBranchId]);
 
     // Server-side search (debounced): an order number / name / phone / plate now matches even if
     // it lives on an older, not-yet-loaded page — no need to press "تحميل المزيد" first.
@@ -301,7 +349,7 @@ function ReceptionContainer() {
         setSearching(true);
         const handle = setTimeout(async () => {
             const token = ++searchToken.current;
-            const branchId = selectedBranchId || employeeBranchId || null;
+            const branchId = listBranchId;
             const applyBranch = (q: any) => branchId ? q.eq('branch_id', branchId) : q;
             const digits = term.replace(/\D/g, "");
             const like = `%${term}%`;
@@ -334,7 +382,7 @@ function ReceptionContainer() {
             setSearching(false);
         }, 300);
         return () => clearTimeout(handle);
-    }, [searchTerm, selectedBranchId, employeeBranchId]);
+    }, [searchTerm, selectedBranchId, employeeBranchId, listBranchId]);
 
     // Fetch preview details
     useEffect(() => {
@@ -478,7 +526,8 @@ function ReceptionContainer() {
         );
     }
 
-    const selectedBranch = branches.find(b => b.id === selectedBranchId);
+    // The wizard always runs against one concrete branch, never "كل الفروع".
+    const selectedBranch = branches.find(b => b.id === wizardBranchId);
     const isSectorBranch = selectedBranch?.name === 'القطاع' || selectedBranch?.name === 'فرع القطاع';
 
     if (isWizardOpen) {
@@ -497,8 +546,8 @@ function ReceptionContainer() {
             return (
                 <InspectionForm
                     branches={branches}
-                    selectedBranchId={selectedBranchId}
-                    setSelectedBranchId={setSelectedBranchId}
+                    selectedBranchId={wizardBranchId}
+                    setSelectedBranchId={setWizardBranch}
                     onClose={onCloseWizard}
                     initialVehicleId={inspectionParam && inspectionParam !== "1" ? inspectionParam : undefined}
                 />
@@ -510,8 +559,8 @@ function ReceptionContainer() {
             return (
                 <SaleForm
                     branches={branches}
-                    selectedBranchId={selectedBranchId}
-                    setSelectedBranchId={setSelectedBranchId}
+                    selectedBranchId={wizardBranchId}
+                    setSelectedBranchId={setWizardBranch}
                     onClose={onCloseWizard}
                 />
             );
@@ -529,15 +578,15 @@ function ReceptionContainer() {
         return isSectorBranch ? (
             <SectorReception
                 branches={branches}
-                selectedBranchId={selectedBranchId}
-                setSelectedBranchId={setSelectedBranchId}
+                selectedBranchId={wizardBranchId}
+                setSelectedBranchId={setWizardBranch}
                 onClose={onCloseWizard}
             />
         ) : (
             <StandardReception
                 branches={branches}
-                selectedBranchId={selectedBranchId}
-                setSelectedBranchId={setSelectedBranchId}
+                selectedBranchId={wizardBranchId}
+                setSelectedBranchId={setWizardBranch}
                 onClose={onCloseWizard}
             />
         );
@@ -561,12 +610,17 @@ function ReceptionContainer() {
                             <select
                                 value={selectedBranchId}
                                 onChange={e => {
-                                    setSelectedBranchId(e.target.value);
-                                    try { localStorage.setItem("receptionBranchId", e.target.value); } catch {}
+                                    const id = e.target.value;
+                                    setSelectedBranchId(id);
+                                    // "" (كل الفروع) is remembered too, but the wizard keeps
+                                    // the last concrete branch to file new orders under.
+                                    if (id) setLastRealBranchId(id);
+                                    try { localStorage.setItem("receptionBranchId", id); } catch {}
                                     setPage(1);
                                 }}
                                 className="w-full sm:w-auto bg-card border border-border rounded-xl px-4 py-3 sm:py-2.5 text-sm text-foreground focus:outline-none focus:border-rose-500/50 cursor-pointer"
                             >
+                                <option value="">كل الفروع</option>
                                 {branches.map(b => (
                                     <option key={b.id} value={b.id}>{b.name}</option>
                                 ))}

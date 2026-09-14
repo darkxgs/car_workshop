@@ -30,7 +30,11 @@ export default function WorkOrdersListPage() {
     const [now, setNow] = useState(() => Date.now());
     
     const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+    // "" is a real choice here — it means كل الفروع. `branchReady` tells the two apart
+    // from "we haven't resolved the branch list yet", which is why the fetch waits on
+    // the flag instead of on the id being truthy.
     const [selectedBranchId, setSelectedBranchId] = useState("");
+    const [branchReady, setBranchReady] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     // Debounce timer for the realtime refetch — bursts of events collapse into one silent refresh.
     const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +42,11 @@ export default function WorkOrdersListPage() {
     // Hooks must run unconditionally (Rules of Hooks). Access guards early-return
     // below, after every hook/handler is declared.
     const isAuthorized = employeeRole === 'Owner' || permissionWorkOrders;
+    // Owner/Admin drive the branch from this page's own dropdown (which offers كل الفروع).
+    // Everyone else is locked to the branch on their employee record.
+    const isBranchAdmin = employeeRole === 'Owner' || employeeRole === 'Admin';
+    const isBranchPinned = !!employeeBranchId && !isBranchAdmin;
+    const activeBranchId = isBranchPinned ? employeeBranchId : (selectedBranchId || null);
 
     // Filter the live orders by report number, plate, customer name, make/model or bay.
     const q = searchTerm.trim().toLowerCase();
@@ -59,15 +68,19 @@ export default function WorkOrdersListPage() {
             const { data } = await supabase.from('branches').select('id, name');
             if (data && data.length > 0) {
                 setBranches(data);
-                setSelectedBranchId(employeeBranchId || data[0].id);
+                // Start on the branch the sidebar has active. With none active, Owner/Admin
+                // open on كل الفروع instead of silently landing on the first branch in the
+                // list; anyone else keeps opening on a single branch as before.
+                setSelectedBranchId(employeeBranchId || (isBranchAdmin ? "" : data[0].id));
             }
+            setBranchReady(true);
         };
         fetchBranches();
-    }, [employeeBranchId]);
+    }, [employeeBranchId, isBranchAdmin]);
 
     useEffect(() => {
         if (authLoading || !isAuthorized) return;
-        if (branches.length > 0 && !selectedBranchId) return; // Wait until branch is selected
+        if (!branchReady) return; // Wait until the branch list has resolved
 
         fetchOrders();
 
@@ -83,7 +96,7 @@ export default function WorkOrdersListPage() {
             if (realtimeTimer.current) clearTimeout(realtimeTimer.current);
             supabase.removeChannel(channel);
         };
-    }, [employeeBranchId, employeeRole, selectedBranchId, authLoading, isAuthorized]);
+    }, [employeeBranchId, employeeRole, selectedBranchId, branchReady, authLoading, isAuthorized]);
 
 
 
@@ -97,10 +110,9 @@ export default function WorkOrdersListPage() {
             .or('order_type.is.null,order_type.neq.sale')
             .order('created_at', { ascending: false });
 
-        if (selectedBranchId) {
-            query = query.eq('branch_id', selectedBranchId);
-        } else if (employeeBranchId) {
-            query = query.eq('branch_id', employeeBranchId);
+        // null = كل الفروع, so no branch predicate at all.
+        if (activeBranchId) {
+            query = query.eq('branch_id', activeBranchId);
         }
 
         const { data } = await query;
@@ -153,6 +165,7 @@ export default function WorkOrdersListPage() {
                                     onChange={(e) => setSelectedBranchId(e.target.value)}
                                     className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500/50 cursor-pointer hover:border-border/80 transition-colors"
                                 >
+                                    <option value="">كل الفروع</option>
                                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                             </div>
