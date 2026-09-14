@@ -73,6 +73,17 @@ export default function Home() {
         };
     }, [employeeBranchId, employeeRole]);
 
+    // The handful of fields the counters below actually read. Narrow on purpose: the
+    // rows come back loosely typed, and the stats only care about these.
+    type StatRow = {
+        status: string;
+        order_type?: string | null;
+        total_price?: number | null;
+        created_at: string;
+        completed_at?: string | null;
+        is_delayed?: boolean | null;
+    };
+
     const fetchDashboardData = async () => {
         try {
             // Everything on this dashboard covers the last 7 days plus the currently
@@ -84,7 +95,7 @@ export default function Home() {
             const sinceIso = since.toISOString();
 
             const SELECT = `
-                    id, report_number, status, total_price, created_at, completed_at,
+                    id, report_number, status, order_type, total_price, created_at, completed_at,
                     estimated_duration, elapsed_time, start_time, is_delayed,
                     vehicles (make, model, plate_number, clients(name, phone))
                 `;
@@ -125,15 +136,24 @@ export default function Home() {
                         d.getFullYear() === today.getFullYear();
                 };
 
-                const todayCount = allReports.filter(r => isToday(r.created_at)).length;
-                const inProgress = openReports.filter(r => r.status === 'قيد العمل').length;
-                const waiting = openReports.filter(r => r.status === 'تم الاستلام' || r.status === 'متأخر').length;
+                // A "بيع منتج" row is an over-the-counter invoice, not a vehicle: it has no
+                // car attached and is written already finished. Counting those as cars was
+                // putting the day's product sales into "تم استقبالها اليوم" and again into
+                // "السيارات المكتملة". Every other screen excludes them, so this one does too.
+                const isCar = (r: StatRow) => (r.order_type ?? 'maintenance') !== 'sale';
+
+                const todayCount = allReports.filter(r => isCar(r) && isToday(r.created_at)).length;
+                const inProgress = openReports.filter(r => isCar(r) && r.status === 'قيد العمل').length;
+                const waiting = openReports.filter(r => isCar(r) && (r.status === 'تم الاستلام' || r.status === 'متأخر')).length;
                 // A car received yesterday but finished today belongs to today's numbers —
                 // key completion stats on completed_at (fall back to created_at for old rows).
-                const completedToday = (r: any) => r.status === 'تم الانتهاء' && isToday(r.completed_at || r.created_at);
+                const finishedToday = (r: StatRow) => r.status === 'تم الانتهاء' && isToday(r.completed_at || r.created_at);
+                const completedToday = (r: StatRow) => isCar(r) && finishedToday(r);
                 const completed = allReports.filter(completedToday).length;
+                // Money is the one figure that DOES include product sales — a sale is real
+                // income, it just isn't a car.
                 const revenue = allReports
-                    .filter(completedToday)
+                    .filter(finishedToday)
                     .reduce((sum, r) => sum + Number(r.total_price || 0), 0);
 
                 // 1. Chart Data (Fixing missing days)
@@ -145,7 +165,8 @@ export default function Home() {
                 }).reverse();
 
                 const chartArr = last7Days.map(dateStr => {
-                    const orders = allReports.filter(r => dayKey(r.created_at) === dateStr).length;
+                    // Same split as the cards: the order count is cars, the revenue is all money.
+                    const orders = allReports.filter(r => isCar(r) && dayKey(r.created_at) === dateStr).length;
                     const revenue = allReports
                         .filter(r => r.status === 'تم الانتهاء' && dayKey(r.completed_at || r.created_at) === dateStr)
                         .reduce((sum, r) => sum + Number(r.total_price || 0), 0);
@@ -155,11 +176,14 @@ export default function Home() {
                 setChartData(chartArr);
 
                 // Pie Chart Data (Status Breakdown)
-                const statuses = ['تم الاستلام', 'قيد العمل', 'متأخر'];
-                const statusCounts = statuses.map(s => {
-                    const count = openReports.filter(r => r.status === s || (s === 'متأخر' && r.is_delayed)).length;
-                    return { name: s, value: count };
-                }).filter(s => s.value > 0);
+                // Each car lands in exactly one slice. The old rule counted a delayed
+                // "قيد العمل" car under both قيد العمل and متأخر, so the slices summed to
+                // more cars than are actually in the workshop.
+                const openCars = openReports.filter(isCar);
+                const bucketOf = (r: StatRow) => (r.is_delayed || r.status === 'متأخر') ? 'متأخر' : r.status;
+                const statusCounts = ['تم الاستلام', 'قيد العمل', 'متأخر']
+                    .map(s => ({ name: s, value: openCars.filter(r => bucketOf(r) === s).length }))
+                    .filter(s => s.value > 0);
 
                 setPieData(statusCounts.length > 0 ? statusCounts : [{ name: 'لا يوجد', value: 1 }]);
 
@@ -167,7 +191,7 @@ export default function Home() {
                 const generatedAlerts = [];
                 // Only currently-open delayed cars are actionable — a finished order that ran
                 // late last week shouldn't keep the "عاجل" alert on forever.
-                const delayedOrders = openReports.filter(r => r.is_delayed || r.status === 'متأخر').length;
+                const delayedOrders = openCars.filter(r => r.is_delayed || r.status === 'متأخر').length;
                 if (delayedOrders > 0) {
                     generatedAlerts.push({
                         icon: Activity, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/50",
