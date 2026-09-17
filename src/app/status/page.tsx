@@ -44,13 +44,18 @@ export default function KanbanStatusPage() {
 
     useEffect(() => {
         fetchOrders();
+        // The board is meant to feel live, so keep the refresh short — but one refetch
+        // per event meant a burst of order changes fired a burst of queries. A 5s
+        // throttle collapses those while still tracking the floor closely.
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('kanban_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                fetchOrders(); 
+                if (timer) return;
+                timer = setTimeout(() => { timer = null; fetchOrders(); }, 5000);
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
     }, [employeeRole, employeeBranchId]);
 
     useEffect(() => {

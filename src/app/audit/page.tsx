@@ -182,12 +182,17 @@ export default function AuditPage() {
         if (authLoading) return;
         fetchOrders();
 
-        // Trailing debounce: bursts of realtime events collapse into one silent refresh.
+        // Throttled refresh. This page's pending query is the heaviest in the app — it
+        // scans every completed unaccounted order and carries each one's full
+        // selected_services payload — and it was re-run 500ms after ANY order changing
+        // in ANY branch. On a busy day that is a constant, workshop-wide amplification
+        // on the database. Collapse those bursts into one refresh every 30s instead;
+        // the accountant's own actions still refresh immediately below.
         let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('audit_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                if (timer) clearTimeout(timer);
-                timer = setTimeout(() => fetchOrders(true), 500);
+                if (timer) return;
+                timer = setTimeout(() => { timer = null; fetchOrders(true); }, 30000);
             })
             .subscribe();
 
