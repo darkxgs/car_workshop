@@ -80,23 +80,33 @@ export default function CustomersPage() {
     const routePairsCache = useRef<{ key: number; pairs: { vehicle_id: string; route: string }[] } | null>(null);
     const PAGE_SIZE = 25;
 
+    // driverRoute lives inside selected_services, which no index can reach — so this
+    // query MUST stay bounded. It is scoped to the garage branch (the only one that
+    // writes a route) and to the newest orders. It used to page through the whole of
+    // inspection_reports, dragging every order's full JSON payload across the wire on
+    // every visit to this page; that alone could saturate the database.
+    const GARAGE_BRANCH_NAMES = ['الكراج', 'فرع الكراج'];
+    const ROUTE_SCAN_LIMIT = 2000;
+
     const getRoutePairs = async () => {
         if (routePairsCache.current?.key === refreshTrigger) return routePairsCache.current.pairs;
+        const garageIds = branches.filter(b => GARAGE_BRANCH_NAMES.includes(b.name)).map(b => b.id);
+        // Branches not loaded yet (or no garage branch): don't cache an empty result,
+        // so the next call can still fill the dropdown.
+        if (garageIds.length === 0) return [];
+        const { data } = await supabase
+            .from('inspection_reports')
+            .select('vehicle_id, route:selected_services->0->>driverRoute')
+            .in('branch_id', garageIds)
+            .not('selected_services->0->>driverRoute', 'is', null)
+            .neq('selected_services->0->>driverRoute', '')
+            .order('created_at', { ascending: false })
+            .limit(ROUTE_SCAN_LIMIT);
         const pairs: { vehicle_id: string; route: string }[] = [];
-        const PAGE = 1000;
-        for (let from = 0; from < 100000; from += PAGE) {
-            const { data } = await supabase
-                .from('inspection_reports')
-                .select('vehicle_id, route:selected_services->0->>driverRoute')
-                .not('selected_services->0->>driverRoute', 'is', null)
-                .neq('selected_services->0->>driverRoute', '')
-                .range(from, from + PAGE - 1);
-            (data || []).forEach((r: any) => {
-                const route = String(r.route || '').trim();
-                if (r.vehicle_id && route) pairs.push({ vehicle_id: r.vehicle_id, route });
-            });
-            if (!data || data.length < PAGE) break;
-        }
+        (data || []).forEach((r: any) => {
+            const route = String(r.route || '').trim();
+            if (r.vehicle_id && route) pairs.push({ vehicle_id: r.vehicle_id, route });
+        });
         routePairsCache.current = { key: refreshTrigger, pairs };
         return pairs;
     };
@@ -127,12 +137,14 @@ export default function CustomersPage() {
     }, []);
 
     // Populate the سواق الخطوط dropdown with the distinct routes seen on garage orders.
+    // Waits for branches, since the scan is scoped to the garage branch.
     useEffect(() => {
+        if (branches.length === 0) return;
         (async () => {
             const pairs = await getRoutePairs();
             setDriverRoutes([...new Set(pairs.map(p => p.route))].sort((a, b) => a.localeCompare(b, 'ar')));
         })();
-    }, [refreshTrigger]);
+    }, [refreshTrigger, branches]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
