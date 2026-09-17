@@ -94,13 +94,18 @@ export default function ReportsPage() {
         setPage(1);
     }, [debouncedSearch]);
 
+    // Throttled: this page refetched on EVERY order change anywhere in the workshop,
+    // and each refetch carries the full selected_services payload for the page plus an
+    // exact count over the whole table. Collapse bursts into one refresh every 30s.
     useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
         const channel = supabase.channel('reports_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, () => {
-                setRefreshTrigger(t => t + 1);
+                if (timer) return;
+                timer = setTimeout(() => { timer = null; setRefreshTrigger(t => t + 1); }, 30000);
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
     }, []);
 
     useEffect(() => {
