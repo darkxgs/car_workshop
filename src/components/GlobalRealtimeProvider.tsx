@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useState, useRef, createContext, useContext } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { playNotificationSound } from "@/lib/sound";
@@ -36,6 +36,50 @@ const SVC_NAMES: Record<string, string> = {
     engineCeramic: "سيراميك محرك",
     linerCleaner: "منظف بطانة (جكجكة)",
 };
+
+// What we remember about a work order so we can tell what changed on the next event.
+// The realtime publication deliberately no longer ships the previous row (that cost the
+// database the whole selected_services payload, old AND new, on every single update —
+// it is what took the workshop offline), so the comparison happens here instead.
+type OrderSnapshot = { status?: string; bay?: string | null; services?: any };
+
+// Describe what changed inside a work order's services payload, or null if nothing
+// worth announcing. Lifted out of the event handler unchanged so it can run against a
+// row we fetched ourselves rather than against a replicated old record.
+function describeServiceChange(oldServices: any, newServices: any):
+    { kind: 'tech' } | { kind: 'detail'; message: string } | null {
+    const oldArr = Array.isArray(oldServices) ? oldServices : [oldServices];
+    const newArr = Array.isArray(newServices) ? newServices : [newServices];
+
+    const oldTech = oldArr[0]?.technicianName;
+    const newTech = newArr[0]?.technicianName;
+    if (oldTech !== undefined && newTech && newTech !== oldTech) return { kind: 'tech' };
+
+    if (newArr.length > oldArr.length) {
+        const newlyAdded = newArr[newArr.length - 1];
+        return newlyAdded?.name ? { kind: 'detail', message: `إضافة: ${newlyAdded.name}` } : null;
+    }
+
+    const old0 = oldArr[0] || {};
+    const new0 = newArr[0] || {};
+    if (!new0.is_paper_v2_format || !old0.is_paper_v2_format) return null;
+
+    const oldCustom = old0.customServices || [];
+    const newCustom = new0.customServices || [];
+    if (newCustom.length > oldCustom.length) {
+        const newlyAdded = newCustom[newCustom.length - 1];
+        return newlyAdded?.label ? { kind: 'detail', message: `إضافة عنصر: ${newlyAdded.label}` } : null;
+    }
+
+    const oldS = old0.services || {};
+    const newS = new0.services || {};
+    for (const key of Object.keys(newS)) {
+        if (newS[key]?.status === 'تغيير' && oldS[key]?.status !== 'تغيير') {
+            return { kind: 'detail', message: `تحديد تغيير: ${SVC_NAMES[key] || key}` };
+        }
+    }
+    return null;
+}
 
 interface NotificationContextType {
     notifications: NotificationItem[];
@@ -97,12 +141,89 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
         setNotifications([]);
     };
 
+    // Last known state per work order, so an event can be compared against something
+    // without the database shipping the previous row to every client.
+    const snapshotsRef = useRef<Map<string, OrderSnapshot>>(new Map());
+    // Orders whose payload we are already fetching, so a burst of edits on one order
+    // cannot turn into a burst of queries.
+    const inFlightRef = useRef<Set<string>>(new Set());
+
+    // Seed the snapshots once per session with the newest orders (three slim columns),
+    // so the very first event after a page load can still be interpreted.
+    useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+        (async () => {
+            const { data } = await supabase
+                .from('inspection_reports')
+                .select('id, status, bay_number')
+                .order('created_at', { ascending: false })
+                .limit(500);
+            if (cancelled || !data) return;
+            data.forEach((r: any) => {
+                if (!snapshotsRef.current.has(r.id)) {
+                    snapshotsRef.current.set(r.id, { status: r.status, bay: r.bay_number });
+                }
+            });
+        })();
+        return () => { cancelled = true; };
+    }, [user]);
+
+    // An edit that touched neither the status nor the bay happened inside the services
+    // payload. Fetch that ONE row and diff it, rather than having every update replicate
+    // the full payload to every connected client.
+    const inspectServiceChange = async (id: string, reportNumber: number) => {
+        if (inFlightRef.current.has(id)) return;
+        inFlightRef.current.add(id);
+        try {
+            const { data } = await supabase
+                .from('inspection_reports')
+                .select('selected_services')
+                .eq('id', id)
+                .single();
+            const newServices = data?.selected_services;
+            const snap = snapshotsRef.current.get(id);
+            const oldServices = snap?.services;
+            if (snap) snapshotsRef.current.set(id, { ...snap, services: newServices });
+            // Nothing to compare against yet — this pass only records the baseline.
+            if (!oldServices || !newServices) return;
+
+            const change = describeServiceChange(oldServices, newServices);
+            if (!change) return;
+
+            playNotificationSound();
+            if (change.kind === 'tech') {
+                const title = `تغيير الفني المسؤول 🔧`;
+                const text = `تم تعيين فني جديد لأمر العمل #${reportNumber}`;
+                addNotification({ title, text, icon: 'User', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
+                Swal.fire({
+                    title, text,
+                    icon: 'info',
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
+                });
+            } else {
+                const title = `تعديل داخلي 🛠️`;
+                const text = `في أمر #${reportNumber} - ${change.message}`;
+                addNotification({ title, text, icon: 'Wrench', color: 'text-rose-500', bg: 'bg-rose-500/10' });
+                Swal.fire({
+                    title, text,
+                    icon: 'info',
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#f43f5e'
+                });
+            }
+        } catch {
+            // A failed lookup only costs one toast — never surface it.
+        } finally {
+            inFlightRef.current.delete(id);
+        }
+    };
+
     useEffect(() => {
         if (!user) return; // Only listen if authenticated
 
         const channel = supabase.channel('global_notifications')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inspection_reports' }, (payload) => {
-                
+
                 const newRecord = payload.new as any;
                 const oldRecord = payload.old as any;
 
@@ -115,6 +236,7 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
 
                 // 1. New Work Order Created
                 if (payload.eventType === 'INSERT') {
+                    snapshotsRef.current.set(newRecord.id, { status: newRecord.status, bay: newRecord.bay_number });
                     if (newRecord.status === 'تم الاستلام') {
                         playNotificationSound();
                         const title = `أمر عمل جديد!`;
@@ -137,15 +259,29 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
 
                 // 2. Status Updates
                 if (payload.eventType === 'UPDATE') {
-                    if (oldRecord) {
+                    const id = newRecord?.id;
+                    if (!id) return;
+                    // The previous state comes from our own snapshot. The replicated old
+                    // row is still honoured when present, so this keeps working either way.
+                    const prev: OrderSnapshot | undefined = snapshotsRef.current.get(id)
+                        || (oldRecord && oldRecord.status !== undefined
+                            ? { status: oldRecord.status, bay: oldRecord.bay_number, services: oldRecord.selected_services }
+                            : undefined);
+                    snapshotsRef.current.set(id, {
+                        status: newRecord.status,
+                        bay: newRecord.bay_number,
+                        services: prev?.services,
+                    });
+
+                    if (prev) {
                         let didAlert = false;
-                        
+
                         // Status Changed
-                        if (oldRecord.status !== undefined && newRecord.status !== oldRecord.status) {
+                        if (prev.status !== undefined && newRecord.status !== prev.status) {
                             playNotificationSound();
                             didAlert = true;
-                            
-                            if (oldRecord.status === 'تم الانتهاء' && newRecord.status === 'قيد العمل') {
+
+                            if (prev.status === 'تم الانتهاء' && newRecord.status === 'قيد العمل') {
                                 const title = `تمت إعادة فتح أمر العمل ⏳`;
                                 const text = `تمت إعادة المركبة #${newRecord.report_number} إلى وضع قيد العمل`;
                                 addNotification({ title, text, icon: 'RefreshCcw', color: 'text-amber-500', bg: 'bg-amber-500/10' });
@@ -177,7 +313,7 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
 
                         // Key Details Changed (only if status didn't just change, to avoid spam)
                         if (!didAlert) {
-                            if (newRecord.bay_number !== oldRecord.bay_number) {
+                            if (newRecord.bay_number !== prev.bay) {
                                 playNotificationSound();
                                 const title = `تحديث الخانة 🚗`;
                                 const text = `تم نقل أمر العمل #${newRecord.report_number} إلى ${newRecord.bay_number || 'غير محدد'}`;
@@ -187,75 +323,9 @@ export default function GlobalRealtimeProvider({ children }: { children: React.R
                                     icon: 'info', toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
                                 });
                             } else {
-                                const oldTech = Array.isArray(oldRecord.selected_services) ? oldRecord.selected_services[0]?.technicianName : undefined;
-                                const newTech = Array.isArray(newRecord.selected_services) ? newRecord.selected_services[0]?.technicianName : undefined;
-                                if (oldTech !== undefined && newTech && newTech !== oldTech) {
-                                    playNotificationSound();
-                                    const title = `تغيير الفني المسؤول 🔧`;
-                                    const text = `تم تعيين فني جديد لأمر العمل #${newRecord.report_number}`;
-                                    addNotification({ title, text, icon: 'User', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
-                                    Swal.fire({
-                                        title, text,
-                                        icon: 'info',
-                                        toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#0f172a', color: '#8b5cf6'
-                                    });
-                                }
-                                
-                                // Detailed Service changes
-                                if (!didAlert && oldRecord.selected_services && newRecord.selected_services) {
-                                    const oldArr = Array.isArray(oldRecord.selected_services) ? oldRecord.selected_services : [oldRecord.selected_services];
-                                    const newArr = Array.isArray(newRecord.selected_services) ? newRecord.selected_services : [newRecord.selected_services];
-                                    
-                                    let addedMessage = "";
-
-                                    // Check if a dynamic service was added
-                                    if (newArr.length > oldArr.length) {
-                                        const newlyAdded = newArr[newArr.length - 1];
-                                        if (newlyAdded && newlyAdded.name) {
-                                            addedMessage = `إضافة: ${newlyAdded.name}`;
-                                        }
-                                    } else {
-                                        // Deep check for Paper v2 Format toggles
-                                        const old0 = oldArr[0] || {};
-                                        const new0 = newArr[0] || {};
-                                        if (new0.is_paper_v2_format && old0.is_paper_v2_format) {
-                                            
-                                            // 1. Custom Services Length
-                                            const oldCustom = old0.customServices || [];
-                                            const newCustom = new0.customServices || [];
-                                            if (newCustom.length > oldCustom.length) {
-                                                const newlyAdded = newCustom[newCustom.length - 1];
-                                                if (newlyAdded && newlyAdded.label) {
-                                                    addedMessage = `إضافة عنصر: ${newlyAdded.label}`;
-                                                }
-                                            } 
-                                            // 2. Services toggled to "تغيير"
-                                            else {
-                                                const oldS = old0.services || {};
-                                                const newS = new0.services || {};
-                                                for (const key of Object.keys(newS)) {
-                                                    if (newS[key]?.status === 'تغيير' && oldS[key]?.status !== 'تغيير') {
-                                                        const arabicName = SVC_NAMES[key] || key;
-                                                        addedMessage = `تحديد تغيير: ${arabicName}`;
-                                                        break; // Just show one for the toast
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (addedMessage) {
-                                        playNotificationSound();
-                                        const title = `تعديل داخلي 🛠️`;
-                                        const text = `في أمر #${newRecord.report_number} - ${addedMessage}`;
-                                        addNotification({ title, text, icon: 'Wrench', color: 'text-rose-500', bg: 'bg-rose-500/10' });
-                                        Swal.fire({
-                                            title, text,
-                                            icon: 'info',
-                                            toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#0f172a', color: '#f43f5e'
-                                        });
-                                    }
-                                }
+                                // Neither status nor bay moved, so the edit is inside the
+                                // services payload — go read that one row and diff it.
+                                void inspectServiceChange(id, newRecord.report_number);
                             }
                         }
                     }
