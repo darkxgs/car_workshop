@@ -213,27 +213,6 @@ end; $$;
 revoke all on function public.exec_sql(text) from public, anon, authenticated;
 grant execute on function public.exec_sql(text) to service_role;
 
--- assistant_query: read-only SELECT executor for the AI assistant (service_role only).
-create or replace function public.assistant_query(query_text text)
-returns json language plpgsql security definer set search_path = public as $$
-declare result json;
-begin
-  if query_text !~* '^\s*(select|with)\s' then
-    raise exception 'Only read-only SELECT/WITH queries are allowed.';
-  end if;
-  if query_text ~* '\m(insert|update|delete|drop|alter|truncate|grant|revoke|create|comment|merge|vacuum|refresh|call|copy|reindex|cluster|attach|detach)\M' then
-    raise exception 'Only read-only queries are allowed.';
-  end if;
-  set local statement_timeout = '10s';
-  execute format(
-    'select coalesce(json_agg(t), ''[]''::json) from (select * from (%s) sub limit 1000) t',
-    query_text
-  ) into result;
-  return result;
-end; $$;
-revoke all on function public.assistant_query(text) from public, anon, authenticated;
-grant execute on function public.assistant_query(text) to service_role;
-
 -- Row-Level Security: enable + authenticated-only policy on every app table (anon denied).
 do $$
 declare t text; p record;

@@ -34,8 +34,7 @@ notifications — plus strictly-formatted A4 inspection reports for printing.
 - A Supabase project (PostgreSQL database + Auth enabled)
 
 ### 2. Environment variables
-Create a `.env` file in the project root. The required keys are listed in
-[`env-setup.txt`](./env-setup.txt):
+Create a `.env` file in the project root with these keys:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
@@ -143,6 +142,3 @@ Tracked here so it isn't rediscovered each time:
 - **A few `react-hooks/set-state-in-effect` warnings** in providers that initialise
   from `localStorage` (theme/language/currency). Behaviour-sensitive — change with
   care to avoid hydration regressions.
-- **Root-level utility scripts** (`migrate*.js`, `copy_parts.mjs`, `check-orders.mjs`)
-  are one-off maintenance scripts; consider moving them into a `scripts/` folder and
-  excluding them from the app's lint/typecheck scope.
